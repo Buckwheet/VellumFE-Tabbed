@@ -13,6 +13,7 @@ pub enum SessionCmd {
     New,
     Close,
     ToggleCompact,
+    Broadcast,
 }
 
 impl SessionCmd {
@@ -24,6 +25,7 @@ impl SessionCmd {
             "new" => Some(Self::New),
             "close" => Some(Self::Close),
             "compact" => Some(Self::ToggleCompact),
+            "broadcast" => Some(Self::Broadcast),
             s if s.starts_with("switch:") => {
                 let idx: usize = s.strip_prefix("switch:")?.parse().ok()?;
                 Some(Self::SwitchToIndex(idx))

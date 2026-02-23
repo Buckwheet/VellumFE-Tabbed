@@ -96,6 +96,27 @@ impl SessionManager {
         &self.sessions
     }
 
+    pub fn all_mut(&mut self) -> &mut [Session] {
+        &mut self.sessions
+    }
+
+    /// Send a command to all connected sessions.
+    pub fn broadcast(&self, cmd: &str) {
+        for session in &self.sessions {
+            session.send_command(cmd.to_string());
+        }
+    }
+
+    /// Send a command to all connected sessions except the active one.
+    pub fn broadcast_others(&self, cmd: &str) {
+        let active_id = self.active_id;
+        for session in &self.sessions {
+            if Some(session.id) != active_id {
+                session.send_command(cmd.to_string());
+            }
+        }
+    }
+
     pub fn count(&self) -> usize {
         self.sessions.len()
     }

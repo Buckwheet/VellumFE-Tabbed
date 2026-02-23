@@ -52,6 +52,10 @@ pub struct Session {
     pub unread_count: usize,
     /// Channel to send commands to the game server
     pub command_tx: Option<mpsc::UnboundedSender<String>>,
+    /// Whether sound alerts are enabled for this session
+    pub sound_enabled: bool,
+    /// Whether TTS is enabled for this session
+    pub tts_enabled: bool,
 }
 
 impl Session {
@@ -63,6 +67,8 @@ impl Session {
             status: SessionStatus::Disconnected,
             unread_count: 0,
             command_tx: None,
+            sound_enabled: true,
+            tts_enabled: true,
         }
     }
 

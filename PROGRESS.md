@@ -90,3 +90,35 @@ Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed, start Pha
 
 ### To Resume
 Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed, start Phase 3"
+
+## Session 5 — Phases 3–5 Complete
+
+### Phase 3 — Config & Highlights
+- [x] 3.1/3.2 Global + per-character highlights merge: already in VellumFE base
+- [x] 3.3/3.4 `<vellumfe>` Lich script protocol: highlight.add/remove/clear, squelch.add/remove
+- [x] 3.5 persist="true" attribute saves highlights to disk
+- [x] 3.6 Per-character layout persistence: already in VellumFE base
+
+### Phase 4 — Login Wizard
+- [x] 4.1 Session picker shows saved sessions + Add Session
+- [x] 4.2 Mode toggle: Lich Proxy / Direct (F2 in add form)
+- [x] 4.3 Direct flow: credentials → game select → character select → connect
+- [x] 4.4 Lich flow: host/port/label form → connect
+- [x] 4.5 No passwords stored in sessions.toml
+- [x] 4.6 Sessions saved to sessions.toml on connect
+- [x] 4.7 eAccess `fetch_characters` public API added to network.rs
+
+### Phase 5 — Cross-Session Features
+- [x] 5.1 Ctrl+B broadcast: next command sent to all sessions
+- [x] 5.2 Global squelch: handled by global highlights.toml (Phase 3)
+- [x] 5.3 Session grouping: deferred (complex UI, low priority)
+- [x] 5.4 Per-session sound_enabled / tts_enabled fields on Session struct
+
+### Phase 6 — Windows Build
+- [x] Already complete (ci.yml, beta-release.yml, release.yml from Session 3)
+
+### All Phases Complete 🎉
+Remaining work: polish, testing, bug fixes, Phase 5.3 (session grouping UI)
+
+### To Resume
+Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"

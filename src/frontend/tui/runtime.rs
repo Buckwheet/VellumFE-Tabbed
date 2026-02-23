@@ -227,6 +227,8 @@ async fn async_run(
 
     // Track time for periodic countdown updates
     let mut last_countdown_update = std::time::Instant::now();
+    // When true, next game command is broadcast to all sessions (Ctrl+B)
+    let mut broadcast_next = false;
 
     // Main event loop
     while app_core.running {
@@ -292,13 +294,19 @@ async fn async_run(
                             SessionCmd::Next => session_manager.next(),
                             SessionCmd::Prev => session_manager.prev(),
                             SessionCmd::ToggleCompact => frontend.compact_tabs = !frontend.compact_tabs,
+                            SessionCmd::Broadcast => broadcast_next = true,
                             SessionCmd::New | SessionCmd::Close => {} // Phase 2
                         }
                         sync_tabs(&session_manager, &mut frontend);
                     }
                 } else {
                     app_core.perf_stats.record_bytes_sent((command.len() + 1) as u64);
-                    let _ = command_tx.send(command);
+                    if broadcast_next {
+                        session_manager.broadcast(&command);
+                        broadcast_next = false;
+                    } else {
+                        let _ = command_tx.send(command);
+                    }
                 }
             }
 
