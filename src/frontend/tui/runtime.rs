@@ -1,4 +1,6 @@
 use anyhow::Result;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use super::TuiFrontend;
@@ -7,7 +9,7 @@ use crate::session_manager::SessionManager;
 use crate::session::{ConnectionMode, SessionStatus};
 
 /// Spawn a Lich connection that auto-reconnects on disconnect/error.
-/// Retries every `retry_secs` seconds, up to `max_retries` times (0 = unlimited).
+/// `unread` is incremented for each text line received (used for badge on inactive sessions).
 fn spawn_lich_reconnect(
     host: String,
     port: u16,
@@ -16,28 +18,37 @@ fn spawn_lich_reconnect(
     command_rx: tokio::sync::mpsc::UnboundedReceiver<String>,
     raw_logger: Option<crate::network::RawLogger>,
     retry_secs: u64,
+    unread: Arc<AtomicUsize>,
+    is_active: Arc<AtomicUsize>, // 1 = active session, 0 = background
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        // command_rx can only be consumed once; wrap in Option so we can move it on first use
-        // and create a dummy channel for subsequent reconnects (commands go to the live session)
         let mut first_rx = Some(command_rx);
         let mut attempt = 0u32;
         loop {
             attempt += 1;
             let rx = first_rx.take().unwrap_or_else(|| {
-                // Subsequent reconnects: create a throwaway receiver; the real command_tx
-                // is held by the session and will be re-wired in a future Phase.
                 tokio::sync::mpsc::unbounded_channel::<String>().1
             });
+            // Wrap server_tx to intercept Text messages for unread counting
+            let (wrapped_tx, mut wrapped_rx) = tokio::sync::mpsc::unbounded_channel::<crate::network::ServerMessage>();
+            let unread_clone = unread.clone();
+            let is_active_clone = is_active.clone();
+            let real_tx = server_tx.clone();
+            tokio::spawn(async move {
+                while let Some(msg) = wrapped_rx.recv().await {
+                    if let crate::network::ServerMessage::Text(_) = &msg {
+                        if is_active_clone.load(Ordering::Relaxed) == 0 {
+                            unread_clone.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                    let _ = real_tx.send(msg);
+                }
+            });
             match crate::network::LichConnection::start(
-                &host, port, login_key.clone(), server_tx.clone(), rx, raw_logger.clone(),
+                &host, port, login_key.clone(), wrapped_tx, rx, raw_logger.clone(),
             ).await {
-                Ok(()) => {
-                    tracing::info!("Lich connection closed cleanly (attempt {})", attempt);
-                }
-                Err(e) => {
-                    tracing::warn!("Lich connection lost (attempt {}): {}", attempt, e);
-                }
+                Ok(()) => tracing::info!("Lich connection closed cleanly (attempt {})", attempt),
+                Err(e) => tracing::warn!("Lich connection lost (attempt {}): {}", attempt, e),
             }
             tracing::info!("Reconnecting to {}:{} in {}s...", host, port, retry_secs);
             tokio::time::sleep(std::time::Duration::from_secs(retry_secs)).await;
@@ -191,7 +202,10 @@ async fn async_run(
         None => {
             let host_clone = host.clone();
             let login_key_clone = login_key.clone();
-            spawn_lich_reconnect(host_clone, port, login_key_clone, server_tx, command_rx, raw_logger, 5)
+            // Placeholder atomics for the initial session — wired properly after session_manager is created
+            let dummy_unread = Arc::new(AtomicUsize::new(0));
+            let dummy_active = Arc::new(AtomicUsize::new(0)); // 0 = always active (initial session)
+            spawn_lich_reconnect(host_clone, port, login_key_clone, server_tx, command_rx, raw_logger, 5, dummy_unread, dummy_active)
         }
     };
 
@@ -334,6 +348,16 @@ async fn async_run(
                             SessionCmd::Prev => session_manager.prev(),
                             SessionCmd::ToggleCompact => frontend.compact_tabs = !frontend.compact_tabs,
                             SessionCmd::Broadcast => broadcast_next = true,
+                            SessionCmd::ToggleSound => {
+                                if let Some(s) = session_manager.active_mut() {
+                                    s.sound_enabled = !s.sound_enabled;
+                                }
+                            }
+                            SessionCmd::ToggleTts => {
+                                if let Some(s) = session_manager.active_mut() {
+                                    s.tts_enabled = !s.tts_enabled;
+                                }
+                            }
                             SessionCmd::New | SessionCmd::Close => {} // Phase 2
                         }
                         sync_tabs(&session_manager, &mut frontend);
@@ -427,6 +451,9 @@ async fn async_run(
         if last_countdown_update.elapsed().as_secs() >= 1 {
             app_core.needs_render = true;
             last_countdown_update = std::time::Instant::now();
+            // Sync unread badges from atomic counters (background sessions)
+            session_manager.sync_unread_all();
+            sync_tabs(&session_manager, &mut frontend);
         }
 
         // Sample system/process metrics (rate-limited internally)

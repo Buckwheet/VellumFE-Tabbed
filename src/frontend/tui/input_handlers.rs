@@ -148,6 +148,9 @@ impl super::TuiFrontend {
                 KeyCode::Tab => return Ok(Some(session_keys::SessionCmd::next().to_string())),
                 KeyCode::Right => return Ok(Some(session_keys::SessionCmd::next().to_string())),
                 KeyCode::Char('b') => return Ok(Some("//session:broadcast".to_string())),
+                KeyCode::Char('c') if modifiers.shift => return Ok(Some(session_keys::SessionCmd::compact().to_string())),
+                KeyCode::Char('s') if modifiers.shift => return Ok(Some(session_keys::SessionCmd::sound().to_string())),
+                KeyCode::Char('t') if modifiers.shift => return Ok(Some(session_keys::SessionCmd::tts().to_string())),
                 _ => {}
             }
         }

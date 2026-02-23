@@ -122,3 +122,45 @@ Remaining work: polish, testing, bug fixes, Phase 5.3 (session grouping UI)
 
 ### To Resume
 Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"
+
+## Session 6 — Credential Storage, Auto-Connect, Rich Tab Status
+
+### Completed
+- [x] `src/credentials.rs` — OS keychain credential storage via `keyring` crate (store/get/delete)
+- [x] Auto-connect on startup: sessions with `auto_connect = true` reconnect using keychain password
+- [x] Rich tab status symbols: ● connected, … connecting, ↻ reconnecting, ! error, ○ disconnected
+- [x] `tab_bar.rs` — `TabEntry.status: String` (was `is_connected: bool`); color per symbol
+- [x] `frontend_impl.rs` — updated tab_entries construction to use new tuple shape
+- [x] `lib.rs` — `pub mod credentials` added
+- [x] `README.md` — full install instructions, keyboard shortcuts, Lich protocol docs, config paths
+- [x] `PROJECT_PLAN.md` — open questions answered (auto-connect policy, 10k line buffer limit)
+- [x] Commit: `5bae936`
+
+### To Resume
+Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"
+
+## Session 7 — Unread Badges, Sound/TTS Toggle
+
+### Completed
+- [x] `src/session/mod.rs` — `unread: Arc<AtomicUsize>` + `active_session_id: Arc<AtomicUsize>` added to Session; `sync_unread()` method
+- [x] `src/session_manager.rs` — `active_session_id: Arc<AtomicUsize>` shared across all sessions; `sync_unread_all()` method; `set_active()` updates the shared atomic
+- [x] `spawn_lich_reconnect` — intercepts `ServerMessage::Text` and increments `unread` atomic when session is not active (lock-free, no main loop involvement)
+- [x] Main loop — calls `session_manager.sync_unread_all()` + `sync_tabs()` every second so badges update
+- [x] `session_keys.rs` — `ToggleSound` and `ToggleTts` variants added; `sound()` and `tts()` string helpers
+- [x] `input_handlers.rs` — Ctrl+Shift+S → toggle sound, Ctrl+Shift+T → toggle TTS, Ctrl+Shift+C → toggle compact
+- [x] `runtime.rs` — `ToggleSound`/`ToggleTts` arms toggle `session.sound_enabled`/`tts_enabled` on active session
+
+### Keyboard Shortcuts Added
+| Key | Action |
+|-----|--------|
+| Ctrl+Shift+C | Toggle compact tab bar |
+| Ctrl+Shift+S | Toggle sound for active session |
+| Ctrl+Shift+T | Toggle TTS for active session |
+
+### Remaining / Future Work
+- [ ] Phase 5.3 — Session grouping UI (deferred, complex, low priority)
+- [ ] Sound/TTS state reflected in tab bar (e.g. 🔇 icon when muted)
+- [ ] Per-session AppCore (true isolation of parser/game state per session — large refactor)
+
+### To Resume
+Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"

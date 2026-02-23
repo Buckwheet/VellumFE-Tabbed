@@ -1,11 +1,16 @@
 //! Manages all active sessions and tracks which one is currently focused.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::session::{Session, SessionId, ConnectionMode};
 
 pub struct SessionManager {
     sessions: Vec<Session>,
     active_id: Option<SessionId>,
     next_id: SessionId,
+    /// Shared atomic storing the currently active session ID.
+    /// Cloned into each Session so network tasks can check without locking.
+    pub active_session_id: Arc<AtomicUsize>,
 }
 
 impl SessionManager {
@@ -14,6 +19,7 @@ impl SessionManager {
             sessions: Vec::new(),
             active_id: None,
             next_id: 0,
+            active_session_id: Arc::new(AtomicUsize::new(usize::MAX)),
         }
     }
 
@@ -21,9 +27,13 @@ impl SessionManager {
     pub fn add(&mut self, label: String, mode: ConnectionMode) -> SessionId {
         let id = self.next_id;
         self.next_id += 1;
-        self.sessions.push(Session::new(id, label, mode));
+        let mut session = Session::new(id, label, mode);
+        // Share the manager-level active_session_id so network tasks can check it
+        session.active_session_id = self.active_session_id.clone();
+        self.sessions.push(session);
         if self.active_id.is_none() {
             self.active_id = Some(id);
+            self.active_session_id.store(id, Ordering::Relaxed);
         }
         id
     }
@@ -51,6 +61,7 @@ impl SessionManager {
     pub fn set_active(&mut self, id: SessionId) {
         if self.sessions.iter().any(|s| s.id == id) {
             self.active_id = Some(id);
+            self.active_session_id.store(id, Ordering::Relaxed);
             if let Some(s) = self.get_mut(id) {
                 s.clear_unread();
             }
@@ -98,6 +109,17 @@ impl SessionManager {
 
     pub fn all_mut(&mut self) -> &mut [Session] {
         &mut self.sessions
+    }
+
+    /// Sync atomic unread counters into unread_count for all sessions.
+    /// Call this from the main loop each tick for inactive sessions.
+    pub fn sync_unread_all(&mut self) {
+        let active_id = self.active_id;
+        for s in &mut self.sessions {
+            if Some(s.id) != active_id {
+                s.sync_unread();
+            }
+        }
     }
 
     /// Send a command to all connected sessions.

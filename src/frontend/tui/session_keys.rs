@@ -14,6 +14,8 @@ pub enum SessionCmd {
     Close,
     ToggleCompact,
     Broadcast,
+    ToggleSound,
+    ToggleTts,
 }
 
 impl SessionCmd {
@@ -26,6 +28,8 @@ impl SessionCmd {
             "close" => Some(Self::Close),
             "compact" => Some(Self::ToggleCompact),
             "broadcast" => Some(Self::Broadcast),
+            "sound" => Some(Self::ToggleSound),
+            "tts" => Some(Self::ToggleTts),
             s if s.starts_with("switch:") => {
                 let idx: usize = s.strip_prefix("switch:")?.parse().ok()?;
                 Some(Self::SwitchToIndex(idx))
@@ -40,4 +44,6 @@ impl SessionCmd {
     pub fn new_session() -> &'static str { "//session:new" }
     pub fn close() -> &'static str { "//session:close" }
     pub fn compact() -> &'static str { "//session:compact" }
+    pub fn sound() -> &'static str { "//session:sound" }
+    pub fn tts() -> &'static str { "//session:tts" }
 }
