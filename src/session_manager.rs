@@ -1,0 +1,117 @@
+//! Manages all active sessions and tracks which one is currently focused.
+
+use crate::session::{Session, SessionId, ConnectionMode};
+
+pub struct SessionManager {
+    sessions: Vec<Session>,
+    active_id: Option<SessionId>,
+    next_id: SessionId,
+}
+
+impl SessionManager {
+    pub fn new() -> Self {
+        Self {
+            sessions: Vec::new(),
+            active_id: None,
+            next_id: 0,
+        }
+    }
+
+    /// Add a new session and return its ID.
+    pub fn add(&mut self, label: String, mode: ConnectionMode) -> SessionId {
+        let id = self.next_id;
+        self.next_id += 1;
+        self.sessions.push(Session::new(id, label, mode));
+        if self.active_id.is_none() {
+            self.active_id = Some(id);
+        }
+        id
+    }
+
+    /// Remove a session by ID.
+    pub fn remove(&mut self, id: SessionId) {
+        self.sessions.retain(|s| s.id != id);
+        if self.active_id == Some(id) {
+            self.active_id = self.sessions.first().map(|s| s.id);
+        }
+    }
+
+    /// Get the currently active session.
+    pub fn active(&self) -> Option<&Session> {
+        self.active_id.and_then(|id| self.get(id))
+    }
+
+    /// Get the currently active session mutably.
+    pub fn active_mut(&mut self) -> Option<&mut Session> {
+        let id = self.active_id?;
+        self.get_mut(id)
+    }
+
+    /// Switch focus to a session by ID.
+    pub fn set_active(&mut self, id: SessionId) {
+        if self.sessions.iter().any(|s| s.id == id) {
+            self.active_id = Some(id);
+            if let Some(s) = self.get_mut(id) {
+                s.clear_unread();
+            }
+        }
+    }
+
+    /// Switch to session by 1-based index (for Ctrl+1..9).
+    pub fn set_active_by_index(&mut self, index: usize) {
+        if let Some(id) = self.sessions.get(index.saturating_sub(1)).map(|s| s.id) {
+            self.set_active(id);
+        }
+    }
+
+    /// Switch to next session.
+    pub fn next(&mut self) {
+        let len = self.sessions.len();
+        if len < 2 { return; }
+        if let Some(pos) = self.active_pos() {
+            let next_id = self.sessions[(pos + 1) % len].id;
+            self.set_active(next_id);
+        }
+    }
+
+    /// Switch to previous session.
+    pub fn prev(&mut self) {
+        let len = self.sessions.len();
+        if len < 2 { return; }
+        if let Some(pos) = self.active_pos() {
+            let prev_id = self.sessions[(pos + len - 1) % len].id;
+            self.set_active(prev_id);
+        }
+    }
+
+    pub fn get(&self, id: SessionId) -> Option<&Session> {
+        self.sessions.iter().find(|s| s.id == id)
+    }
+
+    pub fn get_mut(&mut self, id: SessionId) -> Option<&mut Session> {
+        self.sessions.iter_mut().find(|s| s.id == id)
+    }
+
+    pub fn all(&self) -> &[Session] {
+        &self.sessions
+    }
+
+    pub fn count(&self) -> usize {
+        self.sessions.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.sessions.is_empty()
+    }
+
+    fn active_pos(&self) -> Option<usize> {
+        let id = self.active_id?;
+        self.sessions.iter().position(|s| s.id == id)
+    }
+}
+
+impl Default for SessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
