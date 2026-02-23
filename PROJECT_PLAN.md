@@ -181,14 +181,67 @@ total vs ~4.5GB+ for Electron-based alternatives.
 - [ ] 3.5 Import/export highlights (share between characters)
 - [ ] 3.6 Per-character layout persistence (save widget positions per character)
 
-### Phase 4 — Login & Connection
-**Goal**: Both Lich proxy and direct eAccess login work seamlessly.
+### Phase 4 — Login Wizard (no command line required)
+**Goal**: Fully guided TUI login wizard. Users never need to touch the command line.
 
-- [ ] 4.1 Session picker shows login method choice (Lich / Direct)
-- [ ] 4.2 Direct eAccess: account + password + character + game selection
-- [ ] 4.3 Lich proxy: host + port (existing VellumFE behavior)
-- [ ] 4.4 Credential storage (OS keychain or encrypted local file)
-- [ ] 4.5 Connection status indicator per session tab
+Inspired by Warlock's SGE wizard flow: account → game → character, all navigable
+with arrow keys and Enter. No flags, no config file editing to get started.
+
+#### Login Wizard Flow (Direct eAccess)
+```
+┌─ Add Session ─────────────────────────────────────────┐
+│                                                        │
+│  Login Method:                                         │
+│  > [Direct (eAccess)]  [ Lich Proxy ]                 │
+│                                                        │
+│  Account:    [________________]                        │
+│  Password:   [****************]                        │
+│                                                        │
+│  [ Connect → ]                          [ Cancel ]    │
+└────────────────────────────────────────────────────────┘
+         ↓ (authenticates, fetches game list)
+┌─ Select Game ─────────────────────────────────────────┐
+│  > GemStone IV (Prime)                                 │
+│    GemStone IV (Platinum)                              │
+│    GemStone IV (Shattered)                             │
+│                                    [ ← Back ]         │
+└────────────────────────────────────────────────────────┘
+         ↓ (fetches character list)
+┌─ Select Character ────────────────────────────────────┐
+│  > Buckwheet                                           │
+│    Altchar                                             │
+│    Mule                                                │
+│                                    [ ← Back ]         │
+└────────────────────────────────────────────────────────┘
+         ↓ (connects, saves session to sessions.toml)
+┌─[Buckwheet]──────────────────────────────────────────┐
+│  [Game view]                                          │
+└───────────────────────────────────────────────────────┘
+```
+
+#### Login Wizard Flow (Lich Proxy)
+```
+┌─ Add Session ─────────────────────────────────────────┐
+│  Login Method:                                         │
+│  [ Direct (eAccess) ]  > [Lich Proxy]                 │
+│                                                        │
+│  Host:   [localhost_______]                            │
+│  Port:   [8000____________]                            │
+│  Label:  [Buckwheet_______]  (display name for tab)   │
+│                                                        │
+│  [ Connect → ]                          [ Cancel ]    │
+└────────────────────────────────────────────────────────┘
+```
+
+#### Implementation Tasks
+- [ ] 4.1 Launch screen: show saved sessions + "Add Session" button (shown on first run or when no sessions exist)
+- [ ] 4.2 Login method selector (Direct / Lich)
+- [ ] 4.3 Direct flow: credentials form → SGE auth → game list → character list → connect
+- [ ] 4.4 Lich flow: host/port/label form → connect
+- [ ] 4.5 Credential storage: save account credentials encrypted to disk (reuse on next launch)
+- [ ] 4.6 Saved sessions: remember all sessions in `sessions.toml`, auto-offer reconnect on startup
+- [ ] 4.7 Connection status indicator per tab (connecting / connected / disconnected / error)
+- [ ] 4.8 Error screen with back navigation (mirrors Warlock's SgeErrorView)
 
 ### Phase 5 — Cross-Session Features
 **Goal**: Power user features for multi-boxing.
