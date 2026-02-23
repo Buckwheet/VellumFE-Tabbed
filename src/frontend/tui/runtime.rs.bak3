@@ -6,45 +6,6 @@ use crate::frontend::Frontend;
 use crate::session_manager::SessionManager;
 use crate::session::{ConnectionMode, SessionStatus};
 
-/// Spawn a Lich connection that auto-reconnects on disconnect/error.
-/// Retries every `retry_secs` seconds, up to `max_retries` times (0 = unlimited).
-fn spawn_lich_reconnect(
-    host: String,
-    port: u16,
-    login_key: Option<String>,
-    server_tx: tokio::sync::mpsc::UnboundedSender<crate::network::ServerMessage>,
-    command_rx: tokio::sync::mpsc::UnboundedReceiver<String>,
-    raw_logger: Option<crate::network::RawLogger>,
-    retry_secs: u64,
-) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        // command_rx can only be consumed once; wrap in Option so we can move it on first use
-        // and create a dummy channel for subsequent reconnects (commands go to the live session)
-        let mut first_rx = Some(command_rx);
-        let mut attempt = 0u32;
-        loop {
-            attempt += 1;
-            let rx = first_rx.take().unwrap_or_else(|| {
-                // Subsequent reconnects: create a throwaway receiver; the real command_tx
-                // is held by the session and will be re-wired in a future Phase.
-                tokio::sync::mpsc::unbounded_channel::<String>().1
-            });
-            match crate::network::LichConnection::start(
-                &host, port, login_key.clone(), server_tx.clone(), rx, raw_logger.clone(),
-            ).await {
-                Ok(()) => {
-                    tracing::info!("Lich connection closed cleanly (attempt {})", attempt);
-                }
-                Err(e) => {
-                    tracing::warn!("Lich connection lost (attempt {}): {}", attempt, e);
-                }
-            }
-            tracing::info!("Reconnecting to {}:{} in {}s...", host, port, retry_secs);
-            tokio::time::sleep(std::time::Duration::from_secs(retry_secs)).await;
-        }
-    })
-}
-
 /// Run the TUI frontend with the given configuration.
 /// This is the main entry point for TUI mode.
 pub fn run(
@@ -181,8 +142,8 @@ async fn async_run(
         }
     }
 
-    // Spawn network connection task (with auto-reconnect for Lich)
-    let _network_handle = match direct {
+    // Spawn network connection task
+    let network_handle = match direct {
         Some(cfg) => tokio::spawn(async move {
             if let Err(e) = DirectConnection::start(cfg, server_tx, command_rx, raw_logger).await {
                 tracing::error!(error = ?e, "Network connection error");
@@ -191,7 +152,13 @@ async fn async_run(
         None => {
             let host_clone = host.clone();
             let login_key_clone = login_key.clone();
-            spawn_lich_reconnect(host_clone, port, login_key_clone, server_tx, command_rx, raw_logger, 5)
+            tokio::spawn(async move {
+                if let Err(e) =
+                    LichConnection::start(&host_clone, port, login_key_clone, server_tx, command_rx, raw_logger).await
+                {
+                    tracing::error!(error = ?e, "Network connection error");
+                }
+            })
         }
     };
 
@@ -427,6 +394,10 @@ async fn async_run(
 
     // Cleanup
     frontend.cleanup()?;
+
+    // Wait for network task to finish (or abort it)
+    network_handle.abort();
+    let _ = network_handle.await;
 
     Ok(())
 }
