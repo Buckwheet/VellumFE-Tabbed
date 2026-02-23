@@ -164,3 +164,24 @@ Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"
 
 ### To Resume
 Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"
+
+## Session 8 — Per-Session Network Tasks, Sound Mute Indicator
+
+### Completed
+- [x] `session/mod.rs` — `server_tx/server_rx` per session; `ConnectionMode::LichProxy` gains `login_key` field
+- [x] `runtime.rs` — `spawn_session_network()` helper spawns Lich/Direct task using session's own channels
+- [x] `runtime.rs` — `session_rxs: HashMap<SessionId, Receiver>` replaces single global `server_rx`; main loop polls active session's receiver
+- [x] `runtime.rs` — picker/wizard handlers now call `spawn_session_network` so new sessions actually connect
+- [x] `runtime.rs` — auto-connect sessions on startup spawn their own network tasks
+- [x] `runtime.rs` — initial session uses its own `server_tx`; `login_key` preserved in `ConnectionMode`
+- [x] `tab_bar.rs` — 🔇 shown in tab when `sound_enabled = false`
+- [x] `session_labels` extended to 5-tuple: `(label, is_active, status, unread, sound_enabled)`
+- [x] Commit: `9ec4101`
+
+### Remaining / Future Work
+- [ ] Per-session AppCore (true isolation of parser/game state — large refactor)
+- [ ] Phase 5.3 — Session grouping UI (deferred)
+- [ ] TTS state in tab bar
+
+### To Resume
+Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"
