@@ -121,10 +121,9 @@ impl super::TuiFrontend {
     ) -> Result<Option<String>> {
         use crate::frontend::KeyCode;
         use crate::data::window::WidgetType;
-        use super::session_keys;
 
         // Session switching shortcuts - handle before other keys
-        if modifiers == crate::frontend::KeyModifiers::CTRL {
+        if modifiers.contains(crate::frontend::KeyModifiers::CTRL) {
             match code {
                 KeyCode::Char('1') => return Ok(Some(session_keys::SessionCmd::switch(1))),
                 KeyCode::Char('2') => return Ok(Some(session_keys::SessionCmd::switch(2))),
@@ -140,8 +139,8 @@ impl super::TuiFrontend {
                 _ => {}
             }
         }
-
-        if modifiers == crate::frontend::KeyModifiers::SHIFT {
+        
+        if modifiers.contains(crate::frontend::KeyModifiers::CTRL | crate::frontend::KeyModifiers::SHIFT) {
             match code {
                 KeyCode::BackTab => return Ok(Some(session_keys::SessionCmd::prev().to_string())),
                 KeyCode::Left => return Ok(Some(session_keys::SessionCmd::prev().to_string())),

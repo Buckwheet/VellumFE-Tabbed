@@ -5,7 +5,6 @@ use super::TuiFrontend;
 use crate::frontend::Frontend;
 use crate::session_manager::SessionManager;
 use crate::session::{ConnectionMode, SessionStatus};
-use crate::frontend::tui::session_keys::SessionCmd;
 
 /// Run the TUI frontend with the given configuration.
 /// This is the main entry point for TUI mode.
@@ -167,11 +166,7 @@ async fn async_run(
     let mut session_manager = SessionManager::new();
 
     // Seed with the initial session derived from CLI args
-    let initial_mode = if direct.is_some() {
-        ConnectionMode::LichProxy { host: host.clone(), port }
-    } else {
-        ConnectionMode::LichProxy { host: host.clone(), port }
-    };
+    let initial_mode = ConnectionMode::LichProxy { host: host.clone(), port };
     let initial_label = character.clone().unwrap_or_else(|| format!("{}:{}", host, port));
     let initial_id = session_manager.add(initial_label, initial_mode);
     if let Some(s) = session_manager.get_mut(initial_id) {
@@ -233,6 +228,7 @@ async fn async_run(
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
                 // Intercept session commands before sending to game server
                 if crate::frontend::tui::session_keys::is_session_cmd(&command) {
+                    use crate::frontend::tui::session_keys::SessionCmd;
                     if let Some(cmd) = SessionCmd::parse(&command) {
                         match cmd {
                             SessionCmd::SwitchToIndex(i) => session_manager.set_active_by_index(i),

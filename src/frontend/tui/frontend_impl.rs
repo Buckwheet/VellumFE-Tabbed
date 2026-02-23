@@ -172,15 +172,15 @@ impl Frontend for TuiFrontend {
             let tab_entries: Vec<TabEntry> = self.session_labels
                 .iter()
                 .map(|(label, is_active, is_connected, unread)| TabEntry {
-                    label: label.clone(),
+                    label: label.as_str(),
                     is_active: *is_active,
                     is_connected: *is_connected,
-                    unread_count: *unread,
+                    unread: *unread,
                 })
                 .collect();
 
             // Render the tab bar
-            let tab_bar = TabBar::new(tab_entries, self.compact_tabs);
+            let tab_bar = TabBar::new(tab_entries).compact(self.compact_tabs);
             f.render_widget(tab_bar, tab_area);
 
             // Stable render order: sort by name, then move ephemeral windows and performance_overlay to end
