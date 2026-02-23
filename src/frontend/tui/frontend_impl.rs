@@ -171,11 +171,12 @@ impl Frontend for TuiFrontend {
             // Build tab entries from session_labels
             let tab_entries: Vec<TabEntry> = self.session_labels
                 .iter()
-                .map(|(label, is_active, status, unread)| TabEntry {
+                .map(|(label, is_active, status, unread, sound_enabled)| TabEntry {
                     label: label.as_str(),
                     is_active: *is_active,
                     status: status.as_str(),
                     unread: *unread,
+                    sound_enabled: *sound_enabled,
                 })
                 .collect();
 

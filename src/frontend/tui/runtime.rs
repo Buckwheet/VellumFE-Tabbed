@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
@@ -6,7 +7,7 @@ use std::time::Instant;
 use super::TuiFrontend;
 use crate::frontend::Frontend;
 use crate::session_manager::SessionManager;
-use crate::session::{ConnectionMode, SessionStatus};
+use crate::session::{ConnectionMode, SessionId, SessionStatus};
 
 /// Spawn a Lich connection that auto-reconnects on disconnect/error.
 /// `unread` is incremented for each text line received (used for badge on inactive sessions).
@@ -56,8 +57,40 @@ fn spawn_lich_reconnect(
     })
 }
 
+/// Spawn the network task for a session using its stored server_tx.
+/// Returns the command_tx so the caller can store it on the session.
+fn spawn_session_network(
+    session: &mut crate::session::Session,
+    raw_logger: Option<crate::network::RawLogger>,
+) -> Option<tokio::sync::mpsc::UnboundedSender<String>> {
+    let server_tx = session.server_tx.clone()?;
+    let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let unread = session.unread.clone();
+    let active_id = session.active_session_id.clone();
+    match &session.mode {
+        ConnectionMode::LichProxy { host, port, login_key } => {
+            spawn_lich_reconnect(host.clone(), *port, login_key.clone(), server_tx, command_rx, raw_logger, 5, unread, active_id);
+        }
+        ConnectionMode::Direct { account, password, character, game_code } => {
+            let cfg = crate::network::DirectConnectConfig {
+                account: account.clone(),
+                password: password.clone(),
+                character: character.clone(),
+                game_code: game_code.clone(),
+                data_dir: crate::config::Config::base_dir().unwrap_or_default(),
+            };
+            tokio::spawn(async move {
+                if let Err(e) = crate::network::DirectConnection::start(cfg, server_tx, command_rx, raw_logger).await {
+                    tracing::error!("Direct connection error: {}", e);
+                }
+            });
+        }
+    }
+    session.status = SessionStatus::Connecting;
+    Some(command_tx)
+}
+
 /// Run the TUI frontend with the given configuration.
-/// This is the main entry point for TUI mode.
 pub fn run(
     config: crate::config::Config,
     character: Option<String>,
@@ -79,12 +112,15 @@ async fn async_run(
     login_key: Option<String>,
 ) -> Result<()> {
     use crate::core::AppCore;
-    use crate::network::{DirectConnection, LichConnection, ServerMessage};
+    use crate::network::ServerMessage;
     use tokio::sync::mpsc;
 
-    // Create channels for network communication
-    let (server_tx, mut server_rx) = mpsc::unbounded_channel::<ServerMessage>();
-    let (command_tx, command_rx) = mpsc::unbounded_channel::<String>();
+    // Per-session server_rx map — keyed by SessionId
+    let mut session_rxs: HashMap<SessionId, mpsc::UnboundedReceiver<ServerMessage>> = HashMap::new();
+
+    // Shared command channel (all sessions share one command_tx for now; each session
+    // gets its own command_tx from spawn_session_network when it connects)
+    let (command_tx, _command_rx_unused) = mpsc::unbounded_channel::<String>();
 
     // Store connection info
     let host = config.connection.host.clone();
@@ -193,21 +229,9 @@ async fn async_run(
     }
 
     // Spawn network connection task (with auto-reconnect for Lich)
-    let _network_handle = match direct {
-        Some(cfg) => tokio::spawn(async move {
-            if let Err(e) = DirectConnection::start(cfg, server_tx, command_rx, raw_logger).await {
-                tracing::error!(error = ?e, "Network connection error");
-            }
-        }),
-        None => {
-            let host_clone = host.clone();
-            let login_key_clone = login_key.clone();
-            // Placeholder atomics for the initial session — wired properly after session_manager is created
-            let dummy_unread = Arc::new(AtomicUsize::new(0));
-            let dummy_active = Arc::new(AtomicUsize::new(0)); // 0 = always active (initial session)
-            spawn_lich_reconnect(host_clone, port, login_key_clone, server_tx, command_rx, raw_logger, 5, dummy_unread, dummy_active)
-        }
-    };
+    // The initial session's network task is spawned after session_manager is created below.
+    // We keep direct config for use after session_manager setup.
+    let _direct_cfg = direct;
 
     // Session manager — owns all sessions
     let mut session_manager = SessionManager::new();
@@ -220,10 +244,13 @@ async fn async_run(
         match &entry.mode {
             crate::sessions_config::SessionModeConfig::Lich => {
                 if let (Some(h), Some(p)) = (&entry.host, entry.port) {
-                    let mode = ConnectionMode::LichProxy { host: h.clone(), port: p };
+                    let mode = ConnectionMode::LichProxy { host: h.clone(), port: p, login_key: None };
                     let id = session_manager.add(entry.label.clone(), mode);
                     if let Some(s) = session_manager.get_mut(id) {
-                        s.command_tx = Some(command_tx.clone());
+                        if let Some(rx) = s.server_rx.take() { session_rxs.insert(id, rx); }
+                        if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                            s.command_tx = Some(tx);
+                        }
                     }
                 }
             }
@@ -240,7 +267,10 @@ async fn async_run(
                     };
                     let id = session_manager.add(entry.label.clone(), mode);
                     if let Some(s) = session_manager.get_mut(id) {
-                        s.command_tx = Some(command_tx.clone());
+                        if let Some(rx) = s.server_rx.take() { session_rxs.insert(id, rx); }
+                        if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                            s.command_tx = Some(tx);
+                        }
                     }
                 }
             }
@@ -248,12 +278,23 @@ async fn async_run(
     }
 
     // Seed with the initial session derived from CLI args
-    let initial_mode = ConnectionMode::LichProxy { host: host.clone(), port };
+    let initial_mode = if let Some(ref cfg) = _direct_cfg {
+        ConnectionMode::Direct {
+            account: cfg.account.clone(),
+            password: cfg.password.clone(),
+            character: cfg.character.clone(),
+            game_code: cfg.game_code.clone(),
+        }
+    } else {
+        ConnectionMode::LichProxy { host: host.clone(), port, login_key: login_key.clone() }
+    };
     let initial_label = character.clone().unwrap_or_else(|| format!("{}:{}", host, port));
     let initial_id = session_manager.add(initial_label.clone(), initial_mode);
     if let Some(s) = session_manager.get_mut(initial_id) {
-        s.status = SessionStatus::Connected;
-        s.command_tx = Some(command_tx.clone());
+        if let Some(rx) = s.server_rx.take() { session_rxs.insert(initial_id, rx); }
+        if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+            s.command_tx = Some(tx);
+        }
     }
 
     // If no sessions are saved yet, show the picker
@@ -273,7 +314,7 @@ async fn async_run(
                 SessionStatus::Error(_)     => "!".to_string(),
                 SessionStatus::Disconnected => "○".to_string(),
             };
-            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), sym, s.unread_count)
+            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), sym, s.unread_count, s.sound_enabled)
         }).collect();
     };
     sync_tabs(&session_manager, &mut frontend);
@@ -326,7 +367,7 @@ async fn async_run(
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
                 // Intercept wizard commands
                 if command.starts_with("//wizard:") {
-                    handle_wizard_command(&command, &mut frontend, &mut session_manager, &mut sessions_config, &command_tx);
+                    handle_wizard_command(&command, &mut frontend, &mut session_manager, &mut sessions_config, &command_tx, &mut session_rxs, raw_logger.clone());
                     sync_tabs(&session_manager, &mut frontend);
                 // Intercept picker commands
                 } else if command.starts_with("//picker:") {
@@ -336,6 +377,8 @@ async fn async_run(
                         &mut session_manager,
                         &mut sessions_config,
                         &command_tx,
+                        &mut session_rxs,
+                        raw_logger.clone(),
                     );
                     sync_tabs(&session_manager, &mut frontend);
                 // Intercept session commands before sending to game server
@@ -381,8 +424,11 @@ async fn async_run(
             app_core.process_pending_window_additions(term_width, term_height);
         }
 
-        // Poll for server messages (non-blocking)
-        while let Ok(msg) = server_rx.try_recv() {
+        // Poll for server messages (non-blocking) — use active session's receiver
+        let active_id = session_manager.active().map(|s| s.id);
+        if let Some(aid) = active_id {
+            if let Some(rx) = session_rxs.get_mut(&aid) {
+                while let Ok(msg) = rx.try_recv() {
             match msg {
                 ServerMessage::Text(line) => {
                     app_core
@@ -445,7 +491,9 @@ async fn async_run(
                     app_core.needs_render = true;
                 }
             }
-        }
+        } // while try_recv
+        } // if let Some(rx)
+        } // if let Some(aid)
 
         // Force render every second for countdown widgets
         if last_countdown_update.elapsed().as_secs() >= 1 {
@@ -549,6 +597,8 @@ fn handle_picker_command(
     session_manager: &mut SessionManager,
     sessions_config: &mut crate::sessions_config::SessionsConfig,
     command_tx: &tokio::sync::mpsc::UnboundedSender<String>,
+    session_rxs: &mut HashMap<SessionId, tokio::sync::mpsc::UnboundedReceiver<crate::network::ServerMessage>>,
+    raw_logger: Option<crate::network::RawLogger>,
 ) {
     use crate::frontend::tui::session_picker::PickerAction;
 
@@ -574,10 +624,16 @@ fn handle_picker_command(
                 let mode = crate::session::ConnectionMode::LichProxy {
                     host: entry.host.clone().unwrap_or_else(|| "localhost".to_string()),
                     port: entry.port.unwrap_or(8000),
+                    login_key: None,
                 };
                 let id = session_manager.add(entry.label.clone(), mode);
                 if let Some(s) = session_manager.get_mut(id) {
-                    s.command_tx = Some(command_tx.clone());
+                    if let Some(rx) = s.server_rx.take() { session_rxs.insert(id, rx); }
+                    if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                        s.command_tx = Some(tx);
+                    } else {
+                        s.command_tx = Some(command_tx.clone());
+                    }
                 }
                 // Persist
                 sessions_config.add(entry);
@@ -625,6 +681,8 @@ fn handle_wizard_command(
     session_manager: &mut SessionManager,
     sessions_config: &mut crate::sessions_config::SessionsConfig,
     command_tx: &tokio::sync::mpsc::UnboundedSender<String>,
+    session_rxs: &mut HashMap<SessionId, tokio::sync::mpsc::UnboundedReceiver<crate::network::ServerMessage>>,
+    raw_logger: Option<crate::network::RawLogger>,
 ) {
     match command {
         "//wizard:cancel" => {
@@ -673,7 +731,12 @@ fn handle_wizard_command(
                 };
                 let id = session_manager.add(character.to_string(), mode);
                 if let Some(s) = session_manager.get_mut(id) {
-                    s.command_tx = Some(command_tx.clone());
+                    if let Some(rx) = s.server_rx.take() { session_rxs.insert(id, rx); }
+                    if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                        s.command_tx = Some(tx);
+                    } else {
+                        s.command_tx = Some(command_tx.clone());
+                    }
                 }
                 // Save to sessions.toml (no password stored)
                 let entry = crate::sessions_config::SessionEntry {

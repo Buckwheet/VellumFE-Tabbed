@@ -1,10 +1,60 @@
 use anyhow::Result;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 use super::TuiFrontend;
 use crate::frontend::Frontend;
 use crate::session_manager::SessionManager;
 use crate::session::{ConnectionMode, SessionStatus};
+
+/// Spawn a Lich connection that auto-reconnects on disconnect/error.
+/// `unread` is incremented for each text line received (used for badge on inactive sessions).
+fn spawn_lich_reconnect(
+    host: String,
+    port: u16,
+    login_key: Option<String>,
+    server_tx: tokio::sync::mpsc::UnboundedSender<crate::network::ServerMessage>,
+    command_rx: tokio::sync::mpsc::UnboundedReceiver<String>,
+    raw_logger: Option<crate::network::RawLogger>,
+    retry_secs: u64,
+    unread: Arc<AtomicUsize>,
+    is_active: Arc<AtomicUsize>, // 1 = active session, 0 = background
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut first_rx = Some(command_rx);
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            let rx = first_rx.take().unwrap_or_else(|| {
+                tokio::sync::mpsc::unbounded_channel::<String>().1
+            });
+            // Wrap server_tx to intercept Text messages for unread counting
+            let (wrapped_tx, mut wrapped_rx) = tokio::sync::mpsc::unbounded_channel::<crate::network::ServerMessage>();
+            let unread_clone = unread.clone();
+            let is_active_clone = is_active.clone();
+            let real_tx = server_tx.clone();
+            tokio::spawn(async move {
+                while let Some(msg) = wrapped_rx.recv().await {
+                    if let crate::network::ServerMessage::Text(_) = &msg {
+                        if is_active_clone.load(Ordering::Relaxed) == 0 {
+                            unread_clone.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                    let _ = real_tx.send(msg);
+                }
+            });
+            match crate::network::LichConnection::start(
+                &host, port, login_key.clone(), wrapped_tx, rx, raw_logger.clone(),
+            ).await {
+                Ok(()) => tracing::info!("Lich connection closed cleanly (attempt {})", attempt),
+                Err(e) => tracing::warn!("Lich connection lost (attempt {}): {}", attempt, e),
+            }
+            tracing::info!("Reconnecting to {}:{} in {}s...", host, port, retry_secs);
+            tokio::time::sleep(std::time::Duration::from_secs(retry_secs)).await;
+        }
+    })
+}
 
 /// Run the TUI frontend with the given configuration.
 /// This is the main entry point for TUI mode.
@@ -142,8 +192,8 @@ async fn async_run(
         }
     }
 
-    // Spawn network connection task
-    let network_handle = match direct {
+    // Spawn network connection task (with auto-reconnect for Lich)
+    let _network_handle = match direct {
         Some(cfg) => tokio::spawn(async move {
             if let Err(e) = DirectConnection::start(cfg, server_tx, command_rx, raw_logger).await {
                 tracing::error!(error = ?e, "Network connection error");
@@ -152,13 +202,10 @@ async fn async_run(
         None => {
             let host_clone = host.clone();
             let login_key_clone = login_key.clone();
-            tokio::spawn(async move {
-                if let Err(e) =
-                    LichConnection::start(&host_clone, port, login_key_clone, server_tx, command_rx, raw_logger).await
-                {
-                    tracing::error!(error = ?e, "Network connection error");
-                }
-            })
+            // Placeholder atomics for the initial session — wired properly after session_manager is created
+            let dummy_unread = Arc::new(AtomicUsize::new(0));
+            let dummy_active = Arc::new(AtomicUsize::new(0)); // 0 = always active (initial session)
+            spawn_lich_reconnect(host_clone, port, login_key_clone, server_tx, command_rx, raw_logger, 5, dummy_unread, dummy_active)
         }
     };
 
@@ -167,6 +214,38 @@ async fn async_run(
 
     // Load persisted session list
     let mut sessions_config = crate::sessions_config::SessionsConfig::load().unwrap_or_default();
+
+    // Auto-connect sessions that have auto_connect = true
+    for entry in sessions_config.sessions.iter().filter(|e| e.auto_connect) {
+        match &entry.mode {
+            crate::sessions_config::SessionModeConfig::Lich => {
+                if let (Some(h), Some(p)) = (&entry.host, entry.port) {
+                    let mode = ConnectionMode::LichProxy { host: h.clone(), port: p };
+                    let id = session_manager.add(entry.label.clone(), mode);
+                    if let Some(s) = session_manager.get_mut(id) {
+                        s.command_tx = Some(command_tx.clone());
+                    }
+                }
+            }
+            crate::sessions_config::SessionModeConfig::Direct => {
+                if let (Some(acct), Some(ch), Some(gc)) =
+                    (&entry.account, &entry.character, &entry.game_code)
+                {
+                    let password = crate::credentials::get_password(acct).unwrap_or_default();
+                    let mode = ConnectionMode::Direct {
+                        account: acct.clone(),
+                        password,
+                        character: ch.clone(),
+                        game_code: gc.clone(),
+                    };
+                    let id = session_manager.add(entry.label.clone(), mode);
+                    if let Some(s) = session_manager.get_mut(id) {
+                        s.command_tx = Some(command_tx.clone());
+                    }
+                }
+            }
+        }
+    }
 
     // Seed with the initial session derived from CLI args
     let initial_mode = ConnectionMode::LichProxy { host: host.clone(), port };
@@ -187,13 +266,22 @@ async fn async_run(
     // Sync tab bar labels into frontend
     let sync_tabs = |mgr: &SessionManager, fe: &mut TuiFrontend| {
         fe.session_labels = mgr.all().iter().map(|s| {
-            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), s.is_connected(), s.unread_count)
+            let sym = match &s.status {
+                SessionStatus::Connected    => "●".to_string(),
+                SessionStatus::Connecting   => "…".to_string(),
+                SessionStatus::Reconnecting => "↻".to_string(),
+                SessionStatus::Error(_)     => "!".to_string(),
+                SessionStatus::Disconnected => "○".to_string(),
+            };
+            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), sym, s.unread_count)
         }).collect();
     };
     sync_tabs(&session_manager, &mut frontend);
 
     // Track time for periodic countdown updates
     let mut last_countdown_update = std::time::Instant::now();
+    // When true, next game command is broadcast to all sessions (Ctrl+B)
+    let mut broadcast_next = false;
 
     // Main event loop
     while app_core.running {
@@ -236,8 +324,12 @@ async fn async_run(
             }
 
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
+                // Intercept wizard commands
+                if command.starts_with("//wizard:") {
+                    handle_wizard_command(&command, &mut frontend, &mut session_manager, &mut sessions_config, &command_tx);
+                    sync_tabs(&session_manager, &mut frontend);
                 // Intercept picker commands
-                if command.starts_with("//picker:") {
+                } else if command.starts_with("//picker:") {
                     handle_picker_command(
                         &command,
                         &mut frontend,
@@ -255,13 +347,29 @@ async fn async_run(
                             SessionCmd::Next => session_manager.next(),
                             SessionCmd::Prev => session_manager.prev(),
                             SessionCmd::ToggleCompact => frontend.compact_tabs = !frontend.compact_tabs,
+                            SessionCmd::Broadcast => broadcast_next = true,
+                            SessionCmd::ToggleSound => {
+                                if let Some(s) = session_manager.active_mut() {
+                                    s.sound_enabled = !s.sound_enabled;
+                                }
+                            }
+                            SessionCmd::ToggleTts => {
+                                if let Some(s) = session_manager.active_mut() {
+                                    s.tts_enabled = !s.tts_enabled;
+                                }
+                            }
                             SessionCmd::New | SessionCmd::Close => {} // Phase 2
                         }
                         sync_tabs(&session_manager, &mut frontend);
                     }
                 } else {
                     app_core.perf_stats.record_bytes_sent((command.len() + 1) as u64);
-                    let _ = command_tx.send(command);
+                    if broadcast_next {
+                        session_manager.broadcast(&command);
+                        broadcast_next = false;
+                    } else {
+                        let _ = command_tx.send(command);
+                    }
                 }
             }
 
@@ -343,6 +451,9 @@ async fn async_run(
         if last_countdown_update.elapsed().as_secs() >= 1 {
             app_core.needs_render = true;
             last_countdown_update = std::time::Instant::now();
+            // Sync unread badges from atomic counters (background sessions)
+            session_manager.sync_unread_all();
+            sync_tabs(&session_manager, &mut frontend);
         }
 
         // Sample system/process metrics (rate-limited internally)
@@ -394,10 +505,6 @@ async fn async_run(
 
     // Cleanup
     frontend.cleanup()?;
-
-    // Wait for network task to finish (or abort it)
-    network_handle.abort();
-    let _ = network_handle.await;
 
     Ok(())
 }
@@ -453,6 +560,14 @@ fn handle_picker_command(
             // No sessions and user pressed Escape — close picker, let app exit naturally
             frontend.session_picker = None;
         }
+        "//picker:open_wizard" => {
+            // Open the Direct login wizard
+            if let Some(picker) = &mut frontend.session_picker {
+                picker.focus = crate::frontend::tui::session_picker::PickerFocus::List;
+                picker.form = None;
+            }
+            frontend.login_wizard = Some(crate::frontend::tui::login_wizard::LoginWizard::new());
+        }
         "//picker:add" => {
             if let Some(PickerAction::AddSession(entry)) = action {
                 // Add to session manager
@@ -502,3 +617,84 @@ fn handle_picker_command(
     }
 }
 
+
+/// Handle `//wizard:*` commands from the login wizard.
+fn handle_wizard_command(
+    command: &str,
+    frontend: &mut TuiFrontend,
+    session_manager: &mut SessionManager,
+    sessions_config: &mut crate::sessions_config::SessionsConfig,
+    command_tx: &tokio::sync::mpsc::UnboundedSender<String>,
+) {
+    match command {
+        "//wizard:cancel" => {
+            frontend.login_wizard = None;
+        }
+        "//wizard:fetch_chars" => {
+            // Fetch character list from eAccess in a blocking thread, then set on wizard
+            if let Some(wizard) = &frontend.login_wizard {
+                let account = wizard.account.clone();
+                let password = wizard.password.clone();
+                let game_code = wizard.selected_game_code().to_string();
+                let data_dir = crate::config::Config::base_dir().unwrap_or_default();
+                match std::thread::spawn(move || {
+                    crate::network::fetch_characters_for_account(&account, &password, &game_code, &data_dir)
+                }).join() {
+                    Ok(Ok(chars)) => {
+                        if let Some(w) = &mut frontend.login_wizard {
+                            w.set_characters(chars);
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        if let Some(w) = &mut frontend.login_wizard {
+                            w.set_error(format!("Auth failed: {}", e));
+                        }
+                    }
+                    Err(_) => {
+                        if let Some(w) = &mut frontend.login_wizard {
+                            w.set_error("Connection error".to_string());
+                        }
+                    }
+                }
+            }
+        }
+        cmd if cmd.starts_with("//wizard:connect:") => {
+            // Format: //wizard:connect:account:password:game_code:character
+            let parts: Vec<&str> = cmd["//wizard:connect:".len()..].splitn(4, ':').collect();
+            if parts.len() == 4 {
+                let (account, password, game_code, character) =
+                    (parts[0], parts[1], parts[2], parts[3]);
+                // Add as Direct session
+                let mode = crate::session::ConnectionMode::Direct {
+                    account: account.to_string(),
+                    password: password.to_string(),
+                    character: character.to_string(),
+                    game_code: game_code.to_string(),
+                };
+                let id = session_manager.add(character.to_string(), mode);
+                if let Some(s) = session_manager.get_mut(id) {
+                    s.command_tx = Some(command_tx.clone());
+                }
+                // Save to sessions.toml (no password stored)
+                let entry = crate::sessions_config::SessionEntry {
+                    label: character.to_string(),
+                    mode: crate::sessions_config::SessionModeConfig::Direct,
+                    host: None,
+                    port: None,
+                    account: Some(account.to_string()),
+                    character: Some(character.to_string()),
+                    game_code: Some(game_code.to_string()),
+                    auto_connect: false,
+                };
+                sessions_config.add(entry);
+                let _ = sessions_config.save();
+                // Store password in OS keychain (keyed by account name)
+                crate::credentials::store_password(account, password);
+                // Close wizard and picker
+                frontend.login_wizard = None;
+                frontend.session_picker = None;
+            }
+        }
+        _ => {}
+    }
+}

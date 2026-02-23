@@ -20,6 +20,7 @@ pub struct TabEntry<'a> {
     /// Status symbol: "●" "○" "…" "↻" "!"
     pub status: &'a str,
     pub unread: usize,
+    pub sound_enabled: bool,
 }
 
 /// The tab bar widget.
@@ -62,16 +63,18 @@ impl<'a> Widget for TabBar<'a> {
 
             let label = if self.compact {
                 let abbrev: String = tab.label.chars().take(2).collect();
+                let mute = if !tab.sound_enabled { "🔇" } else { "" };
                 if tab.unread > 0 {
-                    format!(" {}{} ● ", sym, abbrev)
+                    format!(" {}{}{} ● ", sym, abbrev, mute)
                 } else {
-                    format!(" {}{} ", sym, abbrev)
+                    format!(" {}{}{} ", sym, abbrev, mute)
                 }
             } else {
+                let mute = if !tab.sound_enabled { " 🔇" } else { "" };
                 if tab.unread > 0 {
-                    format!(" {} {} {} ", sym, tab.label, tab.unread)
+                    format!(" {} {}{} {} ", sym, tab.label, mute, tab.unread)
                 } else {
-                    format!(" {} {} ", sym, tab.label)
+                    format!(" {} {}{} ", sym, tab.label, mute)
                 }
             };
 

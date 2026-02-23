@@ -6,7 +6,6 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::sync::mpsc;
-use crate::network::ServerMessage;
 
 /// Unique identifier for a session.
 pub type SessionId = usize;
@@ -14,8 +13,8 @@ pub type SessionId = usize;
 /// How this session connects to the game.
 #[derive(Debug, Clone)]
 pub enum ConnectionMode {
-    /// Connect via Lich proxy (host:port, optional login key)
-    LichProxy { host: String, port: u16, login_key: Option<String> },
+    /// Connect via Lich proxy (host:port)
+    LichProxy { host: String, port: u16 },
     /// Connect directly via eAccess SGE
     Direct {
         account: String,
@@ -60,10 +59,6 @@ pub struct Session {
     pub active_session_id: Arc<AtomicUsize>,
     /// Channel to send commands to the game server
     pub command_tx: Option<mpsc::UnboundedSender<String>>,
-    /// Channel to receive server messages (owned by this session)
-    pub server_tx: Option<mpsc::UnboundedSender<ServerMessage>>,
-    /// Receiver end — polled by the main loop when this session is active
-    pub server_rx: Option<mpsc::UnboundedReceiver<ServerMessage>>,
     /// Whether sound alerts are enabled for this session
     pub sound_enabled: bool,
     /// Whether TTS is enabled for this session
@@ -72,7 +67,6 @@ pub struct Session {
 
 impl Session {
     pub fn new(id: SessionId, label: String, mode: ConnectionMode) -> Self {
-        let (server_tx, server_rx) = mpsc::unbounded_channel::<ServerMessage>();
         Self {
             id,
             label,
@@ -82,8 +76,6 @@ impl Session {
             unread_count: 0,
             active_session_id: Arc::new(AtomicUsize::new(usize::MAX)),
             command_tx: None,
-            server_tx: Some(server_tx),
-            server_rx: Some(server_rx),
             sound_enabled: true,
             tts_enabled: true,
         }
