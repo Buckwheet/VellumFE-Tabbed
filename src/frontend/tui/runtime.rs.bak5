@@ -57,25 +57,6 @@ fn spawn_lich_reconnect(
     })
 }
 
-/// Swap WidgetManagers on session switch: save outgoing, restore incoming.
-fn do_session_switch(
-    prev_id: Option<crate::session::SessionId>,
-    new_id: crate::session::SessionId,
-    frontend: &mut crate::frontend::tui::TuiFrontend,
-    widget_managers: &mut HashMap<crate::session::SessionId, crate::frontend::tui::widget_manager::WidgetManager>,
-) {
-    if prev_id == Some(new_id) { return; }
-    // Save outgoing session's widget state
-    if let Some(prev) = prev_id {
-        let outgoing = frontend.swap_widget_manager(crate::frontend::tui::widget_manager::WidgetManager::new());
-        widget_managers.insert(prev, outgoing);
-    }
-    // Restore incoming session's widget state (or use the fresh one just swapped in)
-    if let Some(incoming) = widget_managers.remove(&new_id) {
-        let _ = frontend.swap_widget_manager(incoming);
-    }
-}
-
 /// Spawn the network task for a session using its stored server_tx.
 /// Returns the command_tx so the caller can store it on the session.
 fn spawn_session_network(
@@ -154,8 +135,6 @@ async fn async_run(
     let mut session_rxs: HashMap<SessionId, mpsc::UnboundedReceiver<ServerMessage>> = HashMap::new();
     // Per-session AppCore map — keyed by SessionId
     let mut app_cores: HashMap<SessionId, AppCore> = HashMap::new();
-    // Per-session WidgetManager map — swapped in/out of frontend on session switch
-    let mut widget_managers: HashMap<SessionId, crate::frontend::tui::widget_manager::WidgetManager> = HashMap::new();
 
     // Dummy command channel (replaced per-session by spawn_session_network)
     let (command_tx, _command_rx_unused) = mpsc::unbounded_channel::<String>();
@@ -293,7 +272,6 @@ async fn async_run(
                     if let Ok(ac) = create_app_core_for_session(&mode, &config) {
                         app_cores.insert(id, ac);
                     }
-                    widget_managers.insert(id, crate::frontend::tui::widget_manager::WidgetManager::new());
                 }
             }
             crate::sessions_config::SessionModeConfig::Direct => {
@@ -317,7 +295,6 @@ async fn async_run(
                     if let Ok(ac) = create_app_core_for_session(&mode, &config) {
                         app_cores.insert(id, ac);
                     }
-                    widget_managers.insert(id, crate::frontend::tui::widget_manager::WidgetManager::new());
                 }
             }
         }
@@ -344,8 +321,6 @@ async fn async_run(
     }
     // Move the initial AppCore into the map
     app_cores.insert(initial_id, initial_app_core);
-    // Initial session gets the current frontend widget_manager (already populated by startup sync)
-    // We don't pre-insert here — it will be saved on first switch away from this session.
 
     // If no sessions are saved yet, show the picker
     if sessions_config.sessions.is_empty() {
@@ -436,7 +411,7 @@ async fn async_run(
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
                 // Intercept wizard commands
                 if command.starts_with("//wizard:") {
-                    handle_wizard_command(&command, &mut frontend, &mut session_manager, &mut sessions_config, &command_tx, &mut session_rxs, raw_logger.clone(), &mut app_cores, &config, &mut widget_managers);
+                    handle_wizard_command(&command, &mut frontend, &mut session_manager, &mut sessions_config, &command_tx, &mut session_rxs, raw_logger.clone(), &mut app_cores, &config);
                     sync_tabs(&session_manager, &mut frontend);
                 // Intercept picker commands
                 } else if command.starts_with("//picker:") {
@@ -450,30 +425,16 @@ async fn async_run(
                         raw_logger.clone(),
                         &mut app_cores,
                         &config,
-                        &mut widget_managers,
                     );
                     sync_tabs(&session_manager, &mut frontend);
                 // Intercept session commands before sending to game server
                 } else if crate::frontend::tui::session_keys::is_session_cmd(&command) {
                     use crate::frontend::tui::session_keys::SessionCmd;
                     if let Some(cmd) = SessionCmd::parse(&command) {
-                        let prev_sid = session_manager.active().map(|s| s.id);
                         match cmd {
-                            SessionCmd::SwitchToIndex(i) => {
-                                session_manager.set_active_by_index(i);
-                                let new_sid = session_manager.active().map(|s| s.id);
-                                if let Some(nid) = new_sid { do_session_switch(prev_sid, nid, &mut frontend, &mut widget_managers); }
-                            }
-                            SessionCmd::Next => {
-                                session_manager.next();
-                                let new_sid = session_manager.active().map(|s| s.id);
-                                if let Some(nid) = new_sid { do_session_switch(prev_sid, nid, &mut frontend, &mut widget_managers); }
-                            }
-                            SessionCmd::Prev => {
-                                session_manager.prev();
-                                let new_sid = session_manager.active().map(|s| s.id);
-                                if let Some(nid) = new_sid { do_session_switch(prev_sid, nid, &mut frontend, &mut widget_managers); }
-                            }
+                            SessionCmd::SwitchToIndex(i) => session_manager.set_active_by_index(i),
+                            SessionCmd::Next => session_manager.next(),
+                            SessionCmd::Prev => session_manager.prev(),
                             SessionCmd::ToggleCompact => frontend.compact_tabs = !frontend.compact_tabs,
                             SessionCmd::Broadcast => broadcast_next = true,
                             SessionCmd::ToggleSound => {
@@ -686,7 +647,6 @@ fn handle_picker_command(
     raw_logger: Option<crate::network::RawLogger>,
     app_cores: &mut HashMap<SessionId, crate::core::AppCore>,
     base_config: &crate::config::Config,
-    widget_managers: &mut HashMap<SessionId, crate::frontend::tui::widget_manager::WidgetManager>,
 ) {
     use crate::frontend::tui::session_picker::PickerAction;
 
@@ -726,7 +686,6 @@ fn handle_picker_command(
                 if let Ok(ac) = create_app_core_for_session(&mode, base_config) {
                     app_cores.insert(id, ac);
                 }
-                widget_managers.insert(id, crate::frontend::tui::widget_manager::WidgetManager::new());
                 // Persist
                 sessions_config.add(entry);
                 let _ = sessions_config.save();
@@ -741,10 +700,7 @@ fn handle_picker_command(
         cmd if cmd.starts_with("//picker:connect:") => {
             if let Ok(idx) = cmd["//picker:connect:".len()..].parse::<usize>() {
                 // Switch to that session and dismiss picker
-                let prev_sid = session_manager.active().map(|s| s.id);
                 session_manager.set_active_by_index(idx);
-                let new_sid = session_manager.active().map(|s| s.id);
-                if let Some(nid) = new_sid { do_session_switch(prev_sid, nid, frontend, widget_managers); }
                 frontend.session_picker = None;
             }
         }
@@ -780,7 +736,6 @@ fn handle_wizard_command(
     raw_logger: Option<crate::network::RawLogger>,
     app_cores: &mut HashMap<SessionId, crate::core::AppCore>,
     base_config: &crate::config::Config,
-    widget_managers: &mut HashMap<SessionId, crate::frontend::tui::widget_manager::WidgetManager>,
 ) {
     match command {
         "//wizard:cancel" => {
@@ -839,7 +794,6 @@ fn handle_wizard_command(
                 if let Ok(ac) = create_app_core_for_session(&mode, base_config) {
                     app_cores.insert(id, ac);
                 }
-                widget_managers.insert(id, crate::frontend::tui::widget_manager::WidgetManager::new());
                 // Save to sessions.toml (no password stored)
                 let entry = crate::sessions_config::SessionEntry {
                     label: character.to_string(),

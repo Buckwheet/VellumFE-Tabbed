@@ -66,7 +66,7 @@ mod theme_cache;
 mod resize;
 pub mod uicolors_browser;
 pub mod window_editor;
-pub(crate) mod widget_manager;
+mod widget_manager;
 mod input_handlers;
 pub mod tab_bar;
 pub mod session_picker;
@@ -360,11 +360,5 @@ impl TuiFrontend {
         backend.flush()?;
         tracing::info!("Reset terminal palette to defaults");
         Ok(())
-    }
-
-    /// Swap out the current WidgetManager and return it, replacing with the given one.
-    /// Used for per-session widget state isolation on session switch.
-    pub fn swap_widget_manager(&mut self, incoming: WidgetManager) -> WidgetManager {
-        std::mem::replace(&mut self.widget_manager, incoming)
     }
 }
