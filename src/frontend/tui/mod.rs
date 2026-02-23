@@ -67,6 +67,7 @@ pub mod uicolors_browser;
 pub mod window_editor;
 mod widget_manager;
 mod input_handlers;
+pub mod tab_bar;
 
 pub use colors::resolve_window_colors;
 pub use runtime::run;
@@ -115,6 +116,10 @@ pub struct TuiFrontend {
     resize_debouncer: ResizeDebouncer,
     /// Theme cache to avoid HashMap lookup + clone every render
     theme_cache: ThemeCache,
+    /// Session labels for tab bar (label, is_active, is_connected, unread)
+    pub session_labels: Vec<(String, bool, bool, usize)>,
+    /// Whether to use compact tab display
+    pub compact_tabs: bool,
 }
 
 impl TuiFrontend {
@@ -149,6 +154,8 @@ impl TuiFrontend {
             settings_editor: None,
             resize_debouncer: ResizeDebouncer::new(300), // 300ms debounce
             theme_cache: ThemeCache::new(),
+            session_labels: Vec::new(),
+            compact_tabs: false,
         })
     }
 

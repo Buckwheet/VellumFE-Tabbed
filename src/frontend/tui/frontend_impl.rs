@@ -8,6 +8,7 @@ use crossterm::{
 };
 use std::time::Instant;
 use super::*;
+use super::tab_bar::{TabBar, TabEntry};
 
 impl Frontend for TuiFrontend {
     fn poll_events(&mut self) -> Result<Vec<FrontendEvent>> {
@@ -153,6 +154,35 @@ impl Frontend for TuiFrontend {
             let theme = theme_for_render.clone();
             let screen_area = f.area();
 
+            // Render tab bar at top row
+            let tab_area = ratatui::layout::Rect { 
+                x: screen_area.x, 
+                y: screen_area.y, 
+                width: screen_area.width, 
+                height: 1 
+            };
+            let content_area = ratatui::layout::Rect { 
+                x: screen_area.x, 
+                y: screen_area.y + 1, 
+                width: screen_area.width, 
+                height: screen_area.height.saturating_sub(1) 
+            };
+
+            // Build tab entries from session_labels
+            let tab_entries: Vec<TabEntry> = self.session_labels
+                .iter()
+                .map(|(label, is_active, is_connected, unread)| TabEntry {
+                    label: label.clone(),
+                    is_active: *is_active,
+                    is_connected: *is_connected,
+                    unread_count: *unread,
+                })
+                .collect();
+
+            // Render the tab bar
+            let tab_bar = TabBar::new(tab_entries, self.compact_tabs);
+            f.render_widget(tab_bar, tab_area);
+
             // Stable render order: sort by name, then move ephemeral windows and performance_overlay to end
             // so they render on top of other windows
             let mut window_order: Vec<&String> = app_core.ui_state.windows.keys().collect();
@@ -191,8 +221,8 @@ impl Frontend for TuiFrontend {
                 let area = Rect {
                     x: pos.x,
                     y: pos.y,
-                    width: pos.width.min(screen_area.width.saturating_sub(pos.x)),
-                    height: pos.height.min(screen_area.height.saturating_sub(pos.y)),
+                    width: pos.width.min(content_area.width.saturating_sub(pos.x)),
+                    height: pos.height.min(content_area.height.saturating_sub(pos.y)),
                 };
 
                 // Skip if area is too small
