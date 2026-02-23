@@ -90,22 +90,6 @@ fn spawn_session_network(
     Some(command_tx)
 }
 
-/// Create an AppCore for a session given its connection mode.
-fn create_app_core_for_session(
-    mode: &ConnectionMode,
-    base_config: &crate::config::Config,
-) -> Result<crate::core::AppCore> {
-    use crate::core::AppCore;
-    let character = match mode {
-        ConnectionMode::Direct { character, .. } => Some(character.as_str()),
-        ConnectionMode::LichProxy { .. } => None,
-    };
-    let port = base_config.connection.port;
-    let config = crate::config::Config::load_with_options(character, port)
-        .unwrap_or_else(|_| base_config.clone());
-    AppCore::new(config)
-}
-
 /// Run the TUI frontend with the given configuration.
 pub fn run(
     config: crate::config::Config,
@@ -133,10 +117,9 @@ async fn async_run(
 
     // Per-session server_rx map — keyed by SessionId
     let mut session_rxs: HashMap<SessionId, mpsc::UnboundedReceiver<ServerMessage>> = HashMap::new();
-    // Per-session AppCore map — keyed by SessionId
-    let mut app_cores: HashMap<SessionId, AppCore> = HashMap::new();
 
-    // Dummy command channel (replaced per-session by spawn_session_network)
+    // Shared command channel (all sessions share one command_tx for now; each session
+    // gets its own command_tx from spawn_session_network when it connects)
     let (command_tx, _command_rx_unused) = mpsc::unbounded_channel::<String>();
 
     // Store connection info
@@ -153,15 +136,15 @@ async fn async_run(
         }
     };
 
-    // Create initial AppCore from CLI config (used for startup and as base for new sessions)
-    let mut initial_app_core = AppCore::new(config.clone())?;
+    // Create core application state
+    let mut app_core = AppCore::new(config)?;
 
-    super::colors::set_global_color_mode(initial_app_core.config.ui.color_mode);
+    super::colors::set_global_color_mode(app_core.config.ui.color_mode);
 
     // Initialize palette lookup for Slot mode
     // This builds the hex→slot mapping from color_palette entries
-    if initial_app_core.config.ui.color_mode == crate::config::ColorMode::Slot {
-        super::colors::init_palette_lookup(&initial_app_core.config.colors.color_palette);
+    if app_core.config.ui.color_mode == crate::config::ColorMode::Slot {
+        super::colors::init_palette_lookup(&app_core.config.colors.color_palette);
     }
 
     // Create TUI frontend
@@ -187,8 +170,8 @@ async fn async_run(
     }
 
     // Ensure frontend theme cache matches whatever layout/theme AppCore activated
-    let initial_theme_id = initial_app_core.config.active_theme.clone();
-    let initial_theme = initial_app_core.config.get_theme();
+    let initial_theme_id = app_core.config.active_theme.clone();
+    let initial_theme = app_core.config.get_theme();
     frontend.update_theme_cache(initial_theme_id, initial_theme);
 
     // Initialize command input widget BEFORE any rendering
@@ -197,7 +180,7 @@ async fn async_run(
 
     // Setup palette if requested via --setup-palette flag
     if setup_palette {
-        if let Err(e) = frontend.execute_setpalette(&initial_app_core) {
+        if let Err(e) = frontend.execute_setpalette(&app_core) {
             tracing::warn!("Failed to setup palette: {}", e);
         } else {
             tracing::info!("Terminal palette loaded from color_palette");
@@ -206,10 +189,10 @@ async fn async_run(
 
     // Get terminal size and initialize windows
     let (width, height) = frontend.size();
-    initial_app_core.init_windows(width, height);
+    app_core.init_windows(width, height);
 
     // Initial render to create widgets (needed before loading history)
-    frontend.render(&mut initial_app_core)?;
+    frontend.render(&mut app_core)?;
 
     // Load command history (must be after widgets are created)
     if let Err(e) = frontend.command_input_load_history("command_input", character.as_deref()) {
@@ -217,9 +200,9 @@ async fn async_run(
     }
 
     // Play startup music if enabled (with optional delay)
-    if initial_app_core.config.sound.startup_music {
-        if let Some(ref player) = initial_app_core.sound_player {
-            let delay_ms = initial_app_core.config.sound.startup_music_delay_ms;
+    if app_core.config.sound.startup_music {
+        if let Some(ref player) = app_core.sound_player {
+            let delay_ms = app_core.config.sound.startup_music_delay_ms;
             if delay_ms > 0 {
                 std::thread::sleep(std::time::Duration::from_millis(delay_ms));
             }
@@ -230,15 +213,15 @@ async fn async_run(
     }
 
     if direct.is_none() {
-        initial_app_core.seed_default_quickbars_if_empty();
-        if initial_app_core
+        app_core.seed_default_quickbars_if_empty();
+        if app_core
             .ui_state
             .get_window_by_type(crate::data::window::WidgetType::Spells, None)
             .is_some()
         {
             let command = "_spell _spell_update_links\n".to_string();
-            initial_app_core.message_processor.skip_next_spells_clear();
-            initial_app_core
+            app_core.message_processor.skip_next_spells_clear();
+            app_core
                 .perf_stats
                 .record_bytes_sent((command.len() + 1) as u64);
             let _ = command_tx.send(command);
@@ -262,15 +245,12 @@ async fn async_run(
             crate::sessions_config::SessionModeConfig::Lich => {
                 if let (Some(h), Some(p)) = (&entry.host, entry.port) {
                     let mode = ConnectionMode::LichProxy { host: h.clone(), port: p, login_key: None };
-                    let id = session_manager.add(entry.label.clone(), mode.clone());
+                    let id = session_manager.add(entry.label.clone(), mode);
                     if let Some(s) = session_manager.get_mut(id) {
                         if let Some(rx) = s.server_rx.take() { session_rxs.insert(id, rx); }
                         if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
                             s.command_tx = Some(tx);
                         }
-                    }
-                    if let Ok(ac) = create_app_core_for_session(&mode, &config) {
-                        app_cores.insert(id, ac);
                     }
                 }
             }
@@ -285,15 +265,12 @@ async fn async_run(
                         character: ch.clone(),
                         game_code: gc.clone(),
                     };
-                    let id = session_manager.add(entry.label.clone(), mode.clone());
+                    let id = session_manager.add(entry.label.clone(), mode);
                     if let Some(s) = session_manager.get_mut(id) {
                         if let Some(rx) = s.server_rx.take() { session_rxs.insert(id, rx); }
                         if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
                             s.command_tx = Some(tx);
                         }
-                    }
-                    if let Ok(ac) = create_app_core_for_session(&mode, &config) {
-                        app_cores.insert(id, ac);
                     }
                 }
             }
@@ -319,8 +296,6 @@ async fn async_run(
             s.command_tx = Some(tx);
         }
     }
-    // Move the initial AppCore into the map
-    app_cores.insert(initial_id, initial_app_core);
 
     // If no sessions are saved yet, show the picker
     if sessions_config.sessions.is_empty() {
@@ -348,26 +323,9 @@ async fn async_run(
     let mut last_countdown_update = std::time::Instant::now();
     // When true, next game command is broadcast to all sessions (Ctrl+B)
     let mut broadcast_next = false;
-    let mut running = true;
 
     // Main event loop
-    while running {
-        // Get active session's AppCore (or skip if none)
-        // SAFETY: app_cores outlives the loop; we only access one entry per iteration
-        let active_sid = session_manager.active().map(|s| s.id);
-        let mut app_core: &mut crate::core::AppCore = if let Some(id) = active_sid {
-            if let Some(ac) = app_cores.get_mut(&id) {
-                // SAFETY: we hold no other references into app_cores during this iteration
-                unsafe { &mut *(ac as *mut _) }
-            } else {
-                std::thread::sleep(std::time::Duration::from_millis(16)); continue;
-            }
-        } else {
-            std::thread::sleep(std::time::Duration::from_millis(16)); continue;
-        };
-
-        if !app_core.running { running = false; break; }
-
+    while app_core.running {
         // Poll for frontend events (keyboard, mouse, resize)
         let events = frontend.poll_events()?;
         app_core
@@ -392,9 +350,7 @@ async fn async_run(
 
                     if let Some(cmd) = command {
                         app_core.perf_stats.record_bytes_sent((cmd.len() + 1) as u64);
-                        if let Some(tx) = session_manager.active().and_then(|s| s.command_tx.as_ref()) {
-                            let _ = tx.send(cmd);
-                        }
+                        let _ = command_tx.send(cmd);
                     }
 
                     if handled {
@@ -411,7 +367,7 @@ async fn async_run(
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
                 // Intercept wizard commands
                 if command.starts_with("//wizard:") {
-                    handle_wizard_command(&command, &mut frontend, &mut session_manager, &mut sessions_config, &command_tx, &mut session_rxs, raw_logger.clone(), &mut app_cores, &config);
+                    handle_wizard_command(&command, &mut frontend, &mut session_manager, &mut sessions_config, &command_tx, &mut session_rxs, raw_logger.clone());
                     sync_tabs(&session_manager, &mut frontend);
                 // Intercept picker commands
                 } else if command.starts_with("//picker:") {
@@ -423,8 +379,6 @@ async fn async_run(
                         &command_tx,
                         &mut session_rxs,
                         raw_logger.clone(),
-                        &mut app_cores,
-                        &config,
                     );
                     sync_tabs(&session_manager, &mut frontend);
                 // Intercept session commands before sending to game server
@@ -456,8 +410,8 @@ async fn async_run(
                     if broadcast_next {
                         session_manager.broadcast(&command);
                         broadcast_next = false;
-                    } else if let Some(tx) = session_manager.active().and_then(|s| s.command_tx.as_ref()) {
-                        let _ = tx.send(command);
+                    } else {
+                        let _ = command_tx.send(command);
                     }
                 }
             }
@@ -645,8 +599,6 @@ fn handle_picker_command(
     command_tx: &tokio::sync::mpsc::UnboundedSender<String>,
     session_rxs: &mut HashMap<SessionId, tokio::sync::mpsc::UnboundedReceiver<crate::network::ServerMessage>>,
     raw_logger: Option<crate::network::RawLogger>,
-    app_cores: &mut HashMap<SessionId, crate::core::AppCore>,
-    base_config: &crate::config::Config,
 ) {
     use crate::frontend::tui::session_picker::PickerAction;
 
@@ -674,7 +626,7 @@ fn handle_picker_command(
                     port: entry.port.unwrap_or(8000),
                     login_key: None,
                 };
-                let id = session_manager.add(entry.label.clone(), mode.clone());
+                let id = session_manager.add(entry.label.clone(), mode);
                 if let Some(s) = session_manager.get_mut(id) {
                     if let Some(rx) = s.server_rx.take() { session_rxs.insert(id, rx); }
                     if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
@@ -682,9 +634,6 @@ fn handle_picker_command(
                     } else {
                         s.command_tx = Some(command_tx.clone());
                     }
-                }
-                if let Ok(ac) = create_app_core_for_session(&mode, base_config) {
-                    app_cores.insert(id, ac);
                 }
                 // Persist
                 sessions_config.add(entry);
@@ -734,8 +683,6 @@ fn handle_wizard_command(
     command_tx: &tokio::sync::mpsc::UnboundedSender<String>,
     session_rxs: &mut HashMap<SessionId, tokio::sync::mpsc::UnboundedReceiver<crate::network::ServerMessage>>,
     raw_logger: Option<crate::network::RawLogger>,
-    app_cores: &mut HashMap<SessionId, crate::core::AppCore>,
-    base_config: &crate::config::Config,
 ) {
     match command {
         "//wizard:cancel" => {
@@ -782,7 +729,7 @@ fn handle_wizard_command(
                     character: character.to_string(),
                     game_code: game_code.to_string(),
                 };
-                let id = session_manager.add(character.to_string(), mode.clone());
+                let id = session_manager.add(character.to_string(), mode);
                 if let Some(s) = session_manager.get_mut(id) {
                     if let Some(rx) = s.server_rx.take() { session_rxs.insert(id, rx); }
                     if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
@@ -790,9 +737,6 @@ fn handle_wizard_command(
                     } else {
                         s.command_tx = Some(command_tx.clone());
                     }
-                }
-                if let Ok(ac) = create_app_core_for_session(&mode, base_config) {
-                    app_cores.insert(id, ac);
                 }
                 // Save to sessions.toml (no password stored)
                 let entry = crate::sessions_config::SessionEntry {
