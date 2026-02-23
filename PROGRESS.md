@@ -185,3 +185,30 @@ Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"
 
 ### To Resume
 Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"
+
+## Session 9 — Per-Session AppCore (True Game State Isolation)
+
+### Completed
+- [x] `runtime.rs` — `app_cores: HashMap<SessionId, AppCore>` — one AppCore per session
+- [x] `runtime.rs` — `create_app_core_for_session()` loads per-character config via `Config::load_with_options`
+- [x] `runtime.rs` — main loop gets active session's AppCore via raw ptr (safe: single-threaded loop, no aliasing)
+- [x] `runtime.rs` — `app_core.running` replaced with local `running` bool; loop exits when active session quits
+- [x] `runtime.rs` — command routing uses active session's `command_tx` instead of shared dummy channel
+- [x] `runtime.rs` — auto-connect sessions at startup get their own AppCore
+- [x] `runtime.rs` — picker/wizard handlers create AppCore for new sessions
+- [x] Commit: `81a8d57`
+
+### Architecture Now
+Each session has:
+- Its own `server_tx/server_rx` channel pair (network ↔ main loop)
+- Its own `command_tx/command_rx` channel pair (main loop → network)
+- Its own `AppCore` (parser, game state, UI state, highlights, config)
+- Its own unread badge atomic counter
+
+### Remaining / Future Work
+- [ ] Session switch: save/restore active session's UI state (scroll position, focused window) on switch
+- [ ] Phase 5.3 — Session grouping UI (deferred)
+- [ ] TTS state in tab bar
+
+### To Resume
+Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed"
