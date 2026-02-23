@@ -57,7 +57,7 @@ jobs:
         id: names_unix
         shell: bash
         run: |
-          APP_NAME="vellum-fe-tabbed"
+          APP_NAME="vellum-fe"
           case "$RUNNER_ARCH" in
             X64) ARCH="x86_64" ;;
             ARM64) ARCH="aarch64" ;;
@@ -77,7 +77,7 @@ jobs:
         id: names_win
         shell: pwsh
         run: |
-          $APP_NAME = "vellum-fe-tabbed"
+          $APP_NAME = "vellum-fe"
           $OS = "windows"
           switch ($env:RUNNER_ARCH) {
             "X64" { $ARCH = "x86_64" }
@@ -116,7 +116,7 @@ jobs:
             - If you encounter GLIBC version errors on older distros, please open an issue; we can add a more portable build.
             - Ensure your user has access to audio devices (e.g., is in the 'audio' group on some distros).
           EOF
-          PKG_TGZ="vellum-fe-tabbed-linux-x86_64.tar.gz"
+          PKG_TGZ="vellum-fe-linux-x86_64.tar.gz"
           tar -czf "$PKG_TGZ" "$BIN_BASENAME" README-Linux.txt
           rm -f "$BIN_BASENAME" README-Linux.txt
           popd >/dev/null
@@ -164,7 +164,7 @@ jobs:
           cp target/release/vellum-fe dist/
           pushd dist >/dev/null
           chmod +x vellum-fe
-          zip -9 "vellum-fe-tabbed-macos-arm64.zip" vellum-fe
+          zip -9 "vellum-fe-macos-arm64.zip" vellum-fe
           rm -f vellum-fe
           popd >/dev/null
 
@@ -198,7 +198,7 @@ jobs:
           cp target/release/vellum-fe dist/
           pushd dist >/dev/null
           chmod +x vellum-fe
-          zip -9 "vellum-fe-tabbed-macos-x64.zip" vellum-fe
+          zip -9 "vellum-fe-macos-x64.zip" vellum-fe
           rm -f vellum-fe
           popd >/dev/null
 
@@ -234,12 +234,12 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir work
-          unzip -q dist_arm/vellum-fe-tabbed-macos-arm64.zip -d work/arm
-          unzip -q dist_x64/vellum-fe-tabbed-macos-x64.zip -d work/x64
+          unzip -q dist_arm/vellum-fe-macos-arm64.zip -d work/arm
+          unzip -q dist_x64/vellum-fe-macos-x64.zip -d work/x64
           lipo -create -output work/vellum-fe-universal work/arm/vellum-fe work/x64/vellum-fe
           chmod +x work/vellum-fe-universal
           pushd work >/dev/null
-          zip -9 "../dist/vellum-fe-tabbed-macos-universal.zip" vellum-fe-universal
+          zip -9 "../dist/vellum-fe-macos-universal.zip" vellum-fe-universal
           popd >/dev/null
 
       - name: Upload artifact
@@ -275,9 +275,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
-          name: VellumFE-Tabbed ${{ inputs.tag || github.ref_name }}
+          name: VellumFE ${{ inputs.tag || github.ref_name }}
           body: |
-            Automated beta pre-release of VellumFE-Tabbed.
+            Automated beta release.
 
             Built from ${{ github.sha }} on ${{ github.ref }}.
           files: |
