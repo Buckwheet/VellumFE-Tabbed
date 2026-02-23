@@ -1,12 +1,12 @@
 [package]
-name = "vellum-fe"
+name = "vellum-fe-tabbed"
 version = "0.1.0"
 edition = "2021"
 authors = ["Nisugi"]
 description = "Modern, high-performance multi-frontend (TUI/GUI) client for GemStone IV"
 
 [[bin]]
-name = "vellum-fe"
+name = "vellum-fe-tabbed"
 path = "src/main.rs"
 
 [dependencies]
