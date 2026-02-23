@@ -21,7 +21,6 @@ pub struct TabEntry<'a> {
     pub status: &'a str,
     pub unread: usize,
     pub sound_enabled: bool,
-    pub tts_enabled: bool,
 }
 
 /// The tab bar widget.
@@ -65,19 +64,17 @@ impl<'a> Widget for TabBar<'a> {
             let label = if self.compact {
                 let abbrev: String = tab.label.chars().take(2).collect();
                 let mute = if !tab.sound_enabled { "🔇" } else { "" };
-                let tts = if !tab.tts_enabled { "🔕" } else { "" };
                 if tab.unread > 0 {
-                    format!(" {}{}{}{} ● ", sym, abbrev, mute, tts)
+                    format!(" {}{}{} ● ", sym, abbrev, mute)
                 } else {
-                    format!(" {}{}{}{} ", sym, abbrev, mute, tts)
+                    format!(" {}{}{} ", sym, abbrev, mute)
                 }
             } else {
                 let mute = if !tab.sound_enabled { " 🔇" } else { "" };
-                let tts = if !tab.tts_enabled { " 🔕" } else { "" };
                 if tab.unread > 0 {
-                    format!(" {} {}{}{} {} ", sym, tab.label, mute, tts, tab.unread)
+                    format!(" {} {}{} {} ", sym, tab.label, mute, tab.unread)
                 } else {
-                    format!(" {} {}{}{} ", sym, tab.label, mute, tts)
+                    format!(" {} {}{} ", sym, tab.label, mute)
                 }
             };
 

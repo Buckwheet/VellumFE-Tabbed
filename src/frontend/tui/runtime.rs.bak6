@@ -364,7 +364,7 @@ async fn async_run(
                 SessionStatus::Error(_)     => "!".to_string(),
                 SessionStatus::Disconnected => "○".to_string(),
             };
-            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), sym, s.unread_count, s.sound_enabled, s.tts_enabled)
+            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), sym, s.unread_count, s.sound_enabled)
         }).collect();
     };
     sync_tabs(&session_manager, &mut frontend);

@@ -171,11 +171,12 @@ impl Frontend for TuiFrontend {
             // Build tab entries from session_labels
             let tab_entries: Vec<TabEntry> = self.session_labels
                 .iter()
-                .map(|(label, is_active, is_connected, unread)| TabEntry {
+                .map(|(label, is_active, status, unread, sound_enabled)| TabEntry {
                     label: label.as_str(),
                     is_active: *is_active,
-                    is_connected: *is_connected,
+                    status: status.as_str(),
                     unread: *unread,
+                    sound_enabled: *sound_enabled,
                 })
                 .collect();
 
@@ -614,6 +615,16 @@ impl Frontend for TuiFrontend {
             // Render injuries popup if active (viewing another player's injuries)
             if let Some(ref injuries_popup) = app_core.ui_state.injuries_popup {
                 injury_doll::render_injuries_popup(injuries_popup, screen_area, f.buffer_mut(), &theme);
+            }
+
+            // Render session picker overlay (topmost layer)
+            if let Some(ref picker) = self.session_picker {
+                session_picker::render_picker(picker, screen_area, f.buffer_mut());
+            }
+
+            // Render login wizard overlay (above picker)
+            if let Some(ref wizard) = self.login_wizard {
+                login_wizard::render_wizard(wizard, screen_area, f.buffer_mut());
             }
         })?;
 
