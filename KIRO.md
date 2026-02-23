@@ -15,9 +15,9 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 11 — commit `269a36c`)
+## Current State (Session 12 — commit `a2c6886`)
 
-`cargo check` is clean. All phases complete. Remaining work is polish.
+`cargo check` clean. `cargo test` passes. beta.12 and beta.13 builds in progress on GitHub Actions.
 
 ---
 
@@ -186,13 +186,14 @@ crate::config::HighlightPattern {
 
 Priority order:
 
-1. ~~**Session switch UI state save/restore**~~ — DONE (Session 10, `ade241d`)
-
-2. ~~**TTS state in tab bar**~~ — DONE (Session 11, `269a36c`) — 🔕 shows when `tts_enabled=false`
-
-3. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
-
-4. **Bak file cleanup** — deferred until first working release binary is shipped on GitHub. Bak files are safety nets until then.
+1. ~~**Session switch UI state save/restore**~~ — DONE (Session 10)
+2. ~~**TTS state in tab bar**~~ — DONE (Session 11)
+3. ~~**CI test failures**~~ — DONE (Session 12) — `vellum_fe` → `vellum_fe_tabbed` in tests + doctests
+4. **Verify beta.13 build passes** on all platforms (Linux, Windows, macOS arm64/x64/universal)
+5. **Test the binary** — run against a real GemStone account, verify Lich proxy and Direct login
+6. **Promote to v0.2.0 stable** once binary is confirmed working
+7. **Bak file cleanup** — deferred until first working release binary is shipped on GitHub. Bak files are safety nets until then.
+8. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
 
 ---
 
