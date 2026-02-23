@@ -145,8 +145,10 @@ pub enum PickerAction {
     Connect(usize),
     /// Remove the session at this index
     Remove(usize),
-    /// Save a new session entry
+    /// Save a new Lich session entry
     AddSession(SessionEntry),
+    /// Open the Direct login wizard
+    OpenWizard,
     /// User pressed Escape with no sessions — quit
     Quit,
 }
@@ -195,8 +197,13 @@ impl SessionPicker {
         if self.focus == PickerFocus::Form {
             // Save form
             if let Some(form) = &self.form {
-                if let Some(entry) = form.to_entry() {
-                    self.action = Some(PickerAction::AddSession(entry));
+                if form.lich_mode {
+                    if let Some(entry) = form.to_entry() {
+                        self.action = Some(PickerAction::AddSession(entry));
+                    }
+                } else {
+                    // Direct mode — open the full wizard
+                    self.action = Some(PickerAction::OpenWizard);
                 }
             }
             return;
@@ -243,6 +250,13 @@ impl SessionPicker {
     pub fn tab_field(&mut self) {
         if let Some(form) = &mut self.form {
             form.next_field();
+        }
+    }
+
+    /// Toggle Lich/Direct mode in the add form (F2)
+    pub fn toggle_mode(&mut self) {
+        if let Some(form) = &mut self.form {
+            form.lich_mode = !form.lich_mode;
         }
     }
 }
@@ -377,39 +391,53 @@ fn render_list(picker: &SessionPicker, area: Rect, buf: &mut Buffer) {
 fn render_form(form: &AddForm, area: Rect, buf: &mut Buffer) {
     let mut y = area.y;
 
-    let title = Line::from(Span::styled(
-        " Add Session (Lich Proxy) ",
-        Style::default().add_modifier(Modifier::BOLD),
-    ));
+    let mode_label = if form.lich_mode { "[Lich Proxy]  Direct     " } else { " Lich Proxy  [Direct]    " };
+    let title = Line::from(vec![
+        Span::styled(" Mode: ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(mode_label, Style::default().fg(Color::Cyan)),
+        Span::styled(" F2=toggle", Style::default().fg(Color::DarkGray)),
+    ]);
     if y < area.bottom() {
         buf.set_line(area.x, y, &title, area.width);
         y += 2;
     }
 
-    let fields: &[(&str, &str, bool)] = &[
-        ("Label", &form.label, form.focused_field == Some(FormField::Label)),
-        ("Host ", &form.host,  form.focused_field == Some(FormField::Host)),
-        ("Port ", &form.port,  form.focused_field == Some(FormField::Port)),
-    ];
-
-    for (label, value, focused) in fields {
-        if y >= area.bottom() {
-            break;
+    if form.lich_mode {
+        let fields: &[(&str, &str, bool)] = &[
+            ("Label", &form.label, form.focused_field == Some(FormField::Label)),
+            ("Host ", &form.host,  form.focused_field == Some(FormField::Host)),
+            ("Port ", &form.port,  form.focused_field == Some(FormField::Port)),
+        ];
+        for (label, value, focused) in fields {
+            if y >= area.bottom() { break; }
+            let field_style = if *focused {
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+            let cursor = if *focused { "█" } else { "" };
+            buf.set_string(area.x, y, &format!("  {}: [{}{}]", label, value, cursor), field_style);
+            y += 1;
         }
-        let field_style = if *focused {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-        };
-        let cursor = if *focused { "█" } else { "" };
-        let line = format!("  {}: [{}{}]", label, value, cursor);
-        buf.set_string(area.x, y, &line, field_style);
         y += 1;
-    }
-
-    y += 1;
-    if y < area.bottom() {
-        let help = "  Tab=Next field  Enter=Save  Esc=Cancel";
-        buf.set_string(area.x, y, help, Style::default().fg(Color::DarkGray));
+        if y < area.bottom() {
+            buf.set_string(area.x, y, "  Tab=Next field  Enter=Save  Esc=Cancel",
+                Style::default().fg(Color::DarkGray));
+        }
+    } else {
+        if y < area.bottom() {
+            buf.set_string(area.x, y, "  Press Enter to open the login wizard.",
+                Style::default().fg(Color::Gray));
+            y += 1;
+        }
+        if y < area.bottom() {
+            buf.set_string(area.x, y, "  (account → game → character)",
+                Style::default().fg(Color::DarkGray));
+            y += 2;
+        }
+        if y < area.bottom() {
+            buf.set_string(area.x, y, "  Enter=Open wizard  Esc=Cancel",
+                Style::default().fg(Color::DarkGray));
+        }
     }
 }

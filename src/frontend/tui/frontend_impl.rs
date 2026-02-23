@@ -620,6 +620,11 @@ impl Frontend for TuiFrontend {
             if let Some(ref picker) = self.session_picker {
                 session_picker::render_picker(picker, screen_area, f.buffer_mut());
             }
+
+            // Render login wizard overlay (above picker)
+            if let Some(ref wizard) = self.login_wizard {
+                login_wizard::render_wizard(wizard, screen_area, f.buffer_mut());
+            }
         })?;
 
         // Feed text wrapping timings into performance stats (drain samples from all text widgets)

@@ -269,8 +269,12 @@ async fn async_run(
             }
 
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
+                // Intercept wizard commands
+                if command.starts_with("//wizard:") {
+                    handle_wizard_command(&command, &mut frontend, &mut session_manager, &mut sessions_config, &command_tx);
+                    sync_tabs(&session_manager, &mut frontend);
                 // Intercept picker commands
-                if command.starts_with("//picker:") {
+                } else if command.starts_with("//picker:") {
                     handle_picker_command(
                         &command,
                         &mut frontend,
@@ -482,6 +486,14 @@ fn handle_picker_command(
             // No sessions and user pressed Escape — close picker, let app exit naturally
             frontend.session_picker = None;
         }
+        "//picker:open_wizard" => {
+            // Open the Direct login wizard
+            if let Some(picker) = &mut frontend.session_picker {
+                picker.focus = crate::frontend::tui::session_picker::PickerFocus::List;
+                picker.form = None;
+            }
+            frontend.login_wizard = Some(crate::frontend::tui::login_wizard::LoginWizard::new());
+        }
         "//picker:add" => {
             if let Some(PickerAction::AddSession(entry)) = action {
                 // Add to session manager
@@ -531,3 +543,82 @@ fn handle_picker_command(
     }
 }
 
+
+/// Handle `//wizard:*` commands from the login wizard.
+fn handle_wizard_command(
+    command: &str,
+    frontend: &mut TuiFrontend,
+    session_manager: &mut SessionManager,
+    sessions_config: &mut crate::sessions_config::SessionsConfig,
+    command_tx: &tokio::sync::mpsc::UnboundedSender<String>,
+) {
+    match command {
+        "//wizard:cancel" => {
+            frontend.login_wizard = None;
+        }
+        "//wizard:fetch_chars" => {
+            // Fetch character list from eAccess in a blocking thread, then set on wizard
+            if let Some(wizard) = &frontend.login_wizard {
+                let account = wizard.account.clone();
+                let password = wizard.password.clone();
+                let game_code = wizard.selected_game_code().to_string();
+                let data_dir = crate::config::Config::base_dir().unwrap_or_default();
+                match std::thread::spawn(move || {
+                    crate::network::fetch_characters_for_account(&account, &password, &game_code, &data_dir)
+                }).join() {
+                    Ok(Ok(chars)) => {
+                        if let Some(w) = &mut frontend.login_wizard {
+                            w.set_characters(chars);
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        if let Some(w) = &mut frontend.login_wizard {
+                            w.set_error(format!("Auth failed: {}", e));
+                        }
+                    }
+                    Err(_) => {
+                        if let Some(w) = &mut frontend.login_wizard {
+                            w.set_error("Connection error".to_string());
+                        }
+                    }
+                }
+            }
+        }
+        cmd if cmd.starts_with("//wizard:connect:") => {
+            // Format: //wizard:connect:account:password:game_code:character
+            let parts: Vec<&str> = cmd["//wizard:connect:".len()..].splitn(4, ':').collect();
+            if parts.len() == 4 {
+                let (account, password, game_code, character) =
+                    (parts[0], parts[1], parts[2], parts[3]);
+                // Add as Direct session
+                let mode = crate::session::ConnectionMode::Direct {
+                    account: account.to_string(),
+                    password: password.to_string(),
+                    character: character.to_string(),
+                    game_code: game_code.to_string(),
+                };
+                let id = session_manager.add(character.to_string(), mode);
+                if let Some(s) = session_manager.get_mut(id) {
+                    s.command_tx = Some(command_tx.clone());
+                }
+                // Save to sessions.toml (no password stored)
+                let entry = crate::sessions_config::SessionEntry {
+                    label: character.to_string(),
+                    mode: crate::sessions_config::SessionModeConfig::Direct,
+                    host: None,
+                    port: None,
+                    account: Some(account.to_string()),
+                    character: Some(character.to_string()),
+                    game_code: Some(game_code.to_string()),
+                    auto_connect: false,
+                };
+                sessions_config.add(entry);
+                let _ = sessions_config.save();
+                // Close wizard and picker
+                frontend.login_wizard = None;
+                frontend.session_picker = None;
+            }
+        }
+        _ => {}
+    }
+}

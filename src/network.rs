@@ -754,6 +754,50 @@ mod eaccess {
         None
     }
 
+    /// Parse the `C` response into a list of character names.
+    fn parse_character_list(response: &str) -> Vec<String> {
+        let trimmed = response.trim();
+        let tokens: Vec<&str> = trimmed.split('\t').collect();
+        if tokens.first().copied() != Some("C") || tokens.len() <= 5 {
+            return vec![];
+        }
+        let mut names = Vec::new();
+        let mut index = 5;
+        while index + 1 < tokens.len() {
+            names.push(tokens[index + 1].to_string());
+            index += 2;
+        }
+        names
+    }
+
+    /// Authenticate with eAccess and return the list of characters on the account.
+    /// Does NOT launch the game — just fetches the character list.
+    pub fn fetch_characters(
+        account: &str,
+        password: &str,
+        game_code: &str,
+        data_dir: &std::path::Path,
+    ) -> Result<Vec<String>> {
+        let cert_path = data_dir.join(CERT_FILENAME);
+        ensure_certificate(&cert_path)?;
+        let mut stream = connect_with_cert(&cert_path)
+            .or_else(|_| { download_certificate(&cert_path)?; connect_with_cert(&cert_path) })?;
+
+        send_line(&mut stream, "K")?;
+        let hash_key = read_response(&mut stream)?;
+        let encoded_password = obfuscate_password(password, hash_key.trim());
+        send_login_payload(&mut stream, account, &encoded_password)?;
+        let auth_response = read_response(&mut stream)?;
+        if !auth_response.contains("KEY") {
+            bail!("Authentication failed: {}", auth_response.trim());
+        }
+        send_line(&mut stream, &format!("F\t{}", game_code))?;
+        read_response(&mut stream)?;
+        send_line(&mut stream, "C")?;
+        let chars_response = read_response(&mut stream)?;
+        Ok(parse_character_list(&chars_response))
+    }
+
     fn parse_launch_response(response: &str) -> Result<LaunchTicket> {
         let trimmed = response.trim();
         if !trimmed.starts_with('L') {
@@ -1018,6 +1062,16 @@ mod eaccess {
             assert!(debug_str.contains("host"));
         }
     }
+}
+
+/// Public wrapper: fetch character list from eAccess without launching the game.
+pub fn fetch_characters_for_account(
+    account: &str,
+    password: &str,
+    game_code: &str,
+    data_dir: &std::path::Path,
+) -> anyhow::Result<Vec<String>> {
+    eaccess::fetch_characters(account, password, game_code, data_dir)
 }
 
 #[cfg(test)]

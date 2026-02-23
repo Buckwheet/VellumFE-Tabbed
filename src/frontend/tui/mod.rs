@@ -70,6 +70,7 @@ mod widget_manager;
 mod input_handlers;
 pub mod tab_bar;
 pub mod session_picker;
+pub mod login_wizard;
 
 pub use colors::resolve_window_colors;
 pub use runtime::run;
@@ -124,6 +125,8 @@ pub struct TuiFrontend {
     pub compact_tabs: bool,
     /// Session picker screen (shown when no sessions are active)
     pub session_picker: Option<session_picker::SessionPicker>,
+    /// Login wizard for adding a Direct eAccess session
+    pub login_wizard: Option<login_wizard::LoginWizard>,
 }
 
 impl TuiFrontend {
@@ -161,6 +164,7 @@ impl TuiFrontend {
             session_labels: Vec::new(),
             compact_tabs: false,
             session_picker: None,
+            login_wizard: None,
         })
     }
 

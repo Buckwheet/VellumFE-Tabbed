@@ -123,6 +123,11 @@ impl super::TuiFrontend {
         use crate::data::window::WidgetType;
         use super::session_keys;
 
+        // If login wizard is active, route all keys to it
+        if self.login_wizard.is_some() {
+            return self.handle_wizard_keys(code, modifiers, app_core);
+        }
+
         // If session picker is active, route all keys to it
         if self.session_picker.is_some() {
             return self.handle_picker_keys(code, modifiers, app_core);
@@ -494,8 +499,54 @@ impl super::TuiFrontend {
         }
     }
 
-    /// Handle keyboard input when the session picker is active.
-    /// Returns a special command string that the runtime interprets.
+    /// Handle keyboard input when the login wizard is active.
+    pub(super) fn handle_wizard_keys(
+        &mut self,
+        code: crate::frontend::KeyCode,
+        _modifiers: crate::frontend::KeyModifiers,
+        app_core: &mut crate::core::AppCore,
+    ) -> Result<Option<String>> {
+        use crate::frontend::KeyCode;
+
+        let wizard = match &mut self.login_wizard {
+            Some(w) => w,
+            None => return Ok(None),
+        };
+
+        match code {
+            KeyCode::Up => wizard.move_up(),
+            KeyCode::Down => wizard.move_down(),
+            KeyCode::Tab => wizard.tab(),
+            KeyCode::Backspace => wizard.backspace(),
+            KeyCode::Esc => wizard.back(),
+            KeyCode::Enter => {
+                let fetch_needed = wizard.confirm();
+                if fetch_needed {
+                    // Signal runtime to fetch character list
+                    app_core.needs_render = true;
+                    return Ok(Some("//wizard:fetch_chars".to_string()));
+                }
+            }
+            KeyCode::Char(c) => wizard.type_char(c),
+            _ => {}
+        }
+
+        app_core.needs_render = true;
+
+        // Check for result
+        if let Some(result) = &wizard.result {
+            let cmd = match result {
+                super::login_wizard::WizardResult::Connect { account, password, game_code, character } =>
+                    format!("//wizard:connect:{}:{}:{}:{}", account, password, game_code, character),
+                super::login_wizard::WizardResult::Cancel =>
+                    "//wizard:cancel".to_string(),
+            };
+            return Ok(Some(cmd));
+        }
+
+        Ok(None)
+    }
+
     pub(super) fn handle_picker_keys(
         &mut self,
         code: crate::frontend::KeyCode,
@@ -513,6 +564,7 @@ impl super::TuiFrontend {
             KeyCode::Up => picker.move_up(),
             KeyCode::Down => picker.move_down(),
             KeyCode::Tab => picker.tab_field(),
+            KeyCode::F(2) => picker.toggle_mode(),
             KeyCode::Enter => picker.confirm(),
             KeyCode::Delete | KeyCode::Backspace if picker.focus == super::session_picker::PickerFocus::List => {
                 picker.remove_selected();
@@ -534,6 +586,8 @@ impl super::TuiFrontend {
                     format!("//picker:remove:{}", i),
                 super::session_picker::PickerAction::AddSession(_) =>
                     "//picker:add".to_string(),
+                super::session_picker::PickerAction::OpenWizard =>
+                    "//picker:open_wizard".to_string(),
                 super::session_picker::PickerAction::Quit =>
                     "//picker:quit".to_string(),
             };
