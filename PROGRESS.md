@@ -27,3 +27,22 @@
 
 ### To Resume Next Session
 Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed and let's continue Phase 1"
+
+## Session 2 — Phase 1 Started (parallel agents)
+
+### Completed
+- [x] Session struct created: src/session/mod.rs
+- [x] SessionManager created: src/session_manager.rs  
+- [x] SessionsConfig (sessions.toml loader): src/sessions_config.rs
+- [x] sessions.toml.example format documented
+- [x] TabBar widget created: src/frontend/tui/tab_bar.rs
+
+### Remaining Phase 1 Tasks
+- [ ] Wire SessionManager into main.rs (replace single-session startup)
+- [ ] Wire TabBar into the TUI layout (add 1-row tab bar at top)
+- [ ] Background TCP task per session (all run simultaneously)
+- [ ] Keyboard shortcuts: Ctrl+1..9, Ctrl+T, Ctrl+W
+- [ ] Unread counter increments for inactive sessions
+
+### Next Steps
+Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed, continue Phase 1 wiring"
