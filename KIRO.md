@@ -192,7 +192,7 @@ Priority order:
 
 3. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
 
-4. **Bak file cleanup** — many `.bak` files accumulating in src/; consider a `make clean-bak` or gitignore rule
+4. **Bak file cleanup** — deferred until first working release binary is shipped on GitHub. Bak files are safety nets until then.
 
 ---
 
