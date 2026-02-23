@@ -1,156 +1,148 @@
-# VellumFE
+# VellumFE-Tabbed
 
-A modern, feature-rich terminal client for [GemStone IV](https://www.play.net/gs4/).
+A high-performance, multi-session terminal frontend for [GemStone IV](https://www.play.net/gs4/) — built for players who run multiple characters and refuse to sacrifice speed for features.
 
-![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)
-![Tests](https://img.shields.io/badge/tests-1%2C003%20passing-brightgreen)
 ![Rust](https://img.shields.io/badge/rust-stable-orange)
+![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)
+![Status](https://img.shields.io/badge/status-in%20development-yellow)
+
+---
+
+## What This Is
+
+Most GemStone frontends make you choose between performance and features. Electron-based clients like Wyrath are feature-rich but introduce lag. Lightweight clients like ProfanityFE are fast but lack multi-session support and modern UX.
+
+VellumFE-Tabbed aims to be both — a compiled Rust binary that runs up to 15 simultaneous sessions in a single terminal window, with a full widget system, per-character highlights, and a session picker/tab bar to switch between characters instantly.
+
+---
 
 ## Features
 
-- **Customizable Widget System** - Progress bars, countdowns, compass, hands, indicators, injury doll, active effects, and more
-- **Tabbed Text Windows** - Route game streams to organized tabs (thoughts, combat, loot, etc.)
-- **Highlight System** - Regex-based text highlighting with Aho-Corasick fast matching
-- **Sound Alerts** - Play sounds on pattern matches with volume control
-- **Direct eAccess Authentication** - Connect directly to GemStone IV without Lich proxy
-- **Fully Themeable** - Complete color customization with preset themes
-- **Layout Editor** - Interactive widget positioning and resizing (F2)
-- **Comprehensive Testing** - 1,003 tests including end-to-end UI integration tests
+- **Multi-session** — up to 15 simultaneous GemStone sessions in one window
+- **Tabbed or compact layout** — full tab bar or minimal session picker, your choice
+- **Widget system** — progress bars, compass, hands, injury doll, countdowns, active effects, spells, inventory, targets, and more
+- **Tabbed text windows** — route game streams (thoughts, combat, loot, death) to organized tabs
+- **Highlight system** — regex + fast literal matching (Aho-Corasick), per-character and global
+- **Sound alerts** — play sounds on pattern matches
+- **TTS support** — text-to-speech for accessibility
+- **Direct eAccess login** — connect without Lich proxy
+- **Lich proxy login** — full Lich script support
+- **Lich script → FE commands** — scripts can add/remove highlights at runtime via `<vellumfe>` XML tags
+- **Fully themeable** — complete color customization
+- **Layout editor** — interactive widget positioning (F2)
+- **Per-character config** — highlights, layout, keybinds, and colors saved per character
+
+---
 
 ## Quick Start
 
-### Via Lich Proxy (Recommended)
+> ⚠️ Pre-built binaries not yet available. Build from source below.
+
+### Via Lich Proxy
 
 ```bash
-# Start Lich with your character, then:
-vellum-fe --port 8000 --character YourCharacter
+vellum-fe-tabbed --port 8000 --character YourCharacter
 ```
 
-### Direct Connection (Standalone)
+### Direct Connection (no Lich)
 
 ```bash
-vellum-fe --direct \
+vellum-fe-tabbed --direct \
   --account YOUR_ACCOUNT \
   --password YOUR_PASSWORD \
   --game prime \
   --character CHARACTER_NAME
 ```
 
-## Installation 
+---
 
-### Pre-built Binaries
+## Build from Source
 
-Download from [Releases](https://github.com/Nisugi/vellum-fe/releases).
-
-### Build from Source
+**Requirements:** Rust 1.70+ stable
 
 ```bash
-# Clone the repository
-git clone https://github.com/Nisugi/vellum-fe.git
-cd vellum-fe
-
-# Build release binary
+git clone https://github.com/Buckwheet/VellumFE-Tabbed.git
+cd VellumFE-Tabbed
 cargo build --release
-
-# Binary is at target/release/vellum-fe.exe
 ```
 
-**Requirements:**
-- Rust 1.70+ (stable)
-- OpenSSL (for direct mode) - install via vcpkg on Windows
+Binary will be at `target/release/vellum-fe-tabbed.exe` (Windows) or `target/release/vellum-fe-tabbed` (Linux).
 
-## Documentation
+---
 
-**[Full Documentation](https://nisugi.github.io/VellumFE/)** - Comprehensive guides, tutorials, and reference
+## Configuration
 
-Quick links:
-- [Getting Started](https://nisugi.github.io/vellum-fe/getting-started/)
-- [Configuration Guide](https://nisugi.github.io/vellum-fe/configuration/)
-- [Widget Reference](https://nisugi.github.io/vellum-fe/widgets/)
-- [Keybind Actions](https://nisugi.github.io/vellum-fe/reference/keybind-actions.html)
-- [Troubleshooting](https://nisugi.github.io/vellum-fe/troubleshooting/)
+Config files live in `~/.config/vellum-fe-tabbed/`:
+
+```
+~/.config/vellum-fe-tabbed/
+├── sessions.toml              # Saved session list
+├── global/
+│   ├── highlights.toml        # Highlights applied to all sessions
+│   └── keybinds.toml
+└── characters/
+    └── <CharacterName>/
+        ├── config.toml
+        ├── highlights.toml    # Per-character highlight overrides
+        ├── layout.toml
+        └── colors.toml
+```
+
+Example highlight:
+
+```toml
+[stunned]
+pattern = "You are stunned"
+fg = "#ff0000"
+bold = true
+sound = "alert.wav"
+category = "Combat"
+```
+
+---
 
 ## Default Keybinds
 
 | Key | Action |
 |-----|--------|
-| `F2` | Toggle layout editor |
-| `F3` | Toggle highlight browser |
+| `Ctrl+1..9` | Switch to session by number |
+| `Ctrl+T` | New session |
+| `Ctrl+W` | Close session |
+| `Ctrl+Shift+C` | Toggle compact mode |
+| `F2` | Layout editor |
+| `F3` | Highlight browser |
 | `Page Up/Down` | Scroll main window |
-| `Tab` | Cycle focus between widgets |
-| `Ctrl+C` | Copy selected text |
-| `Escape` | Close popups / cancel |
+| `Escape` | Close popups |
 
-See [Keybind Reference](https://nisugi.github.io/vellum-fe/reference/keybind-actions.html) for complete list.
+---
 
-## Configuration
+## Project Status
 
-VellumFE uses TOML configuration files stored in `~/.vellum-fe/`:
+See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the full roadmap and phase breakdown.
 
-```
-~/.vellum-fe/
-├── config.toml        # Main configuration
-├── layout.toml        # Widget layout
-├── keybinds.toml      # Key bindings
-├── highlights.toml    # Text highlighting rules
-└── colors.toml        # Theme colors
-```
+- [x] Repo setup, base codebase imported
+- [ ] Phase 1: Multi-session core
+- [ ] Phase 2: Session picker + compact mode
+- [ ] Phase 3: Highlights polish + Lich script protocol
+- [ ] Phase 4: Login flows
+- [ ] Phase 5: Cross-session features
+- [ ] Phase 6: Windows build + CI/CD
 
-Example highlight:
-```toml
-[[highlights]]
-pattern = "You are stunned"
-fg = "bright_red"
-bold = true
-sound = "alert.wav"
-```
+---
 
-## Architecture
+## Credits & Acknowledgments
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                      Network Layer                       │
-│            (Lich Proxy / Direct eAccess)                │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│                    Parser (XML)                          │
-│                Wrayth Protocol Handler                   │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│                  Core (AppCore)                          │
-│         State Management & Message Processing            │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│                 TUI Frontend (Ratatui)                   │
-│              Widget Rendering & Input                    │
-└─────────────────────────────────────────────────────────┘
-```
+This project stands on the shoulders of several excellent open-source GemStone frontends:
 
-## Contributing
+- **[VellumFE](https://github.com/Nisugi/VellumFE)** by Nisugi — the Rust/Ratatui foundation this project is built on. The widget system, highlight engine, parser, and TUI architecture all originate here.
+- **[Illthorn](https://github.com/elanthia-online/illthorn)** by Benjamin Clos — the multi-session architecture and session picker concept are inspired by Illthorn's TypeScript implementation.
+- **[Warlock3](https://github.com/sproctor/warlock3)** by Sean Proctor — reference for dual login (Lich + direct eAccess) and per-character settings persistence.
+- **[ProfanityFE](https://github.com/elanthia-online/ProfanityFE)** — the original lightweight terminal frontend that proved a fast GemStone client was possible.
 
-Contributions welcome! Please see [Contributing Guide](https://nisugi.github.io/vellum-fe/development/contributing.html).
-
-```bash
-# Run tests
-cargo test
-
-# Run with logging
-RUST_LOG=debug cargo run -- --port 8000
-```
+---
 
 ## License
 
 Licensed under either of:
 - MIT License ([LICENSE-MIT](LICENSE-MIT))
 - Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-
-at your option.
-
-## Acknowledgments
-
-- Forked from [VellumFE](https://github.com/Nisugi/VellumFE)
-- Built with [Ratatui](https://ratatui.rs/) for terminal UI
-- Inspired by [Profanity](https://github.com/jkindwall/profanity-beta)
