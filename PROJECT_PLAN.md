@@ -235,7 +235,40 @@ total vs ~4.5GB+ for Electron-based alternatives.
 
 - [ ] Should sessions auto-connect on startup, or require manual connect from picker?
 - [ ] Max buffer size per inactive session (memory vs. scroll history tradeoff)?
-- [ ] Should Lich scripts be able to send highlight commands to the FE?
+
+---
+
+## Lich Script → FE Command Protocol
+
+**Decision: Yes** — Lich scripts can send commands to the FE via the proxy stream.
+
+### Protocol Design
+
+Scripts send a custom XML tag over the Lich connection:
+
+```xml
+<vellumfe cmd="highlight.add" pattern="Buckwheet" fg="#ff00ff" bold="true" category="Friends" fast_parse="true"/>
+<vellumfe cmd="highlight.remove" pattern="Buckwheet"/>
+<vellumfe cmd="highlight.clear" category="Friends"/>
+<vellumfe cmd="squelch.add" pattern="A cool breeze"/>
+```
+
+### Supported Commands (Phase 3+)
+
+| Command | Params | Description |
+|---------|--------|-------------|
+| `highlight.add` | pattern, fg, bg, bold, category, fast_parse, sound, squelch | Add/update a highlight |
+| `highlight.remove` | pattern | Remove a highlight by pattern |
+| `highlight.clear` | category (optional) | Clear all or by category |
+| `squelch.add` | pattern | Add squelch pattern |
+| `squelch.remove` | pattern | Remove squelch pattern |
+
+### Implementation Notes
+- Parser watches for `<vellumfe .../>` tags in the XML stream
+- These tags are consumed by the FE and never rendered as text
+- Changes apply immediately to the active session
+- Changes are optionally persisted to `highlights.toml` (param: `persist="true"`)
+- This goes in Phase 3 alongside the highlight editor
 
 ---
 
