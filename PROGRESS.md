@@ -70,3 +70,23 @@ Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed, continue 
 
 ### To Resume
 Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed, start Phase 2"
+
+## Session 4 — Phase 2 Complete
+
+### Completed
+- [x] 2.1 Session picker screen (shown when sessions.toml is empty / first run)
+- [x] 2.2 Add/remove sessions from picker (Lich mode; Direct is Phase 4)
+- [x] 2.3 Compact mode toggle (Ctrl+Shift+C) — tab bar already rendered both modes
+- [x] 2.4 sessions.toml persistence — load on startup, save on add/remove
+- [x] 2.5 Auto-reconnect — Lich connections retry every 5s on disconnect
+
+### Phase 3 Tasks (next session)
+- [ ] 3.1 Global highlights.toml (applies to all sessions)
+- [ ] 3.2 Per-character highlights override global
+- [ ] 3.3 In-app highlight editor (add/edit/delete without restarting)
+- [ ] 3.4 Highlight categories UI
+- [ ] 3.5 Import/export highlights
+- [ ] 3.6 Per-character layout persistence
+
+### To Resume
+Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed, start Phase 3"
