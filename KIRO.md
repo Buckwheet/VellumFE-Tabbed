@@ -15,7 +15,7 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 9 — commit `1e290f1`)
+## Current State (Session 10 — commit `ade241d`)
 
 `cargo check` is clean. All phases complete. Remaining work is polish.
 
@@ -152,6 +152,19 @@ session_manager.active().and_then(|s| s.command_tx.as_ref()).map(|tx| tx.send(cm
 2. Take `s.server_rx` → insert into `session_rxs`
 3. `spawn_session_network(s, raw_logger)` → sets `s.command_tx`, spawns network task
 4. `create_app_core_for_session(&mode, &config)` → insert into `app_cores`
+5. `widget_managers.insert(id, WidgetManager::new())` — fresh widget state for new session
+
+### Session Switch (do_session_switch helper)
+
+```rust
+fn do_session_switch(prev_id, new_id, frontend, widget_managers) {
+    // Save outgoing: swap frontend.widget_manager → widget_managers[prev_id]
+    // Restore incoming: widget_managers.remove(new_id) → swap into frontend
+    // If no saved state for incoming, fresh WidgetManager stays in frontend
+}
+```
+
+Call at all switch sites: `SessionCmd::SwitchToIndex/Next/Prev`, `//picker:connect:`
 
 ### HighlightPattern construction (no Default impl)
 
@@ -172,10 +185,7 @@ crate::config::HighlightPattern {
 
 Priority order:
 
-1. **Session switch UI state save/restore** — when switching sessions, save scroll position
-   and focused window for the outgoing session; restore for the incoming session.
-   - Where: `session_manager.set_active()` in `runtime.rs` + `TuiFrontend`
-   - Likely needs: `saved_scroll: HashMap<String, usize>` and `saved_focus: Option<String>` on Session
+1. ~~**Session switch UI state save/restore**~~ — DONE (Session 10, `ade241d`)
 
 2. **TTS state in tab bar** — show 🔇 or similar when `tts_enabled = false`
    - Where: extend `session_labels` to 6-tuple, update `tab_bar.rs`, `frontend_impl.rs`, `runtime.rs`
