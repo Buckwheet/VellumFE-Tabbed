@@ -46,3 +46,27 @@ Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed and let's 
 
 ### Next Steps
 Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed, continue Phase 1 wiring"
+
+## Session 3 — Phase 1 Complete, Build Process Established
+
+### Completed
+- [x] Rust + build tools installed in WSL
+- [x] Session/SessionManager wired into runtime event loop
+- [x] TabBar widget wired into TUI render (top row, 1px height)
+- [x] Session key shortcuts wired (Ctrl+1..9, Ctrl+Tab, Ctrl+W, Ctrl+T)
+- [x] All Phase 1 compilation errors resolved — cargo check passes clean
+- [x] Binary renamed: vellum-fe-tabbed
+- [x] CI workflow: ci.yml (test on push/PR to main)
+- [x] Beta release workflow: beta-release.yml (tag v*.*.*-beta*)
+- [x] Stable release workflow: release.yml (tag v*.*.*)
+- [x] Release process rule saved: ~/.kiro/context/release-process-rule.md
+
+### Phase 2 Tasks (next session)
+- [ ] 2.1 Session picker screen (shown on first run / no sessions)
+- [ ] 2.2 Add/edit/remove sessions from picker
+- [ ] 2.3 Compact mode toggle (Ctrl+Shift+C)
+- [ ] 2.4 sessions.toml — persist session list across restarts
+- [ ] 2.5 Auto-reconnect on disconnect per session
+
+### To Resume
+Tell Kiro: "Read PROJECT_PLAN.md and PROGRESS.md from VellumFE-Tabbed, start Phase 2"
