@@ -42,6 +42,7 @@ mod search;
 mod sync;
 mod sync_macros;
 mod scrollable_container;
+mod session_keys;
 pub mod settings_editor;
 mod spacer;
 pub mod spell_color_browser;

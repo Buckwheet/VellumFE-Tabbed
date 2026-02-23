@@ -122,6 +122,32 @@ impl super::TuiFrontend {
         use crate::frontend::KeyCode;
         use crate::data::window::WidgetType;
 
+        // Session switching shortcuts - handle before other keys
+        if modifiers.contains(crate::frontend::KeyModifiers::CTRL) {
+            match code {
+                KeyCode::Char('1') => return Ok(Some(session_keys::SessionCmd::switch(1))),
+                KeyCode::Char('2') => return Ok(Some(session_keys::SessionCmd::switch(2))),
+                KeyCode::Char('3') => return Ok(Some(session_keys::SessionCmd::switch(3))),
+                KeyCode::Char('4') => return Ok(Some(session_keys::SessionCmd::switch(4))),
+                KeyCode::Char('5') => return Ok(Some(session_keys::SessionCmd::switch(5))),
+                KeyCode::Char('6') => return Ok(Some(session_keys::SessionCmd::switch(6))),
+                KeyCode::Char('7') => return Ok(Some(session_keys::SessionCmd::switch(7))),
+                KeyCode::Char('8') => return Ok(Some(session_keys::SessionCmd::switch(8))),
+                KeyCode::Char('9') => return Ok(Some(session_keys::SessionCmd::switch(9))),
+                KeyCode::Tab => return Ok(Some(session_keys::SessionCmd::next().to_string())),
+                KeyCode::Right => return Ok(Some(session_keys::SessionCmd::next().to_string())),
+                _ => {}
+            }
+        }
+        
+        if modifiers.contains(crate::frontend::KeyModifiers::CTRL | crate::frontend::KeyModifiers::SHIFT) {
+            match code {
+                KeyCode::BackTab => return Ok(Some(session_keys::SessionCmd::prev().to_string())),
+                KeyCode::Left => return Ok(Some(session_keys::SessionCmd::prev().to_string())),
+                _ => {}
+            }
+        }
+
         let focused_name = app_core.get_focused_window_name();
         if let Some(window) = app_core.ui_state.get_window(&focused_name) {
             if window.widget_type == WidgetType::Quickbar {
