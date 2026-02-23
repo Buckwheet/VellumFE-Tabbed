@@ -15,7 +15,7 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 10 — commit `ade241d`)
+## Current State (Session 11 — commit `269a36c`)
 
 `cargo check` is clean. All phases complete. Remaining work is polish.
 
@@ -55,11 +55,11 @@ src/config.rs                   Config::load_with_options(character, port)
 src/network.rs                  LichConnection, DirectConnection, ServerMessage
 ```
 
-### session_labels tuple (5-tuple)
+### session_labels tuple (6-tuple)
 
 ```rust
-// (label, is_active, status_symbol, unread_count, sound_enabled)
-pub session_labels: Vec<(String, bool, String, usize, bool)>,
+// (label, is_active, status_symbol, unread_count, sound_enabled, tts_enabled)
+pub session_labels: Vec<(String, bool, String, usize, bool, bool)>,
 ```
 
 Status symbols: `●` connected · `○` disconnected · `…` connecting · `↻` reconnecting · `!` error
@@ -73,6 +73,7 @@ pub struct TabEntry<'a> {
     pub status: &'a str,
     pub unread: usize,
     pub sound_enabled: bool,   // shows 🔇 when false
+    pub tts_enabled: bool,     // shows 🔕 when false
 }
 ```
 
@@ -187,10 +188,11 @@ Priority order:
 
 1. ~~**Session switch UI state save/restore**~~ — DONE (Session 10, `ade241d`)
 
-2. **TTS state in tab bar** — show 🔇 or similar when `tts_enabled = false`
-   - Where: extend `session_labels` to 6-tuple, update `tab_bar.rs`, `frontend_impl.rs`, `runtime.rs`
+2. ~~**TTS state in tab bar**~~ — DONE (Session 11, `269a36c`) — 🔕 shows when `tts_enabled=false`
 
 3. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
+
+4. **Bak file cleanup** — many `.bak` files accumulating in src/; consider a `make clean-bak` or gitignore rule
 
 ---
 
