@@ -1,7 +1,7 @@
 //! End-to-end tests: feed real XML through MessageProcessor into UiState and assert window state.
 
 use std::collections::HashMap;
-use vellum_fe::{
+use vellum_fe_tabbed::{
     config::Config,
     core::{messages::MessageProcessor, GameState},
     data::{
@@ -26,7 +26,7 @@ fn run_fixture(
     // Update stream subscriber map from windows before processing
     processor.update_text_stream_subscribers(ui_state);
 
-    let mut room_components: HashMap<String, Vec<Vec<vellum_fe::data::TextSegment>>> = HashMap::new();
+    let mut room_components: HashMap<String, Vec<Vec<vellum_fe_tabbed::data::TextSegment>>> = HashMap::new();
     let mut current_room_component: Option<String> = None;
     let mut room_window_dirty = false;
     let mut nav_room_id: Option<String> = None;
@@ -54,7 +54,7 @@ fn run_fixture(
 fn init_state() -> (UiState, MessageProcessor, GameState, XmlParser) {
     let config = Config::default();
     let ui_state = UiState::new();
-    let saved_positions = vellum_fe::config::SavedDialogPositions::default();
+    let saved_positions = vellum_fe_tabbed::config::SavedDialogPositions::default();
     let mut processor = MessageProcessor::new(config.clone(), saved_positions);
     processor.update_squelch_patterns();
     processor.update_redirect_cache();
@@ -255,7 +255,7 @@ fn add_injury_window(ui_state: &mut UiState) {
     let window = WindowState {
         name: "injuries".to_string(),
         widget_type: WidgetType::InjuryDoll,
-        content: WindowContent::InjuryDoll(vellum_fe::data::widget::InjuryDollData::new()),
+        content: WindowContent::InjuryDoll(vellum_fe_tabbed::data::widget::InjuryDollData::new()),
         position: position(),
         visible: true,
         focused: false,
@@ -275,13 +275,13 @@ fn add_tabbed_window(
     let tabs_with_timestamp: Vec<_> = tabs
         .into_iter()
         .map(|(name, streams, show_ts, ignore)| {
-            (name, streams, show_ts, ignore, vellum_fe::config::TimestampPosition::default())
+            (name, streams, show_ts, ignore, vellum_fe_tabbed::config::TimestampPosition::default())
         })
         .collect();
     let window = WindowState {
         name: name.to_string(),
         widget_type: WidgetType::TabbedText,
-        content: WindowContent::TabbedText(vellum_fe::data::widget::TabbedTextContent::new(
+        content: WindowContent::TabbedText(vellum_fe_tabbed::data::widget::TabbedTextContent::new(
             tabs_with_timestamp,
             max_lines,
         )),
@@ -662,15 +662,15 @@ fn spells_stream_buffers_without_window() {
     );
 
     // Now add a spells window - it should be populated from buffer
-    let mut content = vellum_fe::data::TextContent::new("spells", 100);
+    let mut content = vellum_fe_tabbed::data::TextContent::new("spells", 100);
     content.streams = vec!["Spells".to_string()];
     ui_state.set_window(
         "spells".to_string(),
-        vellum_fe::data::WindowState {
+        vellum_fe_tabbed::data::WindowState {
             name: "spells".to_string(),
-            widget_type: vellum_fe::data::WidgetType::Spells,
-            content: vellum_fe::data::WindowContent::Spells(content),
-            position: vellum_fe::data::WindowPosition {
+            widget_type: vellum_fe_tabbed::data::WidgetType::Spells,
+            content: vellum_fe_tabbed::data::WindowContent::Spells(content),
+            position: vellum_fe_tabbed::data::WindowPosition {
                 x: 0,
                 y: 0,
                 width: 40,
@@ -685,7 +685,7 @@ fn spells_stream_buffers_without_window() {
 
     // Populate the new window from buffer
     if let Some(window) = ui_state.windows.get_mut("spells") {
-        if let vellum_fe::data::WindowContent::Spells(ref mut content) = window.content {
+        if let vellum_fe_tabbed::data::WindowContent::Spells(ref mut content) = window.content {
             processor.populate_spells_window(content);
         }
     }
@@ -695,7 +695,7 @@ fn spells_stream_buffers_without_window() {
         .windows
         .get("spells")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Spells(content) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Spells(content) = &w.content {
                 Some(lines_to_strings(&content.lines))
             } else {
                 None
@@ -783,7 +783,7 @@ fn ui_updates_mindstate_progress() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Progress) && w.name == "mind")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.max, p.label.clone()))
             } else {
                 None
@@ -809,7 +809,7 @@ fn ui_updates_custom_progress_ids() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Progress) && w.name == "encum")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.max, p.label.clone()))
             } else {
                 None
@@ -837,7 +837,7 @@ fn countdown_does_not_update_wrong_id() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Countdown) && w.name == "casttime")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Countdown(c) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Countdown(c) = &w.content {
                 Some(c.end_time)
             } else {
                 None
@@ -862,7 +862,7 @@ fn countdown_updates_when_name_matches_even_if_id_differs() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Countdown) && w.name == "roundtime")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Countdown(c) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Countdown(c) = &w.content {
                 Some(c.end_time)
             } else {
                 None
@@ -1556,7 +1556,7 @@ fn ui_updates_progress_vitals_from_dialogdata() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Progress) && w.name == "health")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.max, p.label.clone()))
             } else {
                 None
@@ -1586,7 +1586,7 @@ fn ui_updates_roundtime_countdown() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Countdown) && w.name == "roundtime")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Countdown(c) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Countdown(c) = &w.content {
                 Some(c.end_time)
             } else {
                 None
@@ -1611,7 +1611,7 @@ fn ui_updates_cast_and_roundtime_countdowns() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Countdown) && w.name == "roundtime")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Countdown(c) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Countdown(c) = &w.content {
                 Some(c.end_time)
             } else {
                 None
@@ -1624,7 +1624,7 @@ fn ui_updates_cast_and_roundtime_countdowns() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Countdown) && w.name == "casttime")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Countdown(c) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Countdown(c) = &w.content {
                 Some(c.end_time)
             } else {
                 None
@@ -1651,7 +1651,7 @@ fn ui_sets_indicator_status_from_icon() {
         .values()
         .find(|w| w.name == "stunned")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Indicator(ind) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Indicator(ind) = &w.content {
                 Some(ind.active)
             } else {
                 None
@@ -1676,7 +1676,7 @@ fn ui_updates_multiple_indicators() {
         .values()
         .find(|w| w.name == "hidden")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Indicator(ind) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Indicator(ind) = &w.content {
                 Some(ind.active)
             } else {
                 None
@@ -1688,7 +1688,7 @@ fn ui_updates_multiple_indicators() {
         .values()
         .find(|w| w.name == "stunned")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Indicator(ind) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Indicator(ind) = &w.content {
                 Some(ind.active)
             } else {
                 None
@@ -1751,7 +1751,7 @@ fn ui_sets_hands_and_compass() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Hand) && w.name == "left")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Hand { item, .. } = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Hand { item, .. } = &w.content {
                 item.clone()
             } else {
                 None
@@ -1766,7 +1766,7 @@ fn ui_sets_hands_and_compass() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Compass))
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Compass(c) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Compass(c) = &w.content {
                 Some(c.directions.clone())
             } else {
                 None
@@ -1807,7 +1807,7 @@ fn ui_updates_room_subtitle_and_compass() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Compass))
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Compass(c) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Compass(c) = &w.content {
                 Some(c.directions.clone())
             } else {
                 None
@@ -1907,7 +1907,7 @@ fn ui_updates_stance_progress() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Progress) && w.name == "stance")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.max, p.label.clone()))
             } else {
                 None
@@ -1933,7 +1933,7 @@ fn ui_updates_buffs_progress_bars() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Progress) && w.name == "buff")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.label.clone()))
             } else {
                 None
@@ -1958,7 +1958,7 @@ fn ui_updates_lblbps_progress_label_only() {
         .values()
         .find(|w| matches!(w.widget_type, WidgetType::Progress) && w.name == "bp")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.max, p.label.clone()))
             } else {
                 None
@@ -1986,7 +1986,7 @@ fn ui_updates_multiple_progress_variants() {
         .values()
         .find(|w| w.name == "stance")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.max, p.label.clone()))
             } else {
                 None
@@ -2001,7 +2001,7 @@ fn ui_updates_multiple_progress_variants() {
         .values()
         .find(|w| w.name == "health")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.max, p.label.clone()))
             } else {
                 None
@@ -2016,7 +2016,7 @@ fn ui_updates_multiple_progress_variants() {
         .values()
         .find(|w| w.name == "foo")
         .and_then(|w| {
-            if let vellum_fe::data::WindowContent::Progress(p) = &w.content {
+            if let vellum_fe_tabbed::data::WindowContent::Progress(p) = &w.content {
                 Some((p.value, p.max, p.label.clone()))
             } else {
                 None
@@ -2032,9 +2032,9 @@ fn ui_updates_multiple_progress_variants() {
 // Highlight Engine Integration Tests
 // =============================================================================
 
-use vellum_fe::config::{HighlightPattern, RedirectMode};
-use vellum_fe::core::highlight_engine::CoreHighlightEngine;
-use vellum_fe::data::SpanType;
+use vellum_fe_tabbed::config::{HighlightPattern, RedirectMode};
+use vellum_fe_tabbed::core::highlight_engine::CoreHighlightEngine;
+use vellum_fe_tabbed::data::SpanType;
 
 fn make_highlight_pattern(
     pattern: &str,

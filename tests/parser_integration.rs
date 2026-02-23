@@ -3,7 +3,7 @@
 //! These tests use real XML data captured from actual game sessions
 //! to verify that the parser correctly handles production data.
 
-use vellum_fe::parser::{ParsedElement, XmlParser};
+use vellum_fe_tabbed::parser::{ParsedElement, XmlParser};
 
 /// Helper to parse XML and collect all elements
 fn parse_xml(xml: &str) -> Vec<ParsedElement> {
@@ -239,7 +239,7 @@ mod vitals_indicators {
 
 mod quickbar {
     use super::*;
-    use vellum_fe::data::QuickbarEntry;
+    use vellum_fe_tabbed::data::QuickbarEntry;
 
     const QUICKBAR_XML: &str = r#"<openDialog id="quick" location="quickBar" title="main"><dialogData id="quick" clear="true"><link id="2" value="look" cmd="look" echo="look"/><sep/><menuLink id="3" value="roleplay..." exist="qlinkrp" noun=""/></dialogData></openDialog><switchQuickBar id="quick"/>"#;
     const QUICKBAR_SIMU_XML: &str = "<openDialog id='quick-simu' location='quickBar' title='information'><dialogData id='quick-simu' clear='true'><link id='1' value='policy' cmd='policy' echo='policy'/><sep/><link id='2' value='news' cmd='url:/gs4/news.asp'/><sep/><link id=\"3\" value=\"calendar\" cmd='url:/gs4/events/'/><sep/><link id='4' value='documentation' cmd='url:/gs4/info/'/><sep/><link id='5' value='premium' cmd='premium' echo='premium'/><sep/><link id='6' value='platinum' cmd='url:/gs4/platinum/'/><sep/><link id='7' value='maps' cmd='url:/bounce/redirect.asp?URL=https://gswiki.play.net/Category:World'/><sep/><link id='8' value='Discord' cmd='url:/bounce/redirect.asp?URL=https://discord.gg/gs4'/><sep/><link id='9' value='version notes' cmd='url:/gs4/play/wrayth/notes.asp'/><sep/><link id='10' value='SimuCoins Store' cmd='url:/bounce/redirect.asp?URL=http://store.play.net/store/purchase/GS'/></dialogData></openDialog>";
