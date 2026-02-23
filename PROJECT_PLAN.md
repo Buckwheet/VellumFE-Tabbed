@@ -286,8 +286,10 @@ with arrow keys and Enter. No flags, no config file editing to get started.
 
 ## Open Questions
 
-- [ ] Should sessions auto-connect on startup, or require manual connect from picker?
-- [ ] Max buffer size per inactive session (memory vs. scroll history tradeoff)?
+- [x] Should sessions auto-connect on startup, or require manual connect from picker?
+  **Decision: Both** — sessions with `auto_connect = true` in sessions.toml reconnect automatically. Others require manual connect from the picker. Default for new sessions is `auto_connect = false`.
+- [x] Max buffer size per inactive session (memory vs. scroll history tradeoff)?
+  **Decision: 10,000 lines per session** — matches VellumFE base default. Inactive sessions buffer in memory; oldest lines are dropped when the limit is reached. Configurable via `max_scroll_lines` in config.toml.
 
 ---
 

@@ -1,148 +1,130 @@
 # VellumFE-Tabbed
 
-A high-performance, multi-session terminal frontend for [GemStone IV](https://www.play.net/gs4/) — built for players who run multiple characters and refuse to sacrifice speed for features.
-
-![Rust](https://img.shields.io/badge/rust-stable-orange)
-![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue)
-![Status](https://img.shields.io/badge/status-in%20development-yellow)
-
----
-
-## What This Is
-
-Most GemStone frontends make you choose between performance and features. Electron-based clients like Wyrath are feature-rich but introduce lag. Lightweight clients like ProfanityFE are fast but lack multi-session support and modern UX.
-
-VellumFE-Tabbed aims to be both — a compiled Rust binary that runs up to 15 simultaneous sessions in a single terminal window, with a full widget system, per-character highlights, and a session picker/tab bar to switch between characters instantly.
-
----
+A high-performance, multi-session GemStone IV terminal frontend built on [VellumFE](https://github.com/Nisugi/VellumFE). Run up to 15 simultaneous sessions in a single terminal window. Zero Electron, zero JVM — compiled Rust binary.
 
 ## Features
 
-- **Multi-session** — up to 15 simultaneous GemStone sessions in one window
-- **Tabbed or compact layout** — full tab bar or minimal session picker, your choice
-- **Widget system** — progress bars, compass, hands, injury doll, countdowns, active effects, spells, inventory, targets, and more
-- **Tabbed text windows** — route game streams (thoughts, combat, loot, death) to organized tabs
-- **Highlight system** — regex + fast literal matching (Aho-Corasick), per-character and global
-- **Sound alerts** — play sounds on pattern matches
-- **TTS support** — text-to-speech for accessibility
-- **Direct eAccess login** — connect without Lich proxy
-- **Lich proxy login** — full Lich script support
-- **Lich script → FE commands** — scripts can add/remove highlights at runtime via `<vellumfe>` XML tags
-- **Fully themeable** — complete color customization
-- **Layout editor** — interactive widget positioning (F2)
-- **Per-character config** — highlights, layout, keybinds, and colors saved per character
+- **Multi-session** — up to 15 simultaneous GemStone IV sessions, each with isolated state
+- **Tab bar** — session tabs with unread badges and live status indicators (●=connected, …=connecting, ↻=reconnecting, !=error)
+- **Compact mode** — minimal tab bar (Ctrl+Shift+C)
+- **Session picker** — TUI launch screen to add/remove/connect sessions
+- **Login wizard** — full TUI wizard for Direct eAccess login (account → game → character), no command line required
+- **Lich proxy** — connect via Lich proxy (host:port)
+- **Auto-connect** — sessions with `auto_connect = true` in sessions.toml reconnect on startup
+- **Credential storage** — passwords stored in OS keychain (Keychain on macOS, libsecret on Linux, Credential Manager on Windows)
+- **Broadcast** — Ctrl+B sends the next command to all sessions simultaneously
+- **Highlights** — global highlights + per-character overrides; Lich scripts can control highlights via `<vellumfe cmd="..."/>` XML tags
+- **Per-session sound/TTS** — enable or disable sound alerts and TTS per session
+- All VellumFE features: regex highlights, Aho-Corasick fast matching, sound alerts, TTS, layout editor (F2), highlight browser (F3), themes, squelch patterns, stream routing, session cache
 
----
+## Install
 
-## Quick Start
+### Pre-built binaries (recommended)
 
-> ⚠️ Pre-built binaries not yet available. Build from source below.
+Download the latest release from [GitHub Releases](https://github.com/Buckwheet/VellumFE-Tabbed/releases):
 
-### Via Lich Proxy
-
+**Linux:**
 ```bash
-vellum-fe-tabbed --port 8000 --character YourCharacter
+tar -xzf vellum-fe-tabbed-linux-x86_64.tar.gz
+chmod +x vellum-fe-tabbed
+./vellum-fe-tabbed
 ```
 
-### Direct Connection (no Lich)
-
-```bash
-vellum-fe-tabbed --direct \
-  --account YOUR_ACCOUNT \
-  --password YOUR_PASSWORD \
-  --game prime \
-  --character CHARACTER_NAME
+**Windows:**
+```
+Unzip vellum-fe-tabbed-windows-x86_64.zip
+Run vellum-fe-tabbed.exe
 ```
 
----
+### Build from source
 
-## Build from Source
-
-**Requirements:** Rust 1.70+ stable
+Requires Rust 1.75+:
 
 ```bash
-git clone https://github.com/Buckwheet/VellumFE-Tabbed.git
+git clone https://github.com/Buckwheet/VellumFE-Tabbed
 cd VellumFE-Tabbed
 cargo build --release
+./target/release/vellum-fe-tabbed
 ```
 
-Binary will be at `target/release/vellum-fe-tabbed.exe` (Windows) or `target/release/vellum-fe-tabbed` (Linux).
+**Linux dependencies** (for keyring/libsecret):
+```bash
+# Debian/Ubuntu
+sudo apt install libdbus-1-dev pkg-config
 
----
-
-## Configuration
-
-Config files live in `~/.config/vellum-fe-tabbed/`:
-
-```
-~/.config/vellum-fe-tabbed/
-├── sessions.toml              # Saved session list
-├── global/
-│   ├── highlights.toml        # Highlights applied to all sessions
-│   └── keybinds.toml
-└── characters/
-    └── <CharacterName>/
-        ├── config.toml
-        ├── highlights.toml    # Per-character highlight overrides
-        ├── layout.toml
-        └── colors.toml
+# Fedora/RHEL
+sudo dnf install dbus-devel pkgconf
 ```
 
-Example highlight:
+## Usage
 
-```toml
-[stunned]
-pattern = "You are stunned"
-fg = "#ff0000"
-bold = true
-sound = "alert.wav"
-category = "Combat"
+```bash
+# Launch (shows session picker if no sessions configured)
+vellum-fe-tabbed
+
+# Connect directly to a Lich proxy
+vellum-fe-tabbed --host localhost --port 8000
+
+# Connect with a character label
+vellum-fe-tabbed --host localhost --port 8000 --character Buckwheet
 ```
 
----
+On first launch with no sessions configured, the session picker opens automatically. Use it to add sessions via Lich proxy or Direct eAccess login.
 
-## Default Keybinds
+## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+1..9` | Switch to session by number |
-| `Ctrl+T` | New session |
-| `Ctrl+W` | Close session |
-| `Ctrl+Shift+C` | Toggle compact mode |
-| `F2` | Layout editor |
-| `F3` | Highlight browser |
-| `Page Up/Down` | Scroll main window |
-| `Escape` | Close popups |
+| Ctrl+1..9 | Switch to session 1–9 |
+| Ctrl+Tab | Next session |
+| Ctrl+Shift+Tab | Previous session |
+| Ctrl+T | New session (opens picker) |
+| Ctrl+W | Close current session |
+| Ctrl+B | Broadcast next command to all sessions |
+| Ctrl+Shift+C | Toggle compact tab bar |
+| F2 | Layout editor |
+| F3 | Highlight browser |
 
----
+## Session Picker
 
-## Project Status
+Press Ctrl+T or launch with no sessions to open the session picker.
 
-See [PROJECT_PLAN.md](PROJECT_PLAN.md) for the full roadmap and phase breakdown.
+- Arrow keys to navigate
+- Enter to connect
+- `A` or select `[+ Add Session]` to add a new session
+- F2 in the add form to toggle Lich Proxy / Direct mode
+- `D` to remove a session
 
-- [x] Repo setup, base codebase imported
-- [ ] Phase 1: Multi-session core
-- [ ] Phase 2: Session picker + compact mode
-- [ ] Phase 3: Highlights polish + Lich script protocol
-- [ ] Phase 4: Login flows
-- [ ] Phase 5: Cross-session features
-- [ ] Phase 6: Windows build + CI/CD
+## Lich Script Protocol
 
----
+Lich scripts can control highlights at runtime by sending XML tags over the proxy stream:
 
-## Credits & Acknowledgments
+```xml
+<vellumfe cmd="highlight.add" pattern="Buckwheet" fg="#ff00ff" bold="true" category="Friends"/>
+<vellumfe cmd="highlight.remove" pattern="Buckwheet"/>
+<vellumfe cmd="highlight.clear" category="Friends"/>
+<vellumfe cmd="squelch.add" pattern="A cool breeze"/>
+<vellumfe cmd="squelch.remove" pattern="A cool breeze"/>
+```
 
-This project stands on the shoulders of several excellent open-source GemStone frontends:
+Add `persist="true"` to save the change to disk:
+```xml
+<vellumfe cmd="highlight.add" pattern="Buckwheet" fg="#ff00ff" persist="true"/>
+```
 
-- **[VellumFE](https://github.com/Nisugi/VellumFE)** by Nisugi — the Rust/Ratatui foundation this project is built on. The widget system, highlight engine, parser, and TUI architecture all originate here.
-- **[Illthorn](https://github.com/elanthia-online/illthorn)** by Benjamin Clos — the multi-session architecture and session picker concept are inspired by Illthorn's TypeScript implementation.
-- **[Warlock3](https://github.com/sproctor/warlock3)** by Sean Proctor — reference for dual login (Lich + direct eAccess) and per-character settings persistence.
-- **[ProfanityFE](https://github.com/elanthia-online/ProfanityFE)** — the original lightweight terminal frontend that proved a fast GemStone client was possible.
+## Config Files
 
----
+```
+~/.config/vellum-fe-tabbed/sessions.toml   # Session list
+~/.vellum-fe/global/highlights.toml        # Global highlights (all sessions)
+~/.vellum-fe/profiles/<char>/highlights.toml  # Per-character highlight overrides
+~/.vellum-fe/profiles/<char>/layout.toml      # Widget layout (auto-saved on exit)
+```
+
+## Credits
+
+Built on [VellumFE](https://github.com/Nisugi/VellumFE) by Nisugi. Multi-session architecture inspired by [Illthorn](https://github.com/elanthia-online/illthorn). Login wizard flow inspired by [Warlock](https://github.com/WarlockFE/warlock3).
 
 ## License
 
-Licensed under either of:
-- MIT License ([LICENSE-MIT](LICENSE-MIT))
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+MIT

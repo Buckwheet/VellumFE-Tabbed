@@ -201,6 +201,38 @@ async fn async_run(
     // Load persisted session list
     let mut sessions_config = crate::sessions_config::SessionsConfig::load().unwrap_or_default();
 
+    // Auto-connect sessions that have auto_connect = true
+    for entry in sessions_config.sessions.iter().filter(|e| e.auto_connect) {
+        match &entry.mode {
+            crate::sessions_config::SessionModeConfig::Lich => {
+                if let (Some(h), Some(p)) = (&entry.host, entry.port) {
+                    let mode = ConnectionMode::LichProxy { host: h.clone(), port: p };
+                    let id = session_manager.add(entry.label.clone(), mode);
+                    if let Some(s) = session_manager.get_mut(id) {
+                        s.command_tx = Some(command_tx.clone());
+                    }
+                }
+            }
+            crate::sessions_config::SessionModeConfig::Direct => {
+                if let (Some(acct), Some(ch), Some(gc)) =
+                    (&entry.account, &entry.character, &entry.game_code)
+                {
+                    let password = crate::credentials::get_password(acct).unwrap_or_default();
+                    let mode = ConnectionMode::Direct {
+                        account: acct.clone(),
+                        password,
+                        character: ch.clone(),
+                        game_code: gc.clone(),
+                    };
+                    let id = session_manager.add(entry.label.clone(), mode);
+                    if let Some(s) = session_manager.get_mut(id) {
+                        s.command_tx = Some(command_tx.clone());
+                    }
+                }
+            }
+        }
+    }
+
     // Seed with the initial session derived from CLI args
     let initial_mode = ConnectionMode::LichProxy { host: host.clone(), port };
     let initial_label = character.clone().unwrap_or_else(|| format!("{}:{}", host, port));
@@ -220,7 +252,14 @@ async fn async_run(
     // Sync tab bar labels into frontend
     let sync_tabs = |mgr: &SessionManager, fe: &mut TuiFrontend| {
         fe.session_labels = mgr.all().iter().map(|s| {
-            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), s.is_connected(), s.unread_count)
+            let sym = match &s.status {
+                SessionStatus::Connected    => "●".to_string(),
+                SessionStatus::Connecting   => "…".to_string(),
+                SessionStatus::Reconnecting => "↻".to_string(),
+                SessionStatus::Error(_)     => "!".to_string(),
+                SessionStatus::Disconnected => "○".to_string(),
+            };
+            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), sym, s.unread_count)
         }).collect();
     };
     sync_tabs(&session_manager, &mut frontend);
@@ -622,6 +661,8 @@ fn handle_wizard_command(
                 };
                 sessions_config.add(entry);
                 let _ = sessions_config.save();
+                // Store password in OS keychain (keyed by account name)
+                crate::credentials::store_password(account, password);
                 // Close wizard and picker
                 frontend.login_wizard = None;
                 frontend.session_picker = None;

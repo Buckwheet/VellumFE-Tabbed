@@ -4,6 +4,7 @@ pub mod clipboard;
 pub mod cmdlist;
 pub mod config;
 pub mod core;
+pub mod credentials;
 pub mod data;
 pub mod frontend;
 pub mod network;

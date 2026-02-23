@@ -6,6 +6,7 @@ mod clipboard;
 mod cmdlist;
 mod config;
 mod core;
+mod credentials;
 mod data;
 mod frontend;
 mod migrate;

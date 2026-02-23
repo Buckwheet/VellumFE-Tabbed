@@ -120,7 +120,9 @@ pub struct TuiFrontend {
     /// Theme cache to avoid HashMap lookup + clone every render
     theme_cache: ThemeCache,
     /// Session labels for tab bar (label, is_active, is_connected, unread)
-    pub session_labels: Vec<(String, bool, bool, usize)>,
+    /// (label, is_active, status_symbol, unread)
+    /// status_symbol: "●" connected, "○" disconnected, "…" connecting, "↻" reconnecting, "!" error
+    pub session_labels: Vec<(String, bool, String, usize)>,
     /// Whether to use compact tab display
     pub compact_tabs: bool,
     /// Session picker screen (shown when no sessions are active)
