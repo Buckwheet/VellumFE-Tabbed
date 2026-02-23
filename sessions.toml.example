@@ -1,0 +1,19 @@
+# VellumFE-Tabbed Sessions Configuration
+# Located at: ~/.config/vellum-fe-tabbed/sessions.toml
+# This file is managed automatically by the app but can be edited manually.
+
+[[sessions]]
+label = "Buckwheet"
+mode = "lich"
+host = "localhost"
+port = 8000
+auto_connect = true
+
+[[sessions]]
+label = "Altchar"
+mode = "direct"
+account = "myaccount"
+character = "Altchar"
+game_code = "GS3"
+auto_connect = false
+# password is NOT stored here - prompted at launch or stored in OS keychain
