@@ -3,6 +3,9 @@ use std::time::Instant;
 
 use super::TuiFrontend;
 use crate::frontend::Frontend;
+use crate::session_manager::SessionManager;
+use crate::session::{ConnectionMode, SessionStatus};
+use crate::frontend::tui::session_keys::SessionCmd;
 
 /// Run the TUI frontend with the given configuration.
 /// This is the main entry point for TUI mode.
@@ -160,6 +163,30 @@ async fn async_run(
         }
     };
 
+    // Session manager — owns all sessions
+    let mut session_manager = SessionManager::new();
+
+    // Seed with the initial session derived from CLI args
+    let initial_mode = if direct.is_some() {
+        ConnectionMode::LichProxy { host: host.clone(), port }
+    } else {
+        ConnectionMode::LichProxy { host: host.clone(), port }
+    };
+    let initial_label = character.clone().unwrap_or_else(|| format!("{}:{}", host, port));
+    let initial_id = session_manager.add(initial_label, initial_mode);
+    if let Some(s) = session_manager.get_mut(initial_id) {
+        s.status = SessionStatus::Connected;
+        s.command_tx = Some(command_tx.clone());
+    }
+
+    // Sync tab bar labels into frontend
+    let sync_tabs = |mgr: &SessionManager, fe: &mut TuiFrontend| {
+        fe.session_labels = mgr.all().iter().map(|s| {
+            (s.label.clone(), mgr.active().map_or(false, |a| a.id == s.id), s.is_connected(), s.unread_count)
+        }).collect();
+    };
+    sync_tabs(&session_manager, &mut frontend);
+
     // Track time for periodic countdown updates
     let mut last_countdown_update = std::time::Instant::now();
 
@@ -204,8 +231,22 @@ async fn async_run(
             }
 
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
-                app_core.perf_stats.record_bytes_sent((command.len() + 1) as u64);
-                let _ = command_tx.send(command);
+                // Intercept session commands before sending to game server
+                if crate::frontend::tui::session_keys::is_session_cmd(&command) {
+                    if let Some(cmd) = SessionCmd::parse(&command) {
+                        match cmd {
+                            SessionCmd::SwitchToIndex(i) => session_manager.set_active_by_index(i),
+                            SessionCmd::Next => session_manager.next(),
+                            SessionCmd::Prev => session_manager.prev(),
+                            SessionCmd::ToggleCompact => frontend.compact_tabs = !frontend.compact_tabs,
+                            SessionCmd::New | SessionCmd::Close => {} // Phase 2
+                        }
+                        sync_tabs(&session_manager, &mut frontend);
+                    }
+                } else {
+                    app_core.perf_stats.record_bytes_sent((command.len() + 1) as u64);
+                    let _ = command_tx.send(command);
+                }
             }
 
             let duration = event_start.elapsed();
