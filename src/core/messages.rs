@@ -1595,9 +1595,80 @@ impl MessageProcessor {
                     tracing::error!("Failed to open browser: {}", e);
                 }
             }
+            ParsedElement::VellumFeCmd { cmd, attrs } => {
+                self.handle_vellumfe_cmd(cmd, attrs);
+            }
             _ => {
                 // Other elements handled elsewhere or not yet implemented
             }
+        }
+    }
+
+    /// Handle a `<vellumfe cmd="..." />` tag sent by a Lich script.
+    /// Applies highlight/squelch changes to the current session's config at runtime.
+    fn handle_vellumfe_cmd(&mut self, cmd: &str, attrs: &[(String, String)]) {
+        let get = |key: &str| attrs.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str());
+
+        match cmd {
+            "highlight.add" => {
+                let pattern = match get("pattern") { Some(p) => p.to_string(), None => return };
+                let hp = crate::config::HighlightPattern {
+                    pattern: pattern.clone(),
+                    fg: get("fg").map(str::to_string),
+                    bg: get("bg").map(str::to_string),
+                    bold: get("bold") == Some("true"),
+                    color_entire_line: false,
+                    fast_parse: get("fast_parse") == Some("true"),
+                    sound: get("sound").map(str::to_string),
+                    sound_volume: None,
+                    category: get("category").map(str::to_string),
+                    squelch: get("squelch") == Some("true"),
+                    silent_prompt: false,
+                    redirect_to: None,
+                    redirect_mode: Default::default(),
+                    replace: None,
+                    stream: None,
+                    window: None,
+                    compiled_regex: None,
+                };
+                let persist = get("persist") == Some("true");
+                self.config.highlights.insert(pattern, hp);
+                if persist {
+                    if let Err(e) = self.config.save_highlights(self.config.character.clone().as_deref()) {
+                        tracing::warn!("vellumfe highlight.add persist failed: {}", e);
+                    }
+                }
+            }
+            "highlight.remove" => {
+                if let Some(p) = get("pattern") { self.config.highlights.remove(p); }
+            }
+            "highlight.clear" => {
+                if let Some(cat) = get("category") {
+                    self.config.highlights.retain(|_, v| v.category.as_deref() != Some(cat));
+                } else {
+                    self.config.highlights.clear();
+                }
+            }
+            "squelch.add" => {
+                let pattern = match get("pattern") { Some(p) => p.to_string(), None => return };
+                let hp = crate::config::HighlightPattern {
+                    pattern: pattern.clone(),
+                    fg: None, bg: None, bold: false, color_entire_line: false,
+                    fast_parse: false, sound: None, sound_volume: None, category: None,
+                    squelch: true, silent_prompt: false, redirect_to: None,
+                    redirect_mode: Default::default(), replace: None, stream: None,
+                    window: None, compiled_regex: None,
+                };
+                self.config.highlights.insert(pattern, hp);
+            }
+            "squelch.remove" => {
+                if let Some(p) = get("pattern") {
+                    if self.config.highlights.get(p).map_or(false, |h| h.squelch) {
+                        self.config.highlights.remove(p);
+                    }
+                }
+            }
+            other => tracing::warn!("vellumfe: unknown cmd={:?}", other),
         }
     }
 

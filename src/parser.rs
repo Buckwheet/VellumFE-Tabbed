@@ -246,6 +246,13 @@ pub enum ParsedElement {
         container_id: String,
         content: String, // Full line with links preserved
     },
+    /// Command sent by a Lich script via <vellumfe cmd="..." /> tag.
+    /// Consumed by the frontend; never rendered as text.
+    VellumFeCmd {
+        cmd: String,
+        /// All other attributes as key=value pairs
+        attrs: Vec<(String, String)>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -706,7 +713,16 @@ impl XmlParser {
             tracing::warn!("Parser: Unhandled dropdown-like tag: {}", &tag[..tag.len().min(100)]);
         }
         // Silently ignore these tags
-        else if tag.starts_with("<compDef ")
+        else if tag.starts_with("<vellumfe ") {
+            // <vellumfe cmd="..." attr1="val1" ... />
+            if let Some(cmd) = Self::extract_attribute(tag, "cmd") {
+                let attrs = Self::extract_all_attributes(tag)
+                    .into_iter()
+                    .filter(|(k, _)| k != "cmd")
+                    .collect();
+                elements.push(ParsedElement::VellumFeCmd { cmd, attrs });
+            }
+        } else if tag.starts_with("<compDef ")
             || tag == "</compDef>"
             || tag.starts_with("<streamWindow ")
             || tag.starts_with("<skin ")
@@ -2375,6 +2391,34 @@ impl XmlParser {
         }
 
         None
+    }
+
+    /// Extract all key="value" or key='value' pairs from a tag string.
+    fn extract_all_attributes(tag: &str) -> Vec<(String, String)> {
+        let mut attrs = Vec::new();
+        let mut remaining = tag;
+        while let Some(eq_pos) = remaining.find('=') {
+            // Walk back to find the key (skip whitespace/< chars)
+            let before = &remaining[..eq_pos];
+            let key = before.split_whitespace().last().unwrap_or("").to_string();
+            if key.is_empty() { remaining = &remaining[eq_pos + 1..]; continue; }
+            let after = &remaining[eq_pos + 1..];
+            let (quote, rest) = if after.starts_with('"') {
+                ('"', &after[1..])
+            } else if after.starts_with('\'') {
+                ('\'', &after[1..])
+            } else {
+                remaining = after;
+                continue;
+            };
+            if let Some(end) = rest.find(quote) {
+                attrs.push((key, rest[..end].to_string()));
+                remaining = &rest[end + 1..];
+            } else {
+                break;
+            }
+        }
+        attrs
     }
 
     // ==================== Container/Inventory Handlers ====================
