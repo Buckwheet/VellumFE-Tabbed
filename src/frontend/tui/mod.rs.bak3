@@ -69,7 +69,6 @@ pub mod window_editor;
 mod widget_manager;
 mod input_handlers;
 pub mod tab_bar;
-pub mod session_picker;
 
 pub use colors::resolve_window_colors;
 pub use runtime::run;
@@ -122,8 +121,6 @@ pub struct TuiFrontend {
     pub session_labels: Vec<(String, bool, bool, usize)>,
     /// Whether to use compact tab display
     pub compact_tabs: bool,
-    /// Session picker screen (shown when no sessions are active)
-    pub session_picker: Option<session_picker::SessionPicker>,
 }
 
 impl TuiFrontend {
@@ -160,7 +157,6 @@ impl TuiFrontend {
             theme_cache: ThemeCache::new(),
             session_labels: Vec::new(),
             compact_tabs: false,
-            session_picker: None,
         })
     }
 

@@ -1,0 +1,86 @@
+[package]
+name = "vellum-fe"
+version = "0.1.0"
+edition = "2021"
+authors = ["Nisugi"]
+description = "Modern, high-performance multi-frontend (TUI/GUI) client for GemStone IV"
+
+[[bin]]
+name = "vellum-fe"
+path = "src/main.rs"
+
+[dependencies]
+# Core async runtime
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+
+# Terminal UI
+ratatui = "0.29"
+crossterm = { git = "https://github.com/justinpopa/crossterm.git", branch = "dev", features = ["event-stream"] }
+tui-textarea = "0.7"
+
+# GUI (future)
+# egui = "0.29"
+# eframe = "0.29"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+dirs = "5"
+
+# Text processing
+regex = "1"
+aho-corasick = "1"  # Fast literal string matching for highlights
+quick-xml = "0.36"  # XML parsing
+include_dir = "0.7"  # Embed default config files
+rpassword = "7"
+# openssl = "0.10"  # For local builds with system OpenSSL
+openssl = { version = "0.10", features = ["vendored"] }  # For CI builds - compiles OpenSSL from source
+
+# Sound (optional)
+rodio = { version = "0.19", optional = true }
+
+# TTS - Text-to-speech (always included)
+tts = "0.26"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Time handling
+chrono = "0.4"
+
+# Clipboard
+arboard = "3"
+base64 = "0.22.1"
+sysinfo = "0.30"
+
+# URL opening (for LaunchURL)
+open = "5"
+
+[features]
+default = ["sound"]
+sound = ["dep:rodio"]
+
+# Platform-specific dependencies for window position persistence
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+    "Win32_System_Threading",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+]}
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[dev-dependencies]
+tempfile = "3.24.0"

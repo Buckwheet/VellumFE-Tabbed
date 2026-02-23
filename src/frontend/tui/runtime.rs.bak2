@@ -165,23 +165,13 @@ async fn async_run(
     // Session manager — owns all sessions
     let mut session_manager = SessionManager::new();
 
-    // Load persisted session list
-    let mut sessions_config = crate::sessions_config::SessionsConfig::load().unwrap_or_default();
-
     // Seed with the initial session derived from CLI args
     let initial_mode = ConnectionMode::LichProxy { host: host.clone(), port };
     let initial_label = character.clone().unwrap_or_else(|| format!("{}:{}", host, port));
-    let initial_id = session_manager.add(initial_label.clone(), initial_mode);
+    let initial_id = session_manager.add(initial_label, initial_mode);
     if let Some(s) = session_manager.get_mut(initial_id) {
         s.status = SessionStatus::Connected;
         s.command_tx = Some(command_tx.clone());
-    }
-
-    // If no sessions are saved yet, show the picker
-    if sessions_config.sessions.is_empty() {
-        frontend.session_picker = Some(
-            crate::frontend::tui::session_picker::SessionPicker::new(&sessions_config)
-        );
     }
 
     // Sync tab bar labels into frontend
@@ -236,18 +226,8 @@ async fn async_run(
             }
 
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
-                // Intercept picker commands
-                if command.starts_with("//picker:") {
-                    handle_picker_command(
-                        &command,
-                        &mut frontend,
-                        &mut session_manager,
-                        &mut sessions_config,
-                        &command_tx,
-                    );
-                    sync_tabs(&session_manager, &mut frontend);
                 // Intercept session commands before sending to game server
-                } else if crate::frontend::tui::session_keys::is_session_cmd(&command) {
+                if crate::frontend::tui::session_keys::is_session_cmd(&command) {
                     use crate::frontend::tui::session_keys::SessionCmd;
                     if let Some(cmd) = SessionCmd::parse(&command) {
                         match cmd {
@@ -434,71 +414,3 @@ fn handle_event(
 
     Ok(None)
 }
-
-/// Handle a `//picker:*` command produced by the session picker input handler.
-fn handle_picker_command(
-    command: &str,
-    frontend: &mut TuiFrontend,
-    session_manager: &mut SessionManager,
-    sessions_config: &mut crate::sessions_config::SessionsConfig,
-    command_tx: &tokio::sync::mpsc::UnboundedSender<String>,
-) {
-    use crate::frontend::tui::session_picker::PickerAction;
-
-    // Take the action out of the picker so we can act on it
-    let action = frontend.session_picker.as_mut().and_then(|p| p.action.take());
-
-    match command {
-        "//picker:quit" => {
-            // No sessions and user pressed Escape — close picker, let app exit naturally
-            frontend.session_picker = None;
-        }
-        "//picker:add" => {
-            if let Some(PickerAction::AddSession(entry)) = action {
-                // Add to session manager
-                let mode = crate::session::ConnectionMode::LichProxy {
-                    host: entry.host.clone().unwrap_or_else(|| "localhost".to_string()),
-                    port: entry.port.unwrap_or(8000),
-                };
-                let id = session_manager.add(entry.label.clone(), mode);
-                if let Some(s) = session_manager.get_mut(id) {
-                    s.command_tx = Some(command_tx.clone());
-                }
-                // Persist
-                sessions_config.add(entry);
-                let _ = sessions_config.save();
-                // Update picker list and close form
-                if let Some(picker) = &mut frontend.session_picker {
-                    picker.sessions = sessions_config.sessions.clone();
-                    picker.focus = crate::frontend::tui::session_picker::PickerFocus::List;
-                    picker.form = None;
-                }
-            }
-        }
-        cmd if cmd.starts_with("//picker:connect:") => {
-            if let Ok(idx) = cmd["//picker:connect:".len()..].parse::<usize>() {
-                // Switch to that session and dismiss picker
-                session_manager.set_active_by_index(idx);
-                frontend.session_picker = None;
-            }
-        }
-        cmd if cmd.starts_with("//picker:remove:") => {
-            if let Ok(idx) = cmd["//picker:remove:".len()..].parse::<usize>() {
-                if let Some(entry) = sessions_config.sessions.get(idx) {
-                    let label = entry.label.clone();
-                    sessions_config.remove(&label);
-                    let _ = sessions_config.save();
-                }
-                // Update picker list
-                if let Some(picker) = &mut frontend.session_picker {
-                    picker.sessions = sessions_config.sessions.clone();
-                    if picker.selected >= picker.sessions.len() {
-                        picker.selected = picker.sessions.len().saturating_sub(1);
-                    }
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
