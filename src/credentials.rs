@@ -8,11 +8,8 @@ const SERVICE: &str = "vellum-fe-tabbed";
 /// Store a password for the given account name in the OS keychain.
 pub fn store_password(account: &str, password: &str) {
     let entry = keyring::Entry::new(SERVICE, account);
-    match entry {
-        Ok(e) => {
-            let _ = e.set_password(password);
-        }
-        Err(_) => {}
+    if let Ok(e) = entry {
+        let _ = e.set_password(password);
     }
 }
 

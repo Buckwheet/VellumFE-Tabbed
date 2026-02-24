@@ -1316,13 +1316,9 @@ impl MessageProcessor {
                         let fallback_focus = dialog
                             .focused_field
                             .filter(|idx| *idx < dialog.fields.len());
-                        let focused_field = focused_index.or(fallback_focus).or_else(|| {
-                            if dialog.fields.is_empty() {
-                                None
-                            } else {
-                                Some(0)
-                            }
-                        });
+                        let focused_field = focused_index
+                            .or(fallback_focus)
+                            .or_else(|| (!dialog.fields.is_empty()).then_some(0));
 
                         dialog.focused_field = focused_field;
                         for (idx, field) in dialog.fields.iter_mut().enumerate() {
@@ -1734,7 +1730,7 @@ impl MessageProcessor {
             }
             "squelch.remove" => {
                 if let Some(p) = get("pattern") {
-                    if self.config.highlights.get(p).map_or(false, |h| h.squelch) {
+                    if self.config.highlights.get(p).is_some_and(|h| h.squelch) {
                         self.config.highlights.remove(p);
                     }
                 }
@@ -1795,16 +1791,11 @@ impl MessageProcessor {
                 }
             } else {
                 // No subscribers map entry - check drop list
-                if self
+                self.discard_current_stream = self
                     .config
                     .streams
                     .drop_unsubscribed
-                    .contains(&id.to_string())
-                {
-                    self.discard_current_stream = true;
-                } else {
-                    self.discard_current_stream = false;
-                }
+                    .contains(&id.to_string());
             }
         }
 
@@ -1953,32 +1944,27 @@ impl MessageProcessor {
                                             let exist_id = &after_exist[1..=end_quote];
 
                                             // Extract noun from the link tag (optional)
-                                            let noun = if let Some(noun_pos) =
-                                                link_tag.find("noun=")
-                                            {
-                                                let after_noun = &link_tag[noun_pos + 5..];
-                                                if let Some(noun_quote) = after_noun.chars().next()
-                                                {
-                                                    if noun_quote == '\'' || noun_quote == '"' {
-                                                        if let Some(noun_end_quote) =
-                                                            after_noun[1..].find(noun_quote)
-                                                        {
-                                                            Some(
-                                                                after_noun[1..=noun_end_quote]
-                                                                    .to_string(),
-                                                            )
-                                                        } else {
-                                                            None
-                                                        }
-                                                    } else {
-                                                        None
-                                                    }
-                                                } else {
-                                                    None
-                                                }
-                                            } else {
-                                                None
-                                            };
+                                            let noun =
+                                                link_tag.find("noun=").and_then(|noun_pos| {
+                                                    let after_noun = &link_tag[noun_pos + 5..];
+                                                    after_noun.chars().next().and_then(
+                                                        |noun_quote| {
+                                                            if noun_quote == '\''
+                                                                || noun_quote == '"'
+                                                            {
+                                                                after_noun[1..]
+                                                                    .find(noun_quote)
+                                                                    .map(|noun_end_quote| {
+                                                                        after_noun
+                                                                            [1..=noun_end_quote]
+                                                                            .to_string()
+                                                                    })
+                                                            } else {
+                                                                None
+                                                            }
+                                                        },
+                                                    )
+                                                });
 
                                             // Check for status after </b>: " (stunned)" or " (dead)"
                                             let after_bold = &remaining[bold_end + 4..];
@@ -2089,26 +2075,20 @@ impl MessageProcessor {
                                         let exist_id = &after_exist[1..=end_quote];
 
                                         // Extract noun
-                                        let noun = if let Some(noun_pos) = link_tag.find("noun=") {
+                                        let noun = link_tag.find("noun=").and_then(|noun_pos| {
                                             let after_noun = &link_tag[noun_pos + 5..];
-                                            if let Some(noun_quote) = after_noun.chars().next() {
+                                            after_noun.chars().next().and_then(|noun_quote| {
                                                 if noun_quote == '\'' || noun_quote == '"' {
-                                                    if let Some(noun_end) =
-                                                        after_noun[1..].find(noun_quote)
-                                                    {
-                                                        Some(after_noun[1..=noun_end].to_string())
-                                                    } else {
-                                                        None
-                                                    }
+                                                    after_noun[1..].find(noun_quote).map(
+                                                        |noun_end| {
+                                                            after_noun[1..=noun_end].to_string()
+                                                        },
+                                                    )
                                                 } else {
                                                     None
                                                 }
-                                            } else {
-                                                None
-                                            }
-                                        } else {
-                                            None
-                                        };
+                                            })
+                                        });
 
                                         let room_object = crate::core::state::RoomObject {
                                             id: exist_id.to_string(),
@@ -2998,7 +2978,6 @@ impl MessageProcessor {
 
             // Store as new previous spells
             self.previous_spells = self.spells_buffer.clone();
-        } else {
         }
 
         // NOTE: Unlike inventory, we do NOT clear spells_buffer here
@@ -3660,7 +3639,7 @@ impl MessageProcessor {
 
                     if text.contains(trimmed) {
                         let len = trimmed.len();
-                        let should_replace = longest_match.map_or(true, |best| len > best);
+                        let should_replace = longest_match.is_none_or(|best| len > best);
                         if should_replace {
                             longest_match = Some(len);
                         }
@@ -3695,7 +3674,7 @@ impl MessageProcessor {
             if let Some(len) = match_len {
                 let is_better = best_match
                     .as_ref()
-                    .map_or(true, |(_, _, best_len)| len > *best_len);
+                    .is_none_or(|(_, _, best_len)| len > *best_len);
                 if is_better {
                     best_match =
                         Some((redirect_window.clone(), pattern.redirect_mode.clone(), len));
