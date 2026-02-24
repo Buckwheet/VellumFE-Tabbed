@@ -555,6 +555,7 @@ async fn async_run(
                         &mut widget_managers,
                     );
                     sync_tabs(&session_manager, &mut frontend);
+                    app_core.needs_render = true;
                 // Intercept picker commands
                 } else if command.starts_with("//picker:") {
                     handle_picker_command(
