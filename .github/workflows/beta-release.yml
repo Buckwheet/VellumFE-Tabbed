@@ -161,7 +161,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp target/release/vellum-fe dist/
+          cp target/release/vellum-fe-tabbed dist/vellum-fe
           pushd dist >/dev/null
           chmod +x vellum-fe
           zip -9 "vellum-fe-tabbed-macos-arm64.zip" vellum-fe
@@ -195,7 +195,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp target/release/vellum-fe dist/
+          cp target/release/vellum-fe-tabbed dist/vellum-fe
           pushd dist >/dev/null
           chmod +x vellum-fe
           zip -9 "vellum-fe-tabbed-macos-x64.zip" vellum-fe
