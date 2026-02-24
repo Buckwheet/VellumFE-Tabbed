@@ -547,14 +547,18 @@ mod eaccess {
         }
 
         send_line(&mut stream, &format!("F\t{}", game_code))?;
-        read_response(&mut stream)?; // Subscription tier
+        let f_resp = read_response(&mut stream)?;
+        tracing::debug!("authenticate F response: {:?}", f_resp);
         send_line(&mut stream, &format!("G\t{}", game_code))?;
-        read_response(&mut stream)?; // Game status
+        let g_resp = read_response(&mut stream)?;
+        tracing::debug!("authenticate G response: {:?}", g_resp);
         send_line(&mut stream, &format!("P\t{}", game_code))?;
-        read_response(&mut stream)?; // Billing info
+        let p_resp = read_response(&mut stream)?;
+        tracing::debug!("authenticate P response: {:?}", p_resp);
 
         send_line(&mut stream, "C")?;
         let characters_response = read_response(&mut stream)?;
+        tracing::debug!("authenticate C response: {:?}", characters_response);
         let char_code = parse_character_code(&characters_response, character).ok_or_else(|| {
             anyhow!(
                 "Character '{}' not found in account '{}'",
@@ -562,9 +566,11 @@ mod eaccess {
                 account
             )
         })?;
+        tracing::debug!("authenticate char_code: {:?}", char_code);
 
         send_line(&mut stream, &format!("L\t{}\tSTORM", char_code))?;
         let launch_response = read_response(&mut stream)?;
+        tracing::debug!("authenticate L response: {:?}", launch_response);
         parse_launch_response(&launch_response)
     }
 
