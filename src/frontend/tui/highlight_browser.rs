@@ -310,13 +310,13 @@ impl HighlightBrowser {
             let rel_x = mouse_col.saturating_sub(self.popup_x);
             // Approximate button regions based on footer text
             // "Ctrl+S:Save" ~1-11, "A:Add" ~15-19, "E:Edit" ~23-28, "Del:Delete" ~32-41, "Esc:Back" ~45-52
-            if rel_x >= 15 && rel_x <= 19 {
+            if (15..=19).contains(&rel_x) {
                 return HighlightBrowserMouseAction::Add;
-            } else if rel_x >= 23 && rel_x <= 28 {
+            } else if (23..=28).contains(&rel_x) {
                 return HighlightBrowserMouseAction::Edit;
-            } else if rel_x >= 32 && rel_x <= 41 {
+            } else if (32..=41).contains(&rel_x) {
                 return HighlightBrowserMouseAction::Delete;
-            } else if rel_x >= 45 && rel_x <= 52 {
+            } else if (45..=52).contains(&rel_x) {
                 return HighlightBrowserMouseAction::Close;
             }
         }

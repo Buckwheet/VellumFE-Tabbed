@@ -391,10 +391,10 @@ impl ColorForm {
         if mouse_row == status_y {
             let rel_x = mouse_col.saturating_sub(self.popup_x + 2);
             // "Enter:Save" is around position 28-37, "Esc:Close" is around 40-48
-            if rel_x >= 28 && rel_x <= 37 {
+            if (28..=37).contains(&rel_x) {
                 // User clicked on "Enter:Save"
                 return ColorFormMouseAction::Save;
-            } else if rel_x >= 40 && rel_x <= 48 {
+            } else if (40..=48).contains(&rel_x) {
                 // User clicked on "Esc:Close"
                 return ColorFormMouseAction::Cancel;
             }

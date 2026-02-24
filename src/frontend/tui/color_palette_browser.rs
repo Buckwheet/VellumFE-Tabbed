@@ -323,13 +323,13 @@ impl ColorPaletteBrowser {
             // "A:Add" ~0-4, "E:Edit" ~6-11, "Del:Remove" ~13-22, "F:Favorite" ~24-33, "Esc:Close" ~35-44
             if rel_x <= 4 {
                 return ColorPaletteBrowserMouseAction::Add;
-            } else if rel_x >= 6 && rel_x <= 11 {
+            } else if (6..=11).contains(&rel_x) {
                 return ColorPaletteBrowserMouseAction::Edit;
-            } else if rel_x >= 13 && rel_x <= 22 {
+            } else if (13..=22).contains(&rel_x) {
                 return ColorPaletteBrowserMouseAction::Delete;
-            } else if rel_x >= 24 && rel_x <= 33 {
+            } else if (24..=33).contains(&rel_x) {
                 return ColorPaletteBrowserMouseAction::ToggleFavorite;
-            } else if rel_x >= 35 && rel_x <= 44 {
+            } else if (35..=44).contains(&rel_x) {
                 return ColorPaletteBrowserMouseAction::Close;
             }
         }

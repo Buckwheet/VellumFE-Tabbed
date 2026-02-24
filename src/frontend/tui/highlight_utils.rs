@@ -329,15 +329,19 @@ impl HighlightEngine {
                 }
 
                 // Copy untouched region
-                for i in last_char_idx..start_char {
-                    new_text.push(full_text_chars[i]);
-                    new_styles.push(char_styles.get(i).cloned().unwrap_or(CharStyle {
+                for (i, ch) in full_text_chars[last_char_idx..start_char]
+                    .iter()
+                    .enumerate()
+                {
+                    let actual_i = last_char_idx + i;
+                    new_text.push(*ch);
+                    new_styles.push(char_styles.get(actual_i).cloned().unwrap_or(CharStyle {
                         fg: None,
                         bg: None,
                         bold: false,
                         span_type: SpanType::Normal,
                     }));
-                    new_links.push(char_links.get(i).cloned().unwrap_or(None));
+                    new_links.push(char_links.get(actual_i).cloned().unwrap_or(None));
                 }
 
                 let new_start = new_styles.len();
@@ -356,15 +360,16 @@ impl HighlightEngine {
                         new_links.push(None);
                     }
                 } else {
-                    for i in start_char..end_char {
-                        new_text.push(full_text_chars[i]);
-                        new_styles.push(char_styles.get(i).cloned().unwrap_or(CharStyle {
+                    for (i, ch) in full_text_chars[start_char..end_char].iter().enumerate() {
+                        let actual_i = start_char + i;
+                        new_text.push(*ch);
+                        new_styles.push(char_styles.get(actual_i).cloned().unwrap_or(CharStyle {
                             fg: None,
                             bg: None,
                             bold: false,
                             span_type: SpanType::Normal,
                         }));
-                        new_links.push(char_links.get(i).cloned().unwrap_or(None));
+                        new_links.push(char_links.get(actual_i).cloned().unwrap_or(None));
                     }
                 }
 
@@ -387,15 +392,16 @@ impl HighlightEngine {
             }
 
             // Tail
-            for i in last_char_idx..full_text_chars.len() {
-                new_text.push(full_text_chars[i]);
-                new_styles.push(char_styles.get(i).cloned().unwrap_or(CharStyle {
+            for (i, ch) in full_text_chars[last_char_idx..].iter().enumerate() {
+                let actual_i = last_char_idx + i;
+                new_text.push(*ch);
+                new_styles.push(char_styles.get(actual_i).cloned().unwrap_or(CharStyle {
                     fg: None,
                     bg: None,
                     bold: false,
                     span_type: SpanType::Normal,
                 }));
-                new_links.push(char_links.get(i).cloned().unwrap_or(None));
+                new_links.push(char_links.get(actual_i).cloned().unwrap_or(None));
             }
 
             // Apply highlight styling on rewritten text

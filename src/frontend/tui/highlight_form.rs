@@ -1678,9 +1678,9 @@ impl HighlightFormWidget {
             let rel_x = col.saturating_sub(self.popup_x);
             // Footer: "└─[Ctrl+S: Save]─[Esc: Back]..."
             // Save is at ~3-15, Back is at ~18-26
-            if rel_x >= 3 && rel_x <= 15 {
+            if (3..=15).contains(&rel_x) {
                 return HighlightFormMouseAction::Save;
-            } else if rel_x >= 18 && rel_x <= 26 {
+            } else if (18..=26).contains(&rel_x) {
                 return HighlightFormMouseAction::Cancel;
             }
         }
