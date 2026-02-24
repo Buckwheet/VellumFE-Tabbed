@@ -406,8 +406,13 @@ async fn async_run(
         if let Some(rx) = s.server_rx.take() {
             session_rxs.insert(initial_id, rx);
         }
-        if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
-            s.command_tx = Some(tx);
+        // Only connect if we have explicit CLI args or saved sessions (not first run)
+        let should_connect =
+            _direct_cfg.is_some() || character.is_some() || !sessions_config.sessions.is_empty();
+        if should_connect {
+            if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                s.command_tx = Some(tx);
+            }
         }
     }
     // Move the initial AppCore into the map
@@ -416,7 +421,12 @@ async fn async_run(
     // We don't pre-insert here — it will be saved on first switch away from this session.
 
     // If no sessions are saved yet, show the picker
+    let any_auto_connected = sessions_config.sessions.iter().any(|e| e.auto_connect);
     if sessions_config.sessions.is_empty() {
+        // First run — go straight to the Direct login wizard
+        frontend.login_wizard = Some(crate::frontend::tui::login_wizard::LoginWizard::new());
+    } else if !any_auto_connected {
+        // Has sessions but none auto-connect — show picker so user can choose
         frontend.session_picker = Some(crate::frontend::tui::session_picker::SessionPicker::new(
             &sessions_config,
         ));
@@ -447,6 +457,11 @@ async fn async_run(
             .collect();
     };
     sync_tabs(&session_manager, &mut frontend);
+
+    // Force a render after startup so picker/wizard/tabs are visible immediately
+    if let Some(ac) = app_cores.get_mut(&initial_id) {
+        ac.needs_render = true;
+    }
 
     // Track time for periodic countdown updates
     let mut last_countdown_update = std::time::Instant::now();

@@ -239,9 +239,9 @@ pub fn render_wizard(wizard: &LoginWizard, area: Rect, buf: &mut Buffer) {
     Clear.render(popup, buf);
 
     let title = match wizard.step {
-        WizardStep::Credentials => " Add Session — Credentials ",
-        WizardStep::GameSelect => " Add Session — Select Game ",
-        WizardStep::CharSelect => " Add Session — Select Character ",
+        WizardStep::Credentials => " VellumFE — Connect to GemStone IV ",
+        WizardStep::GameSelect => " VellumFE — Connect to GemStone IV ",
+        WizardStep::CharSelect => " VellumFE — Connect to GemStone IV ",
     };
 
     let block = Block::default()
@@ -325,6 +325,16 @@ fn render_credentials(wizard: &LoginWizard, area: Rect, buf: &mut Buffer) {
         buf.set_string(area.x, y, &line, style);
         y += 2;
     }
+
+    // Add key hint footer
+    let hint_text = " [Tab] Next field  [Enter] Continue  [Esc] Cancel ";
+    let hint_style = Style::default().fg(Color::DarkGray);
+    buf.set_string(
+        area.x,
+        area.bottom().saturating_sub(1),
+        hint_text,
+        hint_style,
+    );
 }
 
 fn render_list(items: &[&str], selected: usize, area: Rect, buf: &mut Buffer) {
