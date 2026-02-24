@@ -15,9 +15,13 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 12 — commit `a2c6886`)
+## Current State (Session 13 — commit `ce90515`)
 
-`cargo check` clean. `cargo test` passes. beta.12 and beta.13 builds in progress on GitHub Actions.
+`cargo check` clean. `cargo test` passes. beta.14 build in progress on GitHub Actions.
+
+Two bugs fixed this session:
+1. `vellum_fe` → `vellum_fe_tabbed` in `tests/ui_integration.rs`, `tests/parser_integration.rs`, `src/theme.rs` doctests (CI was failing with E0433)
+2. `beta-release.yml` macOS package steps were copying `target/release/vellum-fe` (old binary name) instead of `target/release/vellum-fe-tabbed`
 
 ---
 
@@ -189,7 +193,8 @@ Priority order:
 1. ~~**Session switch UI state save/restore**~~ — DONE (Session 10)
 2. ~~**TTS state in tab bar**~~ — DONE (Session 11)
 3. ~~**CI test failures**~~ — DONE (Session 12) — `vellum_fe` → `vellum_fe_tabbed` in tests + doctests
-4. **Verify beta.13 build passes** on all platforms (Linux, Windows, macOS arm64/x64/universal)
+4. ~~**macOS package step binary name**~~ — DONE (Session 13) — `beta-release.yml` was copying `vellum-fe` not `vellum-fe-tabbed`
+5. **Verify beta.14 build passes** on all platforms (Linux, Windows, macOS arm64/x64/universal)
 5. **Test the binary** — run against a real GemStone account, verify Lich proxy and Direct login
 6. **Promote to v0.2.0 stable** once binary is confirmed working
 7. **Bak file cleanup** — deferred until first working release binary is shipped on GitHub. Bak files are safety nets until then.
