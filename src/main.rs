@@ -190,6 +190,30 @@ fn main() -> Result<()> {
         .with_ansi(false) // No color codes in log file
         .init();
 
+    tracing::info!("VellumFE starting — log: {}", log_path.display());
+
+    // Install a panic hook that writes the panic to the log file.
+    // On Windows this is critical: a double-clicked .exe closes its console window
+    // immediately on exit, so the user would never see a panic message otherwise.
+    {
+        let log_path_clone = log_path.clone();
+        let default_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            let msg = format!("PANIC: {}", info);
+            tracing::error!("{}", msg);
+            // Also append directly to the log file in case the tracing subscriber is gone
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_path_clone)
+            {
+                use std::io::Write;
+                let _ = writeln!(f, "{}", msg);
+            }
+            default_hook(info);
+        }));
+    }
+
     // Parse CLI arguments
     let cli = Cli::parse();
 
@@ -330,14 +354,33 @@ fn main() -> Result<()> {
     // Character is used for Lich proxy selection and display (not profile)
     let character = cli.character.clone();
     let login_key = cli.key.clone();
-    match cli.frontend {
+    let result = match cli.frontend {
         FrontendType::Tui => {
-            frontend::tui::run(config, character, direct_config, setup_palette, login_key)?
+            frontend::tui::run(config, character, direct_config, setup_palette, login_key)
         }
-        FrontendType::Gui => run_gui(config)?,
+        FrontendType::Gui => run_gui(config),
+    };
+
+    if let Err(ref e) = result {
+        tracing::error!("Fatal error: {:?}", e);
+        // On Windows, also write a crash.txt next to the exe so the user can find it
+        #[cfg(target_os = "windows")]
+        {
+            let exe_dir = std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+                .unwrap_or_else(|| std::path::PathBuf::from("."));
+            let crash_path = exe_dir.join("crash.txt");
+            let msg = format!(
+                "VellumFE crashed.\n\nError: {:?}\n\nFull log: {}\n",
+                e,
+                log_path.display()
+            );
+            let _ = std::fs::write(&crash_path, &msg);
+        }
     }
 
-    Ok(())
+    result
 }
 
 /// Run GUI frontend

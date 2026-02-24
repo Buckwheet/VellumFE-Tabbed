@@ -14,46 +14,60 @@ impl Frontend for TuiFrontend {
     fn poll_events(&mut self) -> Result<Vec<FrontendEvent>> {
         let mut events = Vec::new();
 
-        // Poll for events (non-blocking)
-        if event::poll(std::time::Duration::from_millis(16))? {
-            match event::read()? {
-                Event::Key(key) => {
-                    // Only process key press events, not release events
-                    if key.kind == KeyEventKind::Press {
-                        if let Some(code) = crossterm_bridge::convert_keycode(key.code) {
-                            events.push(FrontendEvent::Key {
-                                code,
-                                modifiers: crossterm_bridge::convert_modifiers(key.modifiers),
+        // Poll for events (non-blocking).
+        // On Windows, poll() can transiently fail (e.g. console resize race); treat as no-event
+        // rather than propagating the error and killing the app.
+        let has_event = match event::poll(std::time::Duration::from_millis(16)) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!("event::poll error (ignored): {}", e);
+                false
+            }
+        };
+        if has_event {
+            match event::read() {
+                Err(e) => {
+                    tracing::warn!("event::read error (ignored): {}", e);
+                }
+                Ok(event) => match event {
+                    Event::Key(key) => {
+                        // Only process key press events, not release events
+                        if key.kind == KeyEventKind::Press {
+                            if let Some(code) = crossterm_bridge::convert_keycode(key.code) {
+                                events.push(FrontendEvent::Key {
+                                    code,
+                                    modifiers: crossterm_bridge::convert_modifiers(key.modifiers),
+                                });
+                            }
+                        }
+                    }
+                    Event::Resize(width, height) => {
+                        // Apply resize debouncing to prevent excessive layout recalculations
+                        if let Some((w, h)) = self.resize_debouncer.check_resize(width, height) {
+                            events.push(FrontendEvent::Resize {
+                                width: w,
+                                height: h,
                             });
                         }
                     }
-                }
-                Event::Resize(width, height) => {
-                    // Apply resize debouncing to prevent excessive layout recalculations
-                    if let Some((w, h)) = self.resize_debouncer.check_resize(width, height) {
-                        events.push(FrontendEvent::Resize {
-                            width: w,
-                            height: h,
-                        });
+                    Event::Mouse(mouse) => {
+                        // Convert crossterm MouseEvent to frontend-agnostic MouseEvent
+                        if let Some(kind) = crossterm_bridge::convert_mouse_kind(mouse.kind) {
+                            let modifiers = crossterm_bridge::convert_modifiers(mouse.modifiers);
+                            let mouse_event = crate::frontend::common::MouseEvent::new(
+                                kind,
+                                mouse.column,
+                                mouse.row,
+                                modifiers,
+                            );
+                            events.push(FrontendEvent::Mouse(mouse_event));
+                        }
                     }
-                }
-                Event::Mouse(mouse) => {
-                    // Convert crossterm MouseEvent to frontend-agnostic MouseEvent
-                    if let Some(kind) = crossterm_bridge::convert_mouse_kind(mouse.kind) {
-                        let modifiers = crossterm_bridge::convert_modifiers(mouse.modifiers);
-                        let mouse_event = crate::frontend::common::MouseEvent::new(
-                            kind,
-                            mouse.column,
-                            mouse.row,
-                            modifiers,
-                        );
-                        events.push(FrontendEvent::Mouse(mouse_event));
+                    Event::Paste(text) => {
+                        events.push(FrontendEvent::Paste { text });
                     }
-                }
-                Event::Paste(text) => {
-                    events.push(FrontendEvent::Paste { text });
-                }
-                _ => {}
+                    _ => {}
+                },
             }
         }
 
