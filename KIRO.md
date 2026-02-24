@@ -15,14 +15,24 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 13 — commit `977e5a8`)
+## Current State (Session 14 — commit `3833a26`)
 
 `cargo check` clean. `cargo test` passes. **v0.2.0-beta.15 released** — all platform binaries on GitHub Releases.
 
-Three bugs fixed this session:
-1. `vellum_fe` → `vellum_fe_tabbed` in `tests/ui_integration.rs`, `tests/parser_integration.rs`, `src/theme.rs` doctests (CI was failing with E0433)
-2. `beta-release.yml` macOS package steps were copying `target/release/vellum-fe` (old binary name) instead of `target/release/vellum-fe-tabbed`
-3. `beta-release.yml` and `release.yml` release jobs missing `permissions: contents: write` — GitHub token couldn't create releases
+Session 14 completed:
+- Added `.githooks/pre-commit` hook: runs `cargo check`, `cargo clippy`, `cargo fmt --check`
+- Hook does NOT use `-D warnings` — codebase has ~283 pre-existing clippy warnings (style debt, not errors)
+- Added `scripts/install-hooks.sh` installer
+- Fixed hook PATH issue: added `export PATH="$HOME/.cargo/bin:$PATH"` so cargo is found in git hook env
+- Ran `cargo fmt` across entire codebase — 104 files reformatted (pure style, no logic changes)
+- All committed and pushed as `3833a26`
+
+**Tech debt note**: 283 clippy warnings exist (dead_code, too_many_arguments, get_first, etc.). These are pre-existing style issues, not regressions. Tracked as future cleanup work.
+
+Previous session fixes (Session 13):
+1. `vellum_fe` → `vellum_fe_tabbed` in `tests/ui_integration.rs`, `tests/parser_integration.rs`, `src/theme.rs` doctests
+2. `beta-release.yml` macOS package steps were copying `target/release/vellum-fe` (old binary name)
+3. `beta-release.yml` and `release.yml` release jobs missing `permissions: contents: write`
 
 ---
 
@@ -194,16 +204,14 @@ Priority order:
 1. ~~**Session switch UI state save/restore**~~ — DONE (Session 10)
 2. ~~**TTS state in tab bar**~~ — DONE (Session 11)
 3. ~~**CI test failures**~~ — DONE (Session 12) — `vellum_fe` → `vellum_fe_tabbed` in tests + doctests
-4. ~~**macOS package step binary name**~~ — DONE (Session 13) — `beta-release.yml` was copying `vellum-fe` not `vellum-fe-tabbed`
-5. ~~**Release job permissions**~~ — DONE (Session 13) — added `permissions: contents: write` to both workflow release jobs
-6. **Test the binary** — download v0.2.0-beta.15 from GitHub Releases, run against a real GemStone account, verify Lich proxy and Direct login
-7. **Promote to v0.2.0 stable** once binary is confirmed working
-8. **Bak file cleanup** — deferred until first working release binary is confirmed by user
-9. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
-5. **Test the binary** — run against a real GemStone account, verify Lich proxy and Direct login
-6. **Promote to v0.2.0 stable** once binary is confirmed working
-7. **Bak file cleanup** — deferred until first working release binary is shipped on GitHub. Bak files are safety nets until then.
-8. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
+4. ~~**macOS package step binary name**~~ — DONE (Session 13)
+5. ~~**Release job permissions**~~ — DONE (Session 13)
+6. ~~**Pre-commit hooks**~~ — DONE (Session 14) — `.githooks/pre-commit` + `scripts/install-hooks.sh`; `cargo fmt` applied codebase-wide
+7. **Test the binary** — download v0.2.0-beta.15 from GitHub Releases, run against a real GemStone account, verify Lich proxy and Direct login
+8. **Promote to v0.2.0 stable** once binary is confirmed working
+9. **Bak file cleanup** — deferred until first working release binary is confirmed by user
+10. **Clippy tech debt** — 283 pre-existing warnings; address incrementally in future sessions
+11. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
 
 ---
 
