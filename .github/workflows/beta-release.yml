@@ -253,6 +253,8 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [build, macos-arm, macos-intel, macos-universal]
+    permissions:
+      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
