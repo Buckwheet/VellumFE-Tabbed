@@ -58,9 +58,12 @@ impl PerceptionWindow {
 
     /// Update compiled text replacements if they have changed.
     /// Uses a hash to avoid recompiling if replacements haven't changed.
-    pub fn update_compiled_replacements(&mut self, replacements: &[crate::config::TextReplacement]) {
-        use std::hash::{Hash, Hasher};
+    pub fn update_compiled_replacements(
+        &mut self,
+        replacements: &[crate::config::TextReplacement],
+    ) {
         use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
 
         // Compute hash of the replacements
         let mut hasher = DefaultHasher::new();
@@ -232,8 +235,8 @@ impl PerceptionWindow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::data::widget::{PerceptionEntry, PerceptionFormat};
     use crate::config::{HighlightPattern, RedirectMode};
+    use crate::data::widget::{PerceptionEntry, PerceptionFormat};
 
     #[test]
     fn test_new_perception_window() {
@@ -370,12 +373,8 @@ mod tests {
         let mut buf = Buffer::empty(area);
         window.render(area, &mut buf);
 
-        let line0: String = (0..area.width)
-            .map(|x| buf[(x, 0)].symbol())
-            .collect();
-        let line1: String = (0..area.width)
-            .map(|x| buf[(x, 1)].symbol())
-            .collect();
+        let line0: String = (0..area.width).map(|x| buf[(x, 0)].symbol()).collect();
+        let line1: String = (0..area.width).map(|x| buf[(x, 1)].symbol()).collect();
 
         assert!(line0.contains("Entry1"));
         assert!(line1.contains("Entry2"));
@@ -414,12 +413,8 @@ mod tests {
         let mut buf = Buffer::empty(area);
         window.render(area, &mut buf);
 
-        let line0: String = (0..area.width)
-            .map(|x| buf[(x, 0)].symbol())
-            .collect();
-        let line1: String = (0..area.width)
-            .map(|x| buf[(x, 1)].symbol())
-            .collect();
+        let line0: String = (0..area.width).map(|x| buf[(x, 0)].symbol()).collect();
+        let line1: String = (0..area.width).map(|x| buf[(x, 1)].symbol()).collect();
 
         assert!(line0.contains("Entry2"));
         assert!(line1.contains("Entry3"));
@@ -663,9 +658,7 @@ mod tests {
         let mut buf = Buffer::empty(area);
         window.render(area, &mut buf);
 
-        let line0: String = (0..area.width)
-            .map(|x| buf[(x, 0)].symbol())
-            .collect();
+        let line0: String = (0..area.width).map(|x| buf[(x, 0)].symbol()).collect();
         assert!(line0.contains("Replaced1"));
     }
 
@@ -705,9 +698,7 @@ mod tests {
         let mut buf = Buffer::empty(area);
         window.render(area, &mut buf);
 
-        let line0: String = (0..area.width)
-            .map(|x| buf[(x, 0)].symbol())
-            .collect();
+        let line0: String = (0..area.width).map(|x| buf[(x, 0)].symbol()).collect();
         assert!(line0.contains("Entry1"));
     }
 
@@ -746,9 +737,7 @@ mod tests {
         let mut buf = Buffer::empty(area);
         window.render(area, &mut buf);
 
-        let line0: String = (0..area.width)
-            .map(|x| buf[(x, 0)].symbol())
-            .collect();
+        let line0: String = (0..area.width).map(|x| buf[(x, 0)].symbol()).collect();
         assert!(line0.contains("Entry1"));
         assert_eq!(buf[(0, 0)].fg, Color::Reset);
     }

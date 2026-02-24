@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -e
+
+echo "▶ cargo check..."
+cargo check --quiet 2>&1 || { echo "✗ cargo check failed"; exit 1; }
+
+echo "▶ cargo clippy..."
+cargo clippy --quiet 2>&1 || { echo "✗ cargo clippy failed"; exit 1; }
+
+echo "▶ cargo fmt --check..."
+cargo fmt -- --check 2>&1 || { echo "✗ cargo fmt check failed — run 'cargo fmt' then re-commit"; exit 1; }
+
+echo "✓ pre-commit checks passed"

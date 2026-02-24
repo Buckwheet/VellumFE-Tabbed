@@ -9,7 +9,7 @@ use vellum_fe_tabbed::{
             ActiveEffect, ActiveEffectsContent, CompassData, CountdownData, IndicatorData,
             ProgressData, QuickbarEntry, StyledLine, TextContent, TextSegment,
         },
-        window::{WindowContent, WindowPosition, WindowState, WidgetType},
+        window::{WidgetType, WindowContent, WindowPosition, WindowState},
         RoomContent, UiState,
     },
     parser::XmlParser,
@@ -26,7 +26,8 @@ fn run_fixture(
     // Update stream subscriber map from windows before processing
     processor.update_text_stream_subscribers(ui_state);
 
-    let mut room_components: HashMap<String, Vec<Vec<vellum_fe_tabbed::data::TextSegment>>> = HashMap::new();
+    let mut room_components: HashMap<String, Vec<Vec<vellum_fe_tabbed::data::TextSegment>>> =
+        HashMap::new();
     let mut current_room_component: Option<String> = None;
     let mut room_window_dirty = false;
     let mut nav_room_id: Option<String> = None;
@@ -209,14 +210,23 @@ fn test_quickbar_state_updates() {
 <dialogData id="quick"><menuLink id="3" value="roleplay..." exist="qlinkrp" noun=""/></dialogData>
 <switchQuickBar id="quick"/>"#;
 
-    run_fixture(xml, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        xml,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let quickbar = ui_state.quickbars.get("quick").expect("quickbar data");
     assert_eq!(quickbar.title.as_deref(), Some("main"));
     assert_eq!(quickbar.entries.len(), 3);
     assert!(matches!(quickbar.entries[0], QuickbarEntry::Link { .. }));
     assert!(matches!(quickbar.entries[1], QuickbarEntry::Separator));
-    assert!(matches!(quickbar.entries[2], QuickbarEntry::MenuLink { .. }));
+    assert!(matches!(
+        quickbar.entries[2],
+        QuickbarEntry::MenuLink { .. }
+    ));
     assert_eq!(ui_state.active_quickbar_id.as_deref(), Some("quick"));
 }
 
@@ -275,7 +285,13 @@ fn add_tabbed_window(
     let tabs_with_timestamp: Vec<_> = tabs
         .into_iter()
         .map(|(name, streams, show_ts, ignore)| {
-            (name, streams, show_ts, ignore, vellum_fe_tabbed::config::TimestampPosition::default())
+            (
+                name,
+                streams,
+                show_ts,
+                ignore,
+                vellum_fe_tabbed::config::TimestampPosition::default(),
+            )
         })
         .collect();
     let window = WindowState {
@@ -344,7 +360,12 @@ fn add_spells_window(ui_state: &mut UiState) {
 fn lines_to_strings(lines: &std::collections::VecDeque<StyledLine>) -> Vec<String> {
     lines
         .iter()
-        .map(|l| l.segments.iter().map(|s| s.text.as_str()).collect::<String>())
+        .map(|l| {
+            l.segments
+                .iter()
+                .map(|s| s.text.as_str())
+                .collect::<String>()
+        })
         .collect()
 }
 
@@ -356,7 +377,8 @@ fn segments_to_string(segments: &[TextSegment]) -> String {
 
 #[test]
 fn ui_routes_tabbed_streams_to_matching_tabs() {
-    const XML: &str = "<clearStream id='thoughts'/><pushStream id='thoughts'/>Thoughts line<popStream/>\
+    const XML: &str =
+        "<clearStream id='thoughts'/><pushStream id='thoughts'/>Thoughts line<popStream/>\
                        <clearStream id='trash'/><pushStream id='trash'/>Trash line<popStream/>\
                        <prompt time='1759294807'>&gt;</prompt>";
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
@@ -364,13 +386,24 @@ fn ui_routes_tabbed_streams_to_matching_tabs() {
         &mut ui_state,
         "tabbed",
         vec![
-            ("Thoughts".to_string(), vec!["thoughts".to_string()], false, false),
+            (
+                "Thoughts".to_string(),
+                vec!["thoughts".to_string()],
+                false,
+                false,
+            ),
             ("Trash".to_string(), vec!["trash".to_string()], false, true),
         ],
         20,
     );
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let tabbed = ui_state
         .windows
@@ -405,7 +438,13 @@ fn ui_routes_streams_to_text_windows() {
     add_text_window(&mut ui_state, "thoughts", 50);
     add_text_window(&mut ui_state, "speech", 50);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let thoughts_lines = ui_state
         .windows
@@ -446,7 +485,13 @@ fn ui_falls_back_to_main_when_stream_window_missing() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_text_window(&mut ui_state, "main", 200);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let main_lines = ui_state
         .windows
@@ -475,7 +520,13 @@ fn ui_updates_inventory_stream_when_window_present() {
     add_text_window(&mut ui_state, "main", 200);
     add_inventory_window(&mut ui_state);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let inv_lines = ui_state
         .windows
@@ -501,7 +552,13 @@ fn inventory_stream_is_discarded_without_window() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_text_window(&mut ui_state, "main", 200);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let main_lines = ui_state
         .windows
@@ -527,7 +584,13 @@ fn unknown_stream_falls_back_to_main() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_text_window(&mut ui_state, "main", 100);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let main_lines = ui_state
         .windows
@@ -553,7 +616,13 @@ fn playerlist_stream_is_discarded_without_window() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_text_window(&mut ui_state, "main", 100);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let main_lines = ui_state
         .windows
@@ -579,7 +648,13 @@ fn speech_stream_dropped_without_window() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_text_window(&mut ui_state, "main", 100);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let main_lines = ui_state
         .windows
@@ -613,7 +688,13 @@ fn spells_stream_populates_spells_window() {
     add_text_window(&mut ui_state, "main", 200);
     add_spells_window(&mut ui_state);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
     processor.flush_spells_buffer(&mut ui_state);
 
     let spells_lines = ui_state
@@ -641,7 +722,13 @@ fn spells_stream_buffers_without_window() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_text_window(&mut ui_state, "main", 200);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     // Spells should NOT go to main - they should be buffered
     let main_lines = ui_state
@@ -711,11 +798,18 @@ fn spells_stream_buffers_without_window() {
 
 #[test]
 fn prompt_is_skipped_after_silent_stream() {
-    const XML: &str = "<clearStream id='percWindow'/><pushStream id='percWindow'/>A swing!<popStream/>\
+    const XML: &str =
+        "<clearStream id='percWindow'/><pushStream id='percWindow'/>A swing!<popStream/>\
                        <prompt time='1759294809'>&gt;</prompt>";
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_text_window(&mut ui_state, "main", 50);
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let main_lines = ui_state
         .windows
@@ -737,12 +831,17 @@ fn prompt_is_skipped_after_silent_stream() {
 
 #[test]
 fn prompt_is_rendered_after_main_text() {
-    const XML: &str =
-        "<clearStream id='main'/><pushStream id='main'/>Regular line<popStream/>\
+    const XML: &str = "<clearStream id='main'/><pushStream id='main'/>Regular line<popStream/>\
          <prompt time='1759294810'>&gt;</prompt>";
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_text_window(&mut ui_state, "main", 50);
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let main_lines = ui_state
         .windows
@@ -757,7 +856,10 @@ fn prompt_is_rendered_after_main_text() {
         .unwrap_or_default();
 
     let joined: String = main_lines.join("\n");
-    assert!(!main_lines.is_empty(), "main window should have rendered lines");
+    assert!(
+        !main_lines.is_empty(),
+        "main window should have rendered lines"
+    );
     assert!(
         joined.contains("Regular line"),
         "main window should include the text line from main stream"
@@ -776,7 +878,13 @@ fn ui_updates_mindstate_progress() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_progress_window(&mut ui_state, "mind", "mindState");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let mind = ui_state
         .windows
@@ -802,7 +910,13 @@ fn ui_updates_custom_progress_ids() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_progress_window(&mut ui_state, "encum", "encumlevel");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let encum = ui_state
         .windows
@@ -830,7 +944,13 @@ fn countdown_does_not_update_wrong_id() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_countdown_window(&mut ui_state, "casttime", "casttime");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let ct = ui_state
         .windows
@@ -845,7 +965,10 @@ fn countdown_does_not_update_wrong_id() {
         })
         .unwrap_or(0);
 
-    assert_eq!(ct, 0, "casttime should remain untouched when only roundtime arrives");
+    assert_eq!(
+        ct, 0,
+        "casttime should remain untouched when only roundtime arrives"
+    );
 }
 
 #[test]
@@ -855,7 +978,13 @@ fn countdown_updates_when_name_matches_even_if_id_differs() {
     // countdown_id intentionally does not match the incoming id; name does
     add_countdown_window(&mut ui_state, "roundtime", "rt_custom");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let rt = ui_state
         .windows
@@ -880,7 +1009,8 @@ fn countdown_updates_when_name_matches_even_if_id_differs() {
 
 #[test]
 fn dashboard_updates_indicator_statuses() {
-    const XML: &str = "<indicator id='IconHIDDEN' visible='y'/><indicator id='iconstunned' visible='n'/>";
+    const XML: &str =
+        "<indicator id='IconHIDDEN' visible='y'/><indicator id='iconstunned' visible='n'/>";
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_dashboard_window(
         &mut ui_state,
@@ -888,7 +1018,13 @@ fn dashboard_updates_indicator_statuses() {
         vec![("HIDDEN".to_string(), 0), ("STUNNED".to_string(), 0)],
     );
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let indicators = ui_state
         .windows
@@ -902,8 +1038,14 @@ fn dashboard_updates_indicator_statuses() {
         })
         .unwrap_or_default();
 
-    let hidden = indicators.iter().find(|(id, _)| id == "HIDDEN").map(|(_, v)| *v);
-    let stunned = indicators.iter().find(|(id, _)| id == "STUNNED").map(|(_, v)| *v);
+    let hidden = indicators
+        .iter()
+        .find(|(id, _)| id == "HIDDEN")
+        .map(|(_, v)| *v);
+    let stunned = indicators
+        .iter()
+        .find(|(id, _)| id == "STUNNED")
+        .map(|(_, v)| *v);
     assert_eq!(hidden, Some(1), "hidden indicator should be marked active");
     assert_eq!(stunned, Some(0), "stunned indicator should stay inactive");
 }
@@ -914,7 +1056,13 @@ fn indicators_preserve_casing_when_added_to_dashboard() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_dashboard_window(&mut ui_state, "dash", vec![]);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let indicators = ui_state
         .windows
@@ -940,7 +1088,13 @@ fn indicators_match_case_insensitively_without_rewriting_id() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_indicator_window(&mut ui_state, "standing", "standing");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let standing = ui_state
         .windows
@@ -958,7 +1112,10 @@ fn indicators_match_case_insensitively_without_rewriting_id() {
         standing.0, "standing",
         "existing indicator id casing should remain unchanged"
     );
-    assert!(standing.1, "indicator should activate even when feed casing differs");
+    assert!(
+        standing.1,
+        "indicator should activate even when feed casing differs"
+    );
 }
 
 // ---------------- Active Effects ----------------
@@ -969,7 +1126,13 @@ fn active_effects_update_from_dialogdata() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_active_effects_window(&mut ui_state, "buffs", "Buffs");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let effects: Vec<ActiveEffect> = ui_state
         .windows
@@ -997,7 +1160,13 @@ fn active_effects_clear_removes_entries() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_active_effects_window(&mut ui_state, "buffs", "Buffs");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let effects: Vec<ActiveEffect> = ui_state
         .windows
@@ -1023,7 +1192,13 @@ fn active_spells_category_is_normalized_and_populates() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_active_effects_window(&mut ui_state, "active_spells", "ActiveSpells");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let effects: Vec<ActiveEffect> = ui_state
         .windows
@@ -1037,10 +1212,17 @@ fn active_spells_category_is_normalized_and_populates() {
         })
         .unwrap_or_default();
 
-    assert_eq!(effects.len(), 1, "Active Spells should normalize and populate");
+    assert_eq!(
+        effects.len(),
+        1,
+        "Active Spells should normalize and populate"
+    );
     let effect = &effects[0];
     assert_eq!(effect.id, "905");
-    assert!(effect.text.contains("Prismatic"), "text should carry spell name");
+    assert!(
+        effect.text.contains("Prismatic"),
+        "text should carry spell name"
+    );
 }
 
 #[test]
@@ -1049,7 +1231,13 @@ fn active_spells_clear_removes_entries() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_active_effects_window(&mut ui_state, "active_spells", "ActiveSpells");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let effects: Vec<ActiveEffect> = ui_state
         .windows
@@ -1075,7 +1263,13 @@ fn active_cooldowns_populate_and_clear() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_active_effects_window(&mut ui_state, "cooldowns", "Cooldowns");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let effects: Vec<ActiveEffect> = ui_state
         .windows
@@ -1088,11 +1282,21 @@ fn active_cooldowns_populate_and_clear() {
             }
         })
         .unwrap_or_default();
-    assert_eq!(effects.len(), 1, "cooldowns should populate from Cooldowns dialogData");
+    assert_eq!(
+        effects.len(),
+        1,
+        "cooldowns should populate from Cooldowns dialogData"
+    );
 
     // Clear
     const CLEAR_XML: &str = include_str!("fixtures/active_cooldowns_clear.xml");
-    run_fixture(CLEAR_XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        CLEAR_XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let effects_after: Vec<ActiveEffect> = ui_state
         .windows
@@ -1118,7 +1322,13 @@ fn active_debuffs_populate_and_clear() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_active_effects_window(&mut ui_state, "debuffs", "Debuffs");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let effects: Vec<ActiveEffect> = ui_state
         .windows
@@ -1131,11 +1341,21 @@ fn active_debuffs_populate_and_clear() {
             }
         })
         .unwrap_or_default();
-    assert_eq!(effects.len(), 1, "debuffs should populate from Debuffs dialogData");
+    assert_eq!(
+        effects.len(),
+        1,
+        "debuffs should populate from Debuffs dialogData"
+    );
 
     // Now clear
     const CLEAR_XML: &str = include_str!("fixtures/active_debuffs_clear.xml");
-    run_fixture(CLEAR_XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        CLEAR_XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let effects_after: Vec<ActiveEffect> = ui_state
         .windows
@@ -1163,7 +1383,13 @@ fn injuries_update_levels_from_dialogdata() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_injury_window(&mut ui_state);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let injuries = ui_state
         .windows
@@ -1178,7 +1404,11 @@ fn injuries_update_levels_from_dialogdata() {
         .unwrap_or_default();
 
     assert_eq!(injuries.get("head"), Some(&2), "Injury2 should set level 2");
-    assert_eq!(injuries.get("leftLeg"), Some(&6), "Scar3 should set level 6");
+    assert_eq!(
+        injuries.get("leftLeg"),
+        Some(&6),
+        "Scar3 should set level 6"
+    );
 }
 
 #[test]
@@ -1187,7 +1417,13 @@ fn injuries_clear_when_body_part_matches_name() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_injury_window(&mut ui_state);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let injuries = ui_state
         .windows
@@ -1214,7 +1450,13 @@ fn progress_does_not_update_when_id_mismatch() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_progress_window(&mut ui_state, "health", "health");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let health = ui_state
         .windows
@@ -1242,7 +1484,13 @@ fn progress_ids_are_case_sensitive() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_progress_window(&mut ui_state, "health", "health");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let health = ui_state
         .windows
@@ -1270,7 +1518,13 @@ fn indicator_dialogdata_updates_indicator_window_case_insensitive() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_indicator_window(&mut ui_state, "bleed", "bleeding");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let bleed = ui_state
         .windows
@@ -1284,7 +1538,10 @@ fn indicator_dialogdata_updates_indicator_window_case_insensitive() {
         })
         .unwrap_or(false);
 
-    assert!(bleed, "dialogData Icon* indicators should toggle matching indicator windows");
+    assert!(
+        bleed,
+        "dialogData Icon* indicators should toggle matching indicator windows"
+    );
 }
 
 #[test]
@@ -1293,7 +1550,13 @@ fn indicator_dialogdata_clear_turns_off_indicator() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_indicator_window(&mut ui_state, "bleed", "bleeding");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let bleed = ui_state
         .windows
@@ -1319,18 +1582,21 @@ fn spell_hand_updates_from_spell_tag() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_hand_window(&mut ui_state, "spell_hand");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
-    let spell_item = ui_state
-        .windows
-        .get("spell_hand")
-        .and_then(|w| {
-            if let WindowContent::Hand { item, .. } = &w.content {
-                item.clone()
-            } else {
-                None
-            }
-        });
+    let spell_item = ui_state.windows.get("spell_hand").and_then(|w| {
+        if let WindowContent::Hand { item, .. } = &w.content {
+            item.clone()
+        } else {
+            None
+        }
+    });
 
     assert_eq!(
         spell_item.as_deref(),
@@ -1347,20 +1613,29 @@ fn spell_hand_clears_on_empty_spell() {
     add_hand_window(&mut ui_state, "spell_hand");
 
     // Set
-    run_fixture(SET_XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        SET_XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
     // Clear
-    run_fixture(CLEAR_XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        CLEAR_XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
-    let spell_item = ui_state
-        .windows
-        .get("spell_hand")
-        .and_then(|w| {
-            if let WindowContent::Hand { item, .. } = &w.content {
-                item.clone()
-            } else {
-                None
-            }
-        });
+    let spell_item = ui_state.windows.get("spell_hand").and_then(|w| {
+        if let WindowContent::Hand { item, .. } = &w.content {
+            item.clone()
+        } else {
+            None
+        }
+    });
 
     assert!(
         spell_item.is_none(),
@@ -1379,35 +1654,56 @@ fn hands_clear_on_empty_left_and_right_tags() {
     add_hand_window(&mut ui_state, "right");
 
     // Set both
-    run_fixture(LEFT_SET, &mut ui_state, &mut processor, &mut game_state, &mut parser);
-    run_fixture(RIGHT_SET, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        LEFT_SET,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
+    run_fixture(
+        RIGHT_SET,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
     // Clear both
-    run_fixture(LEFT_CLEAR, &mut ui_state, &mut processor, &mut game_state, &mut parser);
-    run_fixture(RIGHT_CLEAR, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        LEFT_CLEAR,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
+    run_fixture(
+        RIGHT_CLEAR,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
-    let left_item = ui_state
-        .windows
-        .get("left")
-        .and_then(|w| {
-            if let WindowContent::Hand { item, .. } = &w.content {
-                item.clone()
-            } else {
-                None
-            }
-        });
-    let right_item = ui_state
-        .windows
-        .get("right")
-        .and_then(|w| {
-            if let WindowContent::Hand { item, .. } = &w.content {
-                item.clone()
-            } else {
-                None
-            }
-        });
+    let left_item = ui_state.windows.get("left").and_then(|w| {
+        if let WindowContent::Hand { item, .. } = &w.content {
+            item.clone()
+        } else {
+            None
+        }
+    });
+    let right_item = ui_state.windows.get("right").and_then(|w| {
+        if let WindowContent::Hand { item, .. } = &w.content {
+            item.clone()
+        } else {
+            None
+        }
+    });
 
     assert!(left_item.is_none(), "empty <left> should clear left hand");
-    assert!(right_item.is_none(), "empty <right> should clear right hand");
+    assert!(
+        right_item.is_none(),
+        "empty <right> should clear right hand"
+    );
 }
 
 #[test]
@@ -1416,7 +1712,13 @@ fn left_hand_link_data_is_preserved() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_hand_window(&mut ui_state, "left");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let link = ui_state
         .windows
@@ -1445,13 +1747,24 @@ fn tabbed_marks_unread_unless_ignore_activity() {
         &mut ui_state,
         "tabbed",
         vec![
-            ("Speech".to_string(), vec!["speech".to_string()], false, false),
+            (
+                "Speech".to_string(),
+                vec!["speech".to_string()],
+                false,
+                false,
+            ),
             ("Trash".to_string(), vec!["trash".to_string()], false, true),
         ],
         10,
     );
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let tabbed = ui_state
         .windows
@@ -1476,7 +1789,10 @@ fn tabbed_marks_unread_unless_ignore_activity() {
         trash_lines.iter().any(|l| l.contains("trash line 1")),
         "ignore_activity tab should still receive text"
     );
-    assert!(tabbed.tabs[1].definition.ignore_activity, "trash tab should keep ignore_activity=true");
+    assert!(
+        tabbed.tabs[1].definition.ignore_activity,
+        "trash tab should keep ignore_activity=true"
+    );
 }
 
 // ---------------- Dashboard add-on update ----------------
@@ -1488,7 +1804,13 @@ fn dashboard_adds_indicator_when_missing() {
     // Start with empty dashboard indicators
     add_dashboard_window(&mut ui_state, "dash", vec![]);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let indicators = ui_state
         .windows
@@ -1502,7 +1824,11 @@ fn dashboard_adds_indicator_when_missing() {
         })
         .unwrap_or_default();
 
-    assert_eq!(indicators.len(), 1, "dashboard should add missing indicator entry");
+    assert_eq!(
+        indicators.len(),
+        1,
+        "dashboard should add missing indicator entry"
+    );
     assert_eq!(indicators[0].0, "HIDDEN");
     assert_eq!(indicators[0].1, 1);
 }
@@ -1511,13 +1837,15 @@ fn dashboard_adds_indicator_when_missing() {
 fn dashboard_updates_existing_indicator_without_duplication() {
     const XML: &str = include_str!("fixtures/indicator_dashboard_update.xml");
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
-    add_dashboard_window(
-        &mut ui_state,
-        "dash",
-        vec![("HIDDEN".to_string(), 0)],
-    );
+    add_dashboard_window(&mut ui_state, "dash", vec![("HIDDEN".to_string(), 0)]);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let indicators = ui_state
         .windows
@@ -1537,7 +1865,10 @@ fn dashboard_updates_existing_indicator_without_duplication() {
         "dashboard should update existing indicator instead of duplicating"
     );
     assert_eq!(indicators[0].0, "HIDDEN");
-    assert_eq!(indicators[0].1, 0, "second update should turn indicator off");
+    assert_eq!(
+        indicators[0].1, 0,
+        "second update should turn indicator off"
+    );
 }
 
 // ---------------- Vitals / Progress ----------------
@@ -1548,7 +1879,13 @@ fn ui_updates_progress_vitals_from_dialogdata() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_progress_window(&mut ui_state, "health", "health");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     // health window should exist and have updated ProgressData
     let health = ui_state
@@ -1566,7 +1903,10 @@ fn ui_updates_progress_vitals_from_dialogdata() {
 
     assert_eq!(health.0, 325);
     assert_eq!(health.1, 326);
-    assert!(health.2.contains("health"), "label should include text from feed");
+    assert!(
+        health.2.contains("health"),
+        "label should include text from feed"
+    );
 }
 
 // ---------------- Countdown ----------------
@@ -1578,7 +1918,13 @@ fn ui_updates_roundtime_countdown() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_countdown_window(&mut ui_state, "roundtime", "roundtime");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     // roundtime countdown window default name/id "roundtime"
     let rt = ui_state
@@ -1604,7 +1950,13 @@ fn ui_updates_cast_and_roundtime_countdowns() {
     add_countdown_window(&mut ui_state, "roundtime", "roundtime");
     add_countdown_window(&mut ui_state, "casttime", "casttime");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let rt = ui_state
         .windows
@@ -1632,7 +1984,10 @@ fn ui_updates_cast_and_roundtime_countdowns() {
         })
         .unwrap_or(0);
 
-    assert!(rt > 0, "roundtime end_time should be set from roundTime tag");
+    assert!(
+        rt > 0,
+        "roundtime end_time should be set from roundTime tag"
+    );
     assert!(ct > 0, "casttime end_time should be set from castTime tag");
 }
 
@@ -1644,7 +1999,13 @@ fn ui_sets_indicator_status_from_icon() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_indicator_window(&mut ui_state, "stunned", "STUNNED");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let stunned_active = ui_state
         .windows
@@ -1669,7 +2030,13 @@ fn ui_updates_multiple_indicators() {
     add_indicator_window(&mut ui_state, "hidden", "HIDDEN");
     add_indicator_window(&mut ui_state, "stunned", "STUNNED");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let hidden_active = ui_state
         .windows
@@ -1702,14 +2069,19 @@ fn ui_updates_multiple_indicators() {
 
 // ---------------- Targets / Players ----------------
 
-
 #[test]
 fn ui_ignores_playercount_and_list_streams() {
     const XML: &str = include_str!("fixtures/player_counts.xml");
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_players_window(&mut ui_state);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     assert!(
         game_state.room_players.is_empty(),
@@ -1722,7 +2094,13 @@ fn players_streams_are_ignored_without_window() {
     const XML: &str = include_str!("fixtures/player_counts.xml");
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     // No players window: counts should not be stored anywhere
     let has_players = ui_state
@@ -1742,8 +2120,20 @@ fn ui_sets_hands_and_compass() {
     add_hand_window(&mut ui_state, "left");
     add_compass_window(&mut ui_state);
 
-    run_fixture(VITALS_XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
-    run_fixture(ROOM_XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        VITALS_XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
+    run_fixture(
+        ROOM_XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     // Left hand content
     let left = ui_state
@@ -1800,7 +2190,13 @@ fn ui_updates_room_subtitle_and_compass() {
     };
     ui_state.set_window("room".to_string(), room_window);
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let exits = ui_state
         .windows
@@ -1877,8 +2273,14 @@ fn ui_stores_room_components_when_room_window_present() {
         .unwrap_or_default();
 
     assert!(!desc.is_empty(), "room description should be captured");
-    assert!(exits.contains("north"), "room exits should include parsed directions");
-    assert!(room_window_dirty, "room window should be marked dirty when components arrive");
+    assert!(
+        exits.contains("north"),
+        "room exits should include parsed directions"
+    );
+    assert!(
+        room_window_dirty,
+        "room window should be marked dirty when components arrive"
+    );
 }
 
 #[test]
@@ -1886,21 +2288,40 @@ fn ui_ignores_room_components_when_no_room_window() {
     const XML: &str = include_str!("fixtures/room_components.xml");
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
-    assert!(game_state.room_name.is_none(), "room name should remain unset without room window");
-    assert!(game_state.exits.is_empty(), "exits should remain empty without room window");
+    assert!(
+        game_state.room_name.is_none(),
+        "room name should remain unset without room window"
+    );
+    assert!(
+        game_state.exits.is_empty(),
+        "exits should remain empty without room window"
+    );
 }
 
 // ---------------- Progress variants ----------------
 
 #[test]
 fn ui_updates_stance_progress() {
-    const XML: &str = "<progressBar id='pbarStance' value='100' max='100' text='defensive (100%)' />";
+    const XML: &str =
+        "<progressBar id='pbarStance' value='100' max='100' text='defensive (100%)' />";
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_progress_window(&mut ui_state, "stance", "pbarStance");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let stance = ui_state
         .windows
@@ -1917,7 +2338,10 @@ fn ui_updates_stance_progress() {
 
     assert_eq!(stance.0, 100);
     assert_eq!(stance.1, 100);
-    assert!(stance.2.contains("defensive"), "label should include stance text");
+    assert!(
+        stance.2.contains("defensive"),
+        "label should include stance text"
+    );
 }
 
 #[test]
@@ -1926,7 +2350,13 @@ fn ui_updates_buffs_progress_bars() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_progress_window(&mut ui_state, "buff", "115");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let buff = ui_state
         .windows
@@ -1942,7 +2372,10 @@ fn ui_updates_buffs_progress_bars() {
         .expect("buff progress window should exist");
 
     assert_eq!(buff.0, 89);
-    assert!(buff.1.contains("Fasthr"), "buff label should include spell name");
+    assert!(
+        buff.1.contains("Fasthr"),
+        "buff label should include spell name"
+    );
 }
 
 #[test]
@@ -1951,7 +2384,13 @@ fn ui_updates_lblbps_progress_label_only() {
     let (mut ui_state, mut processor, mut game_state, mut parser) = init_state();
     add_progress_window(&mut ui_state, "bp", "lblBPs");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let bp = ui_state
         .windows
@@ -1979,7 +2418,13 @@ fn ui_updates_multiple_progress_variants() {
     add_progress_window(&mut ui_state, "health", "health");
     add_progress_window(&mut ui_state, "foo", "fooCustom");
 
-    run_fixture(XML, &mut ui_state, &mut processor, &mut game_state, &mut parser);
+    run_fixture(
+        XML,
+        &mut ui_state,
+        &mut processor,
+        &mut game_state,
+        &mut parser,
+    );
 
     let stance = ui_state
         .windows
@@ -2024,7 +2469,10 @@ fn ui_updates_multiple_progress_variants() {
         })
         .expect("custom progress window should exist");
     assert_eq!(foo.0, 5);
-    assert_eq!(foo.1, 10, "custom with max missing should still use parsed max when present");
+    assert_eq!(
+        foo.1, 10,
+        "custom with max missing should still use parsed max when present"
+    );
     assert!(foo.2.contains("foo"));
 }
 
@@ -2094,11 +2542,11 @@ fn highlight_engine_applies_color_to_matching_text() {
     let result = engine.apply_highlights(&segments, "main");
 
     // Find the segment containing "goblin"
-    let goblin_segment = result
-        .segments
-        .iter()
-        .find(|s| s.text.contains("goblin"));
-    assert!(goblin_segment.is_some(), "Should have a segment with 'goblin'");
+    let goblin_segment = result.segments.iter().find(|s| s.text.contains("goblin"));
+    assert!(
+        goblin_segment.is_some(),
+        "Should have a segment with 'goblin'"
+    );
     assert_eq!(
         goblin_segment.unwrap().fg.as_deref(),
         Some("red"),
@@ -2109,12 +2557,7 @@ fn highlight_engine_applies_color_to_matching_text() {
 #[test]
 fn highlight_engine_applies_bold_style() {
     let patterns = vec![make_highlight_pattern(
-        "attack",
-        None,
-        None,
-        true,
-        false,
-        false,
+        "attack", None, None, true, false, false,
     )];
     let engine = CoreHighlightEngine::new(patterns);
 
@@ -2122,8 +2565,14 @@ fn highlight_engine_applies_bold_style() {
     let result = engine.apply_highlights(&segments, "main");
 
     let attack_segment = result.segments.iter().find(|s| s.text.contains("attack"));
-    assert!(attack_segment.is_some(), "Should have segment with 'attack'");
-    assert!(attack_segment.unwrap().bold, "Attack segment should be bold");
+    assert!(
+        attack_segment.is_some(),
+        "Should have segment with 'attack'"
+    );
+    assert!(
+        attack_segment.unwrap().bold,
+        "Attack segment should be bold"
+    );
 }
 
 #[test]
@@ -2258,7 +2707,10 @@ fn highlight_engine_fast_parse_handles_multiple_matches_in_line() {
         .iter()
         .filter(|s| s.fg.as_deref() == Some("gold"))
         .count();
-    assert!(gold_count >= 3, "Should have at least 3 gold-colored 'coin' segments");
+    assert!(
+        gold_count >= 3,
+        "Should have at least 3 gold-colored 'coin' segments"
+    );
 }
 
 // ---------------- Regex Pattern Matching ----------------
@@ -2435,14 +2887,8 @@ fn highlight_engine_handles_empty_pattern_list() {
 
 #[test]
 fn highlight_engine_applies_replacement() {
-    let mut pattern = make_highlight_pattern(
-        "Fading roisaen",
-        Some("cyan"),
-        None,
-        false,
-        false,
-        false,
-    );
+    let mut pattern =
+        make_highlight_pattern("Fading roisaen", Some("cyan"), None, false, false, false);
     pattern.replace = Some("★ Fading roisaen".to_string());
 
     let patterns = vec![pattern];
@@ -2463,14 +2909,7 @@ fn highlight_engine_applies_replacement() {
 
 #[test]
 fn highlight_engine_returns_sound_triggers() {
-    let mut pattern = make_highlight_pattern(
-        "level up",
-        Some("gold"),
-        None,
-        true,
-        false,
-        false,
-    );
+    let mut pattern = make_highlight_pattern("level up", Some("gold"), None, true, false, false);
     pattern.sound = Some("fanfare.wav".to_string());
     pattern.sound_volume = Some(0.8);
 
@@ -2522,14 +2961,7 @@ fn highlight_engine_get_first_match_color_returns_none_when_no_match() {
 
 #[test]
 fn highlight_engine_stream_filter_applies_to_matching_stream() {
-    let mut pattern = make_highlight_pattern(
-        "combat text",
-        Some("red"),
-        None,
-        false,
-        false,
-        false,
-    );
+    let mut pattern = make_highlight_pattern("combat text", Some("red"), None, false, false, false);
     pattern.stream = Some("combat".to_string());
 
     let patterns = vec![pattern];
@@ -2539,20 +2971,16 @@ fn highlight_engine_stream_filter_applies_to_matching_stream() {
     let segments = vec![make_segment("combat text here")];
     let result = engine.apply_highlights(&segments, "combat");
 
-    let colored = result.segments.iter().find(|s| s.fg.as_deref() == Some("red"));
+    let colored = result
+        .segments
+        .iter()
+        .find(|s| s.fg.as_deref() == Some("red"));
     assert!(colored.is_some(), "Pattern should apply to matching stream");
 }
 
 #[test]
 fn highlight_engine_stream_filter_skips_non_matching_stream() {
-    let mut pattern = make_highlight_pattern(
-        "combat text",
-        Some("red"),
-        None,
-        false,
-        false,
-        false,
-    );
+    let mut pattern = make_highlight_pattern("combat text", Some("red"), None, false, false, false);
     pattern.stream = Some("combat".to_string());
 
     let patterns = vec![pattern];
@@ -2563,8 +2991,14 @@ fn highlight_engine_stream_filter_skips_non_matching_stream() {
     let result = engine.apply_highlights(&segments, "thoughts");
 
     // Should not apply color since stream doesn't match
-    let colored = result.segments.iter().find(|s| s.fg.as_deref() == Some("red"));
-    assert!(colored.is_none(), "Pattern should NOT apply to non-matching stream");
+    let colored = result
+        .segments
+        .iter()
+        .find(|s| s.fg.as_deref() == Some("red"));
+    assert!(
+        colored.is_none(),
+        "Pattern should NOT apply to non-matching stream"
+    );
 }
 
 // ---------------- Silent Prompt Tests ----------------
@@ -2622,12 +3056,7 @@ fn highlight_engine_silent_prompt_non_matching_line_is_not_silent() {
 #[test]
 fn highlight_engine_silent_prompt_partial_match_is_not_silent() {
     let mut pattern = make_highlight_pattern(
-        "east",
-        None,
-        None,
-        false,
-        false,
-        true, // fast_parse
+        "east", None, None, false, false, true, // fast_parse
     );
     pattern.silent_prompt = true;
 

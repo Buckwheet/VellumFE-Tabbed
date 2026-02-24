@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 
-use crate::config::{BorderSides, Config, KeyAction, KeyBindAction, PerformanceWidgetData, WindowBase, WindowDef};
+use crate::config::{
+    BorderSides, Config, KeyAction, KeyBindAction, PerformanceWidgetData, WindowBase, WindowDef,
+};
 use crate::frontend::common::KeyEvent;
 
 use super::AppCore;
@@ -49,8 +51,10 @@ impl AppCore {
             KeyBindAction::Macro(macro_action) => {
                 // Strip any trailing \r or \n from macro text (legacy from wrayth-style macros)
                 // These control characters corrupt the StyledLine and cause rendering artifacts
-                let clean_text =
-                    macro_action.macro_text.trim_end_matches(&['\r', '\n'][..]).to_string();
+                let clean_text = macro_action
+                    .macro_text
+                    .trim_end_matches(&['\r', '\n'][..])
+                    .to_string();
 
                 tracing::info!(
                     "[MACRO] Executing macro: '{}' (raw: '{}')",
@@ -100,7 +104,9 @@ impl AppCore {
             // Window actions
             KeyAction::SwitchCurrentWindow => {
                 // Handled in input_handlers.rs for smart Tab completion
-                tracing::debug!("SwitchCurrentWindow reached keybinds.rs - should be handled in input_handlers");
+                tracing::debug!(
+                    "SwitchCurrentWindow reached keybinds.rs - should be handled in input_handlers"
+                );
             }
             KeyAction::ScrollCurrentWindowUpOne => {
                 tracing::debug!("KeyAction::ScrollCurrentWindowUpOne triggered");
@@ -193,7 +199,11 @@ impl AppCore {
             }
             KeyAction::TtsMuteToggle => {
                 self.tts_manager.toggle_mute();
-                let status = if self.tts_manager.is_muted() { "muted" } else { "unmuted" };
+                let status = if self.tts_manager.is_muted() {
+                    "muted"
+                } else {
+                    "unmuted"
+                };
                 self.add_system_message(&format!("TTS {}", status));
             }
             KeyAction::TtsIncreaseRate => {

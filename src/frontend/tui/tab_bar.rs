@@ -32,7 +32,10 @@ pub struct TabBar<'a> {
 
 impl<'a> TabBar<'a> {
     pub fn new(tabs: Vec<TabEntry<'a>>) -> Self {
-        Self { tabs, compact: false }
+        Self {
+            tabs,
+            compact: false,
+        }
     }
 
     pub fn compact(mut self, compact: bool) -> Self {
@@ -47,13 +50,15 @@ fn status_color(sym: &str) -> Color {
         "…" => Color::Yellow,
         "↻" => Color::Cyan,
         "!" => Color::Red,
-        _   => Color::DarkGray,
+        _ => Color::DarkGray,
     }
 }
 
 impl<'a> Widget for TabBar<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        if area.height == 0 { return; }
+        if area.height == 0 {
+            return;
+        }
 
         let mut x = area.x;
         let y = area.y;
@@ -96,7 +101,9 @@ impl<'a> Widget for TabBar<'a> {
 
             for (i, ch) in label.chars().enumerate() {
                 let cx = x + i as u16;
-                if cx >= area.x + area.width { break; }
+                if cx >= area.x + area.width {
+                    break;
+                }
                 // Color the status symbol distinctly
                 let char_style = if label.chars().nth(i).map_or(false, |_| {
                     // first non-space char is the status symbol
@@ -106,13 +113,13 @@ impl<'a> Widget for TabBar<'a> {
                 } else {
                     active_style
                 };
-                buf.get_mut(cx, y)
-                    .set_char(ch)
-                    .set_style(char_style);
+                buf.get_mut(cx, y).set_char(ch).set_style(char_style);
             }
 
             x += label.chars().count() as u16;
-            if x >= area.x + area.width { break; }
+            if x >= area.x + area.width {
+                break;
+            }
 
             if x < area.x + area.width {
                 buf.get_mut(x, y)

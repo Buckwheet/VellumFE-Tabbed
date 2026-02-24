@@ -63,8 +63,7 @@ impl RawLogger {
 
         let dir = config.logging.resolve_dir(config.character.as_deref())?;
         let buffer_lines = config.logging.buffer_lines.max(1);
-        let flush_interval =
-            StdDuration::from_millis(config.logging.flush_interval_ms.max(1));
+        let flush_interval = StdDuration::from_millis(config.logging.flush_interval_ms.max(1));
         let max_lines_per_file = config.logging.max_lines_per_file.max(1);
         let timestamps = config.logging.timestamps;
 
@@ -117,33 +116,18 @@ fn run_log_writer(
             Ok(line) => {
                 buffer.push(line);
                 if buffer.len() >= settings.buffer_lines {
-                    flush_log_buffer(
-                        &mut writer,
-                        &mut buffer,
-                        &mut lines_written,
-                        &settings,
-                    )?;
+                    flush_log_buffer(&mut writer, &mut buffer, &mut lines_written, &settings)?;
                 }
             }
             Err(std_mpsc::RecvTimeoutError::Timeout) => {
                 if !buffer.is_empty() {
-                    flush_log_buffer(
-                        &mut writer,
-                        &mut buffer,
-                        &mut lines_written,
-                        &settings,
-                    )?;
+                    flush_log_buffer(&mut writer, &mut buffer, &mut lines_written, &settings)?;
                 }
                 report_dropped(&dropped);
             }
             Err(std_mpsc::RecvTimeoutError::Disconnected) => {
                 if !buffer.is_empty() {
-                    flush_log_buffer(
-                        &mut writer,
-                        &mut buffer,
-                        &mut lines_written,
-                        &settings,
-                    )?;
+                    flush_log_buffer(&mut writer, &mut buffer, &mut lines_written, &settings)?;
                 }
                 report_dropped(&dropped);
                 writer.flush().ok();
@@ -617,8 +601,7 @@ mod eaccess {
 
     fn connect_with_cert(cert_path: &Path) -> Result<SslStream<TcpStream>> {
         let cert_data = fs::read(cert_path).context("Failed to read stored certificate")?;
-        let stored_cert = X509::from_pem(&cert_data)
-            .context("Invalid PEM certificate")?;
+        let stored_cert = X509::from_pem(&cert_data).context("Invalid PEM certificate")?;
 
         // Create connector with the stored certificate
         // Configure like Ruby's OpenSSL - allow both TLS 1.2 and 1.3
@@ -652,9 +635,11 @@ mod eaccess {
             .context("TLS handshake with eAccess failed")?;
 
         // Log TLS details
-        tracing::debug!("TLS version: {:?}, Cipher: {:?}",
+        tracing::debug!(
+            "TLS version: {:?}, Cipher: {:?}",
             tls_stream.ssl().version_str(),
-            tls_stream.ssl().current_cipher().map(|c| c.name()));
+            tls_stream.ssl().current_cipher().map(|c| c.name())
+        );
 
         // Manually verify the peer certificate matches our stored one (like Lich's verify_pem)
         let peer_cert = tls_stream
@@ -780,8 +765,10 @@ mod eaccess {
     ) -> Result<Vec<String>> {
         let cert_path = data_dir.join(CERT_FILENAME);
         ensure_certificate(&cert_path)?;
-        let mut stream = connect_with_cert(&cert_path)
-            .or_else(|_| { download_certificate(&cert_path)?; connect_with_cert(&cert_path) })?;
+        let mut stream = connect_with_cert(&cert_path).or_else(|_| {
+            download_certificate(&cert_path)?;
+            connect_with_cert(&cert_path)
+        })?;
 
         send_line(&mut stream, "K")?;
         let hash_key = read_response(&mut stream)?;

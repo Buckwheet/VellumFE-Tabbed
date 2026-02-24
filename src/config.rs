@@ -4,17 +4,17 @@
 //! keybinds, colors, layouts, etc.), exposes helpers for resolving per-character
 //! overrides, and persists edits that come from the UI.
 
-use anyhow::{Context, Result};
 use crate::frontend::common::{KeyCode, KeyModifiers};
+use anyhow::{Context, Result};
 use include_dir::{include_dir, Dir};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-pub mod menu_keybind_validator;
 mod highlights;
 mod keybinds;
+pub mod menu_keybind_validator;
 
 pub use highlights::{EventAction, EventPattern, HighlightPattern, RedirectMode};
 pub use keybinds::{
@@ -29,8 +29,10 @@ const DEFAULT_HIGHLIGHTS: &str = include_str!("../defaults/globals/highlights.to
 const DEFAULT_KEYBINDS: &str = include_str!("../defaults/globals/keybinds.toml");
 const DEFAULT_CMDLIST: &str = include_str!("../defaults/globals/cmdlist1.xml");
 const DEFAULT_SPELL_ABBREVS: &str = include_str!("../defaults/globals/spell_abbrev.toml");
-const DEFAULT_LAYOUT_TEMPLATE: &str = include_str!("../defaults/globals/templates/layout_template.toml");
-const DEFAULT_CONFIG_TEMPLATE: &str = include_str!("../defaults/globals/templates/config_template.toml");
+const DEFAULT_LAYOUT_TEMPLATE: &str =
+    include_str!("../defaults/globals/templates/layout_template.toml");
+const DEFAULT_CONFIG_TEMPLATE: &str =
+    include_str!("../defaults/globals/templates/config_template.toml");
 
 // Embed entire directories - automatically includes all files
 static LAYOUTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/defaults/globals/layouts");
@@ -587,7 +589,11 @@ impl ColorConfig {
         let mut colors = Self::load_common_colors()?;
 
         // Find and update or add the color
-        if let Some(existing) = colors.color_palette.iter_mut().find(|c| c.name == color.name) {
+        if let Some(existing) = colors
+            .color_palette
+            .iter_mut()
+            .find(|c| c.name == color.name)
+        {
             *existing = color.clone();
         } else {
             colors.color_palette.push(color.clone());
@@ -603,7 +609,11 @@ impl ColorConfig {
         let mut colors = Self::load_character_colors_only(character)?;
 
         // Find and update or add the color
-        if let Some(existing) = colors.color_palette.iter_mut().find(|c| c.name == color.name) {
+        if let Some(existing) = colors
+            .color_palette
+            .iter_mut()
+            .find(|c| c.name == color.name)
+        {
             *existing = color.clone();
         } else {
             colors.color_palette.push(color.clone());
@@ -681,7 +691,6 @@ impl Config {
         // Not found in palette - return original input
         trimmed.to_string()
     }
-
 }
 
 /// Border sides configuration - which borders to show
@@ -1205,7 +1214,7 @@ pub struct IndicatorWidgetData {
     #[serde(default)]
     pub default_status: Option<String>, // legacy
     #[serde(default)]
-    pub default_color: Option<String>,  // legacy
+    pub default_color: Option<String>, // legacy
 }
 
 /// Dashboard widget specific data
@@ -1522,8 +1531,8 @@ pub struct SpellsWidgetData {
 /// Text replacement rule for perception widget
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextReplacement {
-    pub pattern: String,   // Pattern to find (regex if metacharacters detected)
-    pub replace: String,   // Replacement text (empty string to remove)
+    pub pattern: String, // Pattern to find (regex if metacharacters detected)
+    pub replace: String, // Replacement text (empty string to remove)
 }
 
 /// Pre-compiled text replacement for runtime use.
@@ -1593,11 +1602,17 @@ impl CompiledTextReplacement {
 /// Compile a slice of TextReplacements into CompiledTextReplacements.
 /// Call this once at config load or when replacements change.
 pub fn compile_text_replacements(replacements: &[TextReplacement]) -> Vec<CompiledTextReplacement> {
-    replacements.iter().map(CompiledTextReplacement::compile).collect()
+    replacements
+        .iter()
+        .map(CompiledTextReplacement::compile)
+        .collect()
 }
 
 /// Apply pre-compiled text replacements (efficient - no regex compilation).
-pub fn apply_compiled_text_replacements(text: &str, replacements: &[CompiledTextReplacement]) -> String {
+pub fn apply_compiled_text_replacements(
+    text: &str,
+    replacements: &[CompiledTextReplacement],
+) -> String {
     let mut result = text.to_string();
     for replacement in replacements {
         result = replacement.apply(&result);
@@ -1609,10 +1624,10 @@ pub fn apply_compiled_text_replacements(text: &str, replacements: &[CompiledText
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SortDirection {
     #[serde(rename = "ascending")]
-    Ascending,   // Lowest weight first (Fading → Roisaen → Other → Indefinite → OM → Percentage)
+    Ascending, // Lowest weight first (Fading → Roisaen → Other → Indefinite → OM → Percentage)
 
     #[serde(rename = "descending")]
-    Descending,  // Highest weight first (Percentage → OM → Indefinite → Other → Roisaen → Fading)
+    Descending, // Highest weight first (Percentage → OM → Indefinite → Other → Roisaen → Fading)
 }
 
 impl Default for SortDirection {
@@ -1633,19 +1648,19 @@ fn default_perception_buffer_size() -> usize {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PerceptionWidgetData {
     #[serde(default = "default_perception_stream")]
-    pub stream: String,              // Stream ID to receive perception data from
+    pub stream: String, // Stream ID to receive perception data from
 
     #[serde(default = "default_perception_buffer_size")]
-    pub buffer_size: usize,          // Maximum number of perception entries to keep
+    pub buffer_size: usize, // Maximum number of perception entries to keep
 
     #[serde(default)]
-    pub sort_direction: SortDirection,  // Ascending or descending sort by weight
+    pub sort_direction: SortDirection, // Ascending or descending sort by weight
 
     #[serde(default)]
-    pub text_replacements: Vec<TextReplacement>,  // User-defined find/replace rules
+    pub text_replacements: Vec<TextReplacement>, // User-defined find/replace rules
 
     #[serde(default)]
-    pub use_short_spell_names: bool,  // Use abbreviated spell names (Profanity-style)
+    pub use_short_spell_names: bool, // Use abbreviated spell names (Profanity-style)
 }
 
 /// DragonRealms experience widget data
@@ -1717,7 +1732,10 @@ pub struct MiniVitalsWidgetData {
     /// Order of bars to display. Valid values: "health", "mana", "stamina", "spirit"
     /// Default: ["health", "mana", "stamina", "spirit"]
     /// Example: ["health", "stamina", "mana", "spirit"] puts stamina before mana
-    #[serde(default = "default_minivitals_bar_order", skip_serializing_if = "is_default_bar_order")]
+    #[serde(
+        default = "default_minivitals_bar_order",
+        skip_serializing_if = "is_default_bar_order"
+    )]
     pub bar_order: Vec<String>,
     /// Health bar color (default: red)
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2155,7 +2173,6 @@ pub struct ConnectionConfig {
 
     // --- Direct Connection (all optional) ---
     // Credentials can be stored here or passed via CLI. CLI arguments override these values.
-
     /// Account name for direct connection
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<String>,
@@ -2721,7 +2738,6 @@ fn default_background_color() -> String {
     "-".to_string() // transparent/no background
 }
 
-
 fn default_selection_enabled() -> bool {
     true
 }
@@ -2773,7 +2789,6 @@ fn default_perf_stats_height() -> u16 {
 fn default_performance_stats_enabled() -> bool {
     false // Start disabled by default
 }
-
 
 // default_command_input* functions removed - command_input is now in windows array
 
@@ -3255,9 +3270,7 @@ impl Layout {
         // Normalize widget type: lowercase and strip _custom suffix
         // This ensures "tabbedtext_custom" → "custom-tabbedtext-1" (not "custom-tabbedtext_custom-1")
         let lowercase = widget_type.to_lowercase();
-        let normalized_type = lowercase
-            .strip_suffix("_custom")
-            .unwrap_or(&lowercase);
+        let normalized_type = lowercase.strip_suffix("_custom").unwrap_or(&lowercase);
         let prefix = format!("custom-{}-", normalized_type);
 
         let max_number = self
@@ -3300,7 +3313,11 @@ impl Layout {
                 self.generate_widget_name(name)
             };
             window_def.base_mut().name = auto_name.clone();
-            tracing::info!("Auto-generated window name: {} for template '{}'", auto_name, name);
+            tracing::info!(
+                "Auto-generated window name: {} for template '{}'",
+                auto_name,
+                name
+            );
         }
 
         // Set visible
@@ -3905,7 +3922,7 @@ impl Config {
                 },
             }),
 
-"progress_custom" => Some(WindowDef::Progress {
+            "progress_custom" => Some(WindowDef::Progress {
                 base: WindowBase {
                     name: String::new(), // Auto-generated by WindowEditor
                     title: Some("Custom".to_string()),
@@ -3919,7 +3936,7 @@ impl Config {
                     ..base_defaults.clone()
                 },
                 data: ProgressWidgetData {
-                id: None,
+                    id: None,
                     label: None,
                     color: None,
                     numbers_only: false,
@@ -4376,7 +4393,7 @@ impl Config {
                 },
             }),
 
-"text_custom" => Some(WindowDef::Text {
+            "text_custom" => Some(WindowDef::Text {
                 base: WindowBase {
                     name: String::new(),
                     title: None,
@@ -4501,8 +4518,8 @@ impl Config {
                     name: String::new(), // Will be set by caller with auto-generated name
                     rows: 2,
                     cols: 2,
-                    show_border: false, // Spacers never show borders
-                    show_title: false, // Spacers never show titles
+                    show_border: false,            // Spacers never show borders
+                    show_title: false,             // Spacers never show titles
                     transparent_background: false, // Respects theme background color
                     ..base_defaults
                 },
@@ -4555,7 +4572,7 @@ impl Config {
                     title: Some("Experience".to_string()),
                     row: 0,
                     col: 0,
-                    rows: 5,           // 3 content (level, mind, exp) + 2 borders = 5 total
+                    rows: 5, // 3 content (level, mind, exp) + 2 borders = 5 total
                     cols: 30,
                     min_rows: Some(5), // Minimum with all content + borders
                     max_rows: Some(5), // Maximum with all content + borders
@@ -4578,7 +4595,7 @@ impl Config {
                     title: Some("Encumbrance".to_string()),
                     row: 0,
                     col: 0,
-                    rows: 4,           // 1 bar + 1 label + 2 borders = 4 total
+                    rows: 4, // 1 bar + 1 label + 2 borders = 4 total
                     cols: 25,
                     min_rows: Some(4), // Minimum with borders + label
                     max_rows: Some(4), // Maximum with borders + label
@@ -4602,7 +4619,7 @@ impl Config {
                     title: None, // No title shown (like Wrayth Stats)
                     row: 0,
                     col: 0,
-                    rows: 3, // 1 content row + 2 borders = 3 total
+                    rows: 3,  // 1 content row + 2 borders = 3 total
                     cols: 80, // Wide to fit 4 bars
                     min_rows: Some(3),
                     max_rows: Some(3),
@@ -4630,7 +4647,7 @@ impl Config {
                     col: 0,
                     rows: 4, // 1 bar + 1 item + 2 borders
                     cols: 30,
-                    min_rows: Some(3), // bar + borders (when show_items=false)
+                    min_rows: Some(3),  // bar + borders (when show_items=false)
                     max_rows: Some(12), // Allow growth for more items
                     min_cols: Some(20),
                     show_border: true,
@@ -4762,7 +4779,7 @@ impl Config {
             "encum".to_string(),          // Available for both games
             "minivitals".to_string(),     // GS4-specific
             "betrayer".to_string(),       // GS4-specific
-            // command_input is NOT in this list - it's always present and can't be added/removed
+                                          // command_input is NOT in this list - it's always present and can't be added/removed
         ];
 
         // Add enabled global window templates
@@ -4875,8 +4892,8 @@ impl Config {
             return Ok(IndicatorTemplateStore::default());
         }
 
-        let contents =
-            fs::read_to_string(&path).context(format!("Failed to read indicator templates at {:?}", path))?;
+        let contents = fs::read_to_string(&path)
+            .context(format!("Failed to read indicator templates at {:?}", path))?;
         let mut store: IndicatorTemplateStore = toml::from_str(&contents)
             .context(format!("Failed to parse indicator templates at {:?}", path))?;
 
@@ -4926,8 +4943,8 @@ impl Config {
             return Ok(WindowTemplateStore::default());
         }
 
-        let contents =
-            fs::read_to_string(&path).context(format!("Failed to read window templates at {:?}", path))?;
+        let contents = fs::read_to_string(&path)
+            .context(format!("Failed to read window templates at {:?}", path))?;
         let mut store: WindowTemplateStore = toml::from_str(&contents)
             .context(format!("Failed to parse window templates at {:?}", path))?;
 
@@ -4976,9 +4993,7 @@ impl Config {
         let mut store = Self::load_window_template_store().unwrap_or_default();
         let key = window.name().to_lowercase();
 
-        store
-            .templates
-            .retain(|tpl| tpl.name.to_lowercase() != key);
+        store.templates.retain(|tpl| tpl.name.to_lowercase() != key);
 
         store.templates.push(WindowTemplateEntry {
             name: window.name().to_string(),
@@ -5008,10 +5023,7 @@ impl Config {
         for template_name in Self::list_window_templates() {
             if let Some(template) = Self::get_window_template(&template_name) {
                 let category = WidgetCategory::from_widget_type(template.widget_type());
-                categories
-                    .entry(category)
-                    .or_default()
-                    .push(template_name);
+                categories.entry(category).or_default().push(template_name);
             }
         }
 
@@ -5270,10 +5282,7 @@ impl Config {
         if !spell_abbrev_path.exists() {
             fs::write(&spell_abbrev_path, DEFAULT_SPELL_ABBREVS)
                 .context("Failed to write spell_abbrev.toml")?;
-            tracing::info!(
-                "Extracted spell_abbrev.toml to {:?}",
-                spell_abbrev_path
-            );
+            tracing::info!("Extracted spell_abbrev.toml to {:?}", spell_abbrev_path);
         }
 
         // Extract documented templates to global/templates directory
@@ -5369,10 +5378,14 @@ impl Config {
     pub fn load_character_config_only(character: Option<&str>) -> Result<Option<Self>> {
         let config_path = Self::config_path(character)?;
         if config_path.exists() {
-            let contents = fs::read_to_string(&config_path)
-                .context(format!("Failed to read character config: {:?}", config_path))?;
-            let config: Config = toml::from_str(&contents)
-                .context(format!("Failed to parse character config: {:?}", config_path))?;
+            let contents = fs::read_to_string(&config_path).context(format!(
+                "Failed to read character config: {:?}",
+                config_path
+            ))?;
+            let config: Config = toml::from_str(&contents).context(format!(
+                "Failed to parse character config: {:?}",
+                config_path
+            ))?;
             Ok(Some(config))
         } else {
             Ok(None)
@@ -5559,8 +5572,8 @@ impl Config {
     /// Save a specific setting to character config
     fn save_setting_to_character(&self, key: &str, character: Option<&str>) -> Result<()> {
         // Load current character config (or create new if doesn't exist)
-        let mut char_config = Self::load_character_config_only(character)?
-            .unwrap_or_else(Self::default);
+        let mut char_config =
+            Self::load_character_config_only(character)?.unwrap_or_else(Self::default);
 
         // Update the specific setting
         Self::copy_setting(&mut char_config, self, key);
@@ -5570,9 +5583,14 @@ impl Config {
         if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let contents = toml::to_string_pretty(&char_config).context("Failed to serialize config")?;
+        let contents =
+            toml::to_string_pretty(&char_config).context("Failed to serialize config")?;
         fs::write(&config_path, contents).context("Failed to write character config file")?;
-        tracing::info!("Saved setting '{}' to character config: {:?}", key, config_path);
+        tracing::info!(
+            "Saved setting '{}' to character config: {:?}",
+            key,
+            config_path
+        );
         Ok(())
     }
 
@@ -5593,7 +5611,8 @@ impl Config {
             "ui.countdown_icon" => dest.ui.countdown_icon = src.ui.countdown_icon.clone(),
             "ui.selection_enabled" => dest.ui.selection_enabled = src.ui.selection_enabled,
             "ui.selection_respect_window_boundaries" => {
-                dest.ui.selection_respect_window_boundaries = src.ui.selection_respect_window_boundaries
+                dest.ui.selection_respect_window_boundaries =
+                    src.ui.selection_respect_window_boundaries
             }
             "ui.selection_auto_copy" => dest.ui.selection_auto_copy = src.ui.selection_auto_copy,
             "ui.drag_modifier_key" => dest.ui.drag_modifier_key = src.ui.drag_modifier_key.clone(),
@@ -5747,8 +5766,8 @@ impl Config {
             fs::create_dir_all(parent)?;
         }
 
-        let contents = toml::to_string_pretty(positions)
-            .context("Failed to serialize dialog positions")?;
+        let contents =
+            toml::to_string_pretty(positions).context("Failed to serialize dialog positions")?;
         fs::write(&path, contents)
             .context(format!("Failed to write widget state to {:?}", path))?;
         Ok(())
@@ -5811,7 +5830,6 @@ impl Config {
         let layouts_dir = Self::layouts_dir()?;
         Ok(layouts_dir.join(format!("{}.toml", name)))
     }
-
 
     /// List all saved keybind profiles
     pub fn list_saved_keybinds() -> Result<Vec<String>> {
@@ -5926,8 +5944,8 @@ impl Default for Config {
                 open_dialog_blocklist: default_open_dialog_blocklist(),
                 focus: FocusConfig::default(),
             },
-            highlights: HashMap::new(),     // Loaded from highlights.toml
-            keybinds: HashMap::new(),       // Loaded from keybinds.toml
+            highlights: HashMap::new(), // Loaded from highlights.toml
+            keybinds: HashMap::new(),   // Loaded from keybinds.toml
             app_keybinds: AppKeybinds::default(), // Loaded from [app] section of keybinds.toml
             colors: ColorConfig::default(), // Loaded from colors.toml
             sound: SoundConfig::default(),
@@ -6324,7 +6342,7 @@ visible = true
                 min_cols: None,
                 max_cols: None,
                 visible: false,
-                content_align: None,  // Hidden!
+                content_align: None, // Hidden!
                 title_position: "top-left".to_string(),
             },
             data: SpacerWidgetData {},
@@ -6387,7 +6405,7 @@ visible = true
                 wordwrap: true,
                 show_timestamps: false,
                 timestamp_position: None,
-                    compact: false,
+                compact: false,
             },
         };
 
@@ -6450,7 +6468,7 @@ visible = true
                 wordwrap: true,
                 show_timestamps: false,
                 timestamp_position: None,
-                    compact: false,
+                compact: false,
             },
         };
 
@@ -6508,7 +6526,7 @@ visible = true
                 wordwrap: true,
                 show_timestamps: false,
                 timestamp_position: None,
-                    compact: false,
+                compact: false,
             },
         };
 
@@ -6571,7 +6589,7 @@ visible = true
                 wordwrap: true,
                 show_timestamps: false,
                 timestamp_position: None,
-                    compact: false,
+                compact: false,
             },
         };
 
@@ -6584,7 +6602,10 @@ visible = true
         };
 
         // Verify gap before resize: A ends at 10, spacer starts at 10, B starts at 15
-        assert_eq!(layout.windows[0].base().col + layout.windows[0].base().cols, 10); // A: 0+10
+        assert_eq!(
+            layout.windows[0].base().col + layout.windows[0].base().cols,
+            10
+        ); // A: 0+10
         assert_eq!(layout.windows[1].base().col, 10); // Spacer starts at 10
         assert_eq!(layout.windows[2].base().col, 15); // B starts at 15
 
@@ -6601,10 +6622,7 @@ visible = true
 
         // Gap maintained: A-end == spacer-start, spacer-end == B-start
         assert_eq!(a_end, spacer_start);
-        assert_eq!(
-            spacer_start + layout.windows[1].base().cols,
-            b_start
-        );
+        assert_eq!(spacer_start + layout.windows[1].base().cols, b_start);
     }
 
     #[test]
@@ -6642,7 +6660,7 @@ visible = true
                 wordwrap: true,
                 show_timestamps: false,
                 timestamp_position: None,
-                    compact: false,
+                compact: false,
             },
         };
 
@@ -6705,7 +6723,7 @@ visible = true
                 wordwrap: true,
                 show_timestamps: false,
                 timestamp_position: None,
-                    compact: false,
+                compact: false,
             },
         };
 
@@ -6720,7 +6738,10 @@ visible = true
         // Verify initial no overlap
         let a_end = layout.windows[0].base().col + layout.windows[0].base().cols;
         let spacer_start = layout.windows[1].base().col;
-        assert_eq!(a_end, spacer_start, "Initial state: A should end where spacer starts");
+        assert_eq!(
+            a_end, spacer_start,
+            "Initial state: A should end where spacer starts"
+        );
 
         // Resize to 200x50 (2x scale)
         layout.scale_to_terminal_size(200, 50);
@@ -6735,5 +6756,4 @@ visible = true
         assert!(a_end <= spacer_start, "A should not overlap spacer");
         assert!(spacer_end <= b_start, "Spacer should not overlap B");
     }
-
 }

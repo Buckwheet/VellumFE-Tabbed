@@ -9,7 +9,9 @@ const SERVICE: &str = "vellum-fe-tabbed";
 pub fn store_password(account: &str, password: &str) {
     let entry = keyring::Entry::new(SERVICE, account);
     match entry {
-        Ok(e) => { let _ = e.set_password(password); }
+        Ok(e) => {
+            let _ = e.set_password(password);
+        }
         Err(_) => {}
     }
 }

@@ -1,8 +1,8 @@
 //! Manages all active sessions and tracks which one is currently focused.
 
-use std::sync::Arc;
+use crate::session::{ConnectionMode, Session, SessionId};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use crate::session::{Session, SessionId, ConnectionMode};
+use std::sync::Arc;
 
 pub struct SessionManager {
     sessions: Vec<Session>,
@@ -78,7 +78,9 @@ impl SessionManager {
     /// Switch to next session.
     pub fn next(&mut self) {
         let len = self.sessions.len();
-        if len < 2 { return; }
+        if len < 2 {
+            return;
+        }
         if let Some(pos) = self.active_pos() {
             let next_id = self.sessions[(pos + 1) % len].id;
             self.set_active(next_id);
@@ -88,7 +90,9 @@ impl SessionManager {
     /// Switch to previous session.
     pub fn prev(&mut self) {
         let len = self.sessions.len();
-        if len < 2 { return; }
+        if len < 2 {
+            return;
+        }
         if let Some(pos) = self.active_pos() {
             let prev_id = self.sessions[(pos + len - 1) % len].id;
             self.set_active(prev_id);

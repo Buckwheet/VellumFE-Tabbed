@@ -1,14 +1,14 @@
-use anyhow::Result;
+use super::tab_bar::{TabBar, TabEntry};
+use super::*;
 use crate::core::AppCore;
 use crate::frontend::{Frontend, FrontendEvent};
+use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, LeaveAlternateScreen},
 };
 use std::time::Instant;
-use super::*;
-use super::tab_bar::{TabBar, TabEntry};
 
 impl Frontend for TuiFrontend {
     fn poll_events(&mut self) -> Result<Vec<FrontendEvent>> {
@@ -31,7 +31,10 @@ impl Frontend for TuiFrontend {
                 Event::Resize(width, height) => {
                     // Apply resize debouncing to prevent excessive layout recalculations
                     if let Some((w, h)) = self.resize_debouncer.check_resize(width, height) {
-                        events.push(FrontendEvent::Resize { width: w, height: h });
+                        events.push(FrontendEvent::Resize {
+                            width: w,
+                            height: h,
+                        });
                     }
                 }
                 Event::Mouse(mouse) => {
@@ -97,7 +100,7 @@ impl Frontend for TuiFrontend {
         self.sync_spacer_widgets(app_core, &theme);
         self.sync_quickbar_widgets(app_core, &theme);
         self.sync_indicator_widgets(app_core, &theme);
-        self.sync_targets_widgets(app_core, &theme);  // New component-based
+        self.sync_targets_widgets(app_core, &theme); // New component-based
         self.sync_players_widgets(app_core, &theme);
         self.sync_items_widgets(app_core, &theme);
         self.sync_container_widgets(app_core, &theme);
@@ -121,7 +124,8 @@ impl Frontend for TuiFrontend {
         let mut perception_windows = std::mem::take(&mut self.widget_manager.perception_windows);
         let mut progress_bars = std::mem::take(&mut self.widget_manager.progress_bars);
         let mut countdowns = std::mem::take(&mut self.widget_manager.countdowns);
-        let mut active_effects_windows = std::mem::take(&mut self.widget_manager.active_effects_windows);
+        let mut active_effects_windows =
+            std::mem::take(&mut self.widget_manager.active_effects_windows);
         let mut hand_widgets = std::mem::take(&mut self.widget_manager.hand_widgets);
         let mut spacer_widgets = std::mem::take(&mut self.widget_manager.spacer_widgets);
         let mut quickbar_widgets = std::mem::take(&mut self.widget_manager.quickbar_widgets);
@@ -136,7 +140,8 @@ impl Frontend for TuiFrontend {
         let mut injury_doll_widgets = std::mem::take(&mut self.widget_manager.injury_doll_widgets);
         let mut performance_widgets = std::mem::take(&mut self.widget_manager.performance_widgets);
         let mut experience_widgets = std::mem::take(&mut self.widget_manager.experience_widgets);
-        let mut gs4_experience_widgets = std::mem::take(&mut self.widget_manager.gs4_experience_widgets);
+        let mut gs4_experience_widgets =
+            std::mem::take(&mut self.widget_manager.gs4_experience_widgets);
         let mut encumbrance_widgets = std::mem::take(&mut self.widget_manager.encumbrance_widgets);
         let mut minivitals_widgets = std::mem::take(&mut self.widget_manager.minivitals_widgets);
         let mut betrayer_widgets = std::mem::take(&mut self.widget_manager.betrayer_widgets);
@@ -155,30 +160,33 @@ impl Frontend for TuiFrontend {
             let screen_area = f.area();
 
             // Render tab bar at top row
-            let tab_area = ratatui::layout::Rect { 
-                x: screen_area.x, 
-                y: screen_area.y, 
-                width: screen_area.width, 
-                height: 1 
+            let tab_area = ratatui::layout::Rect {
+                x: screen_area.x,
+                y: screen_area.y,
+                width: screen_area.width,
+                height: 1,
             };
-            let content_area = ratatui::layout::Rect { 
-                x: screen_area.x, 
-                y: screen_area.y + 1, 
-                width: screen_area.width, 
-                height: screen_area.height.saturating_sub(1) 
+            let content_area = ratatui::layout::Rect {
+                x: screen_area.x,
+                y: screen_area.y + 1,
+                width: screen_area.width,
+                height: screen_area.height.saturating_sub(1),
             };
 
             // Build tab entries from session_labels
-            let tab_entries: Vec<TabEntry> = self.session_labels
+            let tab_entries: Vec<TabEntry> = self
+                .session_labels
                 .iter()
-                .map(|(label, is_active, status, unread, sound_enabled, tts_enabled)| TabEntry {
-                    label: label.as_str(),
-                    is_active: *is_active,
-                    status: status.as_str(),
-                    unread: *unread,
-                    sound_enabled: *sound_enabled,
-                    tts_enabled: *tts_enabled,
-                })
+                .map(
+                    |(label, is_active, status, unread, sound_enabled, tts_enabled)| TabEntry {
+                        label: label.as_str(),
+                        is_active: *is_active,
+                        status: status.as_str(),
+                        unread: *unread,
+                        sound_enabled: *sound_enabled,
+                        tts_enabled: *tts_enabled,
+                    },
+                )
                 .collect();
 
             // Render the tab bar
@@ -200,7 +208,10 @@ impl Frontend for TuiFrontend {
             window_order.extend(ephemeral_names);
 
             // Performance overlay renders last (on very top)
-            if let Some(pos) = window_order.iter().position(|n| n.as_str() == "performance_overlay") {
+            if let Some(pos) = window_order
+                .iter()
+                .position(|n| n.as_str() == "performance_overlay")
+            {
                 let overlay = window_order.remove(pos);
                 window_order.push(overlay);
             }
@@ -260,7 +271,9 @@ impl Frontend for TuiFrontend {
                                 let search_info = if let Some(focused_name) =
                                     &app_core.ui_state.focused_window
                                 {
-                                    if let Some(window) = app_core.ui_state.windows.get(focused_name) {
+                                    if let Some(window) =
+                                        app_core.ui_state.windows.get(focused_name)
+                                    {
                                         if let WindowContent::Text(_) = &window.content {
                                             text_windows
                                                 .get(focused_name)
@@ -275,9 +288,7 @@ impl Frontend for TuiFrontend {
                                     // No focused window, try main
                                     if let Some(window) = app_core.ui_state.windows.get("main") {
                                         if let WindowContent::Text(_) = &window.content {
-                                            text_windows
-                                                .get("main")
-                                                .and_then(|tw| tw.search_info())
+                                            text_windows.get("main").and_then(|tw| tw.search_info())
                                         } else {
                                             None
                                         }
@@ -404,10 +415,8 @@ impl Frontend for TuiFrontend {
                     WindowContent::TabbedText(_) => {
                         // Use the TabbedTextWindow widget
                         if let Some(tabbed_window) = tabbed_text_windows.get_mut(name) {
-                            let focused =
-                                app_core.ui_state.focused_window.as_ref() == Some(name);
-                            let window_index =
-                                window_index_map.get(name).copied().unwrap_or(0);
+                            let focused = app_core.ui_state.focused_window.as_ref() == Some(name);
+                            let window_index = window_index_map.get(name).copied().unwrap_or(0);
                             tabbed_window.render_with_focus(
                                 area,
                                 f.buffer_mut(),
@@ -591,7 +600,6 @@ impl Frontend for TuiFrontend {
                 theme_editor.render(screen_area, f.buffer_mut(), &app_core.config, &theme);
             }
             if let Some(ref theme_browser) = self.theme_browser {
-                
                 f.render_widget(theme_browser, screen_area);
             }
             if let Some(ref mut settings_editor) = self.settings_editor {
@@ -615,7 +623,12 @@ impl Frontend for TuiFrontend {
 
             // Render injuries popup if active (viewing another player's injuries)
             if let Some(ref injuries_popup) = app_core.ui_state.injuries_popup {
-                injury_doll::render_injuries_popup(injuries_popup, screen_area, f.buffer_mut(), &theme);
+                injury_doll::render_injuries_popup(
+                    injuries_popup,
+                    screen_area,
+                    f.buffer_mut(),
+                    &theme,
+                );
             }
 
             // Render session picker overlay (topmost layer)

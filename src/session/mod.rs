@@ -3,10 +3,10 @@
 //! Each Session owns its own connection, parser, config, and UI state.
 //! The SessionManager holds a Vec<Session> and routes input/output to the active one.
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio::sync::mpsc;
 use crate::network::ServerMessage;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use tokio::sync::mpsc;
 
 /// Unique identifier for a session.
 pub type SessionId = usize;
@@ -15,7 +15,11 @@ pub type SessionId = usize;
 #[derive(Debug, Clone)]
 pub enum ConnectionMode {
     /// Connect via Lich proxy (host:port, optional login key)
-    LichProxy { host: String, port: u16, login_key: Option<String> },
+    LichProxy {
+        host: String,
+        port: u16,
+        login_key: Option<String>,
+    },
     /// Connect directly via eAccess SGE
     Direct {
         account: String,

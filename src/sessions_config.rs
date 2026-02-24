@@ -53,10 +53,9 @@ impl SessionsConfig {
         if !path.exists() {
             return Ok(Self::default());
         }
-        let contents = fs::read_to_string(&path)
-            .with_context(|| format!("Failed to read {:?}", path))?;
-        toml::from_str(&contents)
-            .with_context(|| format!("Failed to parse {:?}", path))
+        let contents =
+            fs::read_to_string(&path).with_context(|| format!("Failed to read {:?}", path))?;
+        toml::from_str(&contents).with_context(|| format!("Failed to parse {:?}", path))
     }
 
     pub fn save(&self) -> Result<()> {
@@ -64,10 +63,9 @@ impl SessionsConfig {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let contents = toml::to_string_pretty(self)
-            .context("Failed to serialize sessions config")?;
-        fs::write(&path, contents)
-            .with_context(|| format!("Failed to write {:?}", path))
+        let contents =
+            toml::to_string_pretty(self).context("Failed to serialize sessions config")?;
+        fs::write(&path, contents).with_context(|| format!("Failed to write {:?}", path))
     }
 
     pub fn add(&mut self, entry: SessionEntry) {
@@ -79,8 +77,7 @@ impl SessionsConfig {
     }
 
     fn path() -> Result<PathBuf> {
-        let base = dirs::config_dir()
-            .context("Could not determine config directory")?;
+        let base = dirs::config_dir().context("Could not determine config directory")?;
         Ok(base.join("vellum-fe-tabbed").join("sessions.toml"))
     }
 }

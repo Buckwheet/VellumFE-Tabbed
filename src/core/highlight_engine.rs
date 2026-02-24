@@ -163,11 +163,7 @@ impl CoreHighlightEngine {
     ///
     /// This is the main entry point called from MessageProcessor.
     /// Returns the segments with colors applied and any sounds to trigger.
-    pub fn apply_highlights(
-        &self,
-        segments: &[TextSegment],
-        stream: &str,
-    ) -> HighlightResult {
+    pub fn apply_highlights(&self, segments: &[TextSegment], stream: &str) -> HighlightResult {
         // Skip if no highlights or empty input
         if self.highlights.is_empty() || segments.is_empty() {
             return HighlightResult {
@@ -244,7 +240,8 @@ impl CoreHighlightEngine {
                 };
 
                 if is_word_start && is_word_end {
-                    if let Some(&highlight_idx) = self.fast_pattern_map.get(mat.pattern().as_usize())
+                    if let Some(&highlight_idx) =
+                        self.fast_pattern_map.get(mat.pattern().as_usize())
                     {
                         if let Some(highlight) = self.highlights.get(highlight_idx) {
                             // Check stream filter
@@ -377,8 +374,9 @@ impl CoreHighlightEngine {
                 for m in matches.iter() {
                     if m.silent_prompt {
                         let start_char = *byte_to_char.get(&m.start_byte).unwrap_or(&0);
-                        let end_char =
-                            *byte_to_char.get(&m.end_byte).unwrap_or(&full_text_chars.len());
+                        let end_char = *byte_to_char
+                            .get(&m.end_byte)
+                            .unwrap_or(&full_text_chars.len());
                         for i in start_char..end_char.min(silent_covered.len()) {
                             silent_covered[i] = true;
                         }
@@ -398,7 +396,9 @@ impl CoreHighlightEngine {
             let mut last_char_idx = 0usize;
             for m in matches {
                 let start_char = *byte_to_char.get(&m.start_byte).unwrap_or(&last_char_idx);
-                let end_char = *byte_to_char.get(&m.end_byte).unwrap_or(&full_text_chars.len());
+                let end_char = *byte_to_char
+                    .get(&m.end_byte)
+                    .unwrap_or(&full_text_chars.len());
                 if start_char < last_char_idx {
                     continue; // overlapping; skip
                 }
@@ -605,7 +605,8 @@ impl CoreHighlightEngine {
                 };
 
                 if is_word_start && is_word_end {
-                    if let Some(&highlight_idx) = self.fast_pattern_map.get(mat.pattern().as_usize())
+                    if let Some(&highlight_idx) =
+                        self.fast_pattern_map.get(mat.pattern().as_usize())
                     {
                         if let Some(highlight) = self.highlights.get(highlight_idx) {
                             if let Some(ref fg) = highlight.fg {

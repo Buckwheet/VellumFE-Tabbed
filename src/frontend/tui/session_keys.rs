@@ -38,12 +38,28 @@ impl SessionCmd {
         }
     }
 
-    pub fn switch(index: usize) -> String { format!("//session:switch:{}", index) }
-    pub fn next() -> &'static str { "//session:next" }
-    pub fn prev() -> &'static str { "//session:prev" }
-    pub fn new_session() -> &'static str { "//session:new" }
-    pub fn close() -> &'static str { "//session:close" }
-    pub fn compact() -> &'static str { "//session:compact" }
-    pub fn sound() -> &'static str { "//session:sound" }
-    pub fn tts() -> &'static str { "//session:tts" }
+    pub fn switch(index: usize) -> String {
+        format!("//session:switch:{}", index)
+    }
+    pub fn next() -> &'static str {
+        "//session:next"
+    }
+    pub fn prev() -> &'static str {
+        "//session:prev"
+    }
+    pub fn new_session() -> &'static str {
+        "//session:new"
+    }
+    pub fn close() -> &'static str {
+        "//session:close"
+    }
+    pub fn compact() -> &'static str {
+        "//session:compact"
+    }
+    pub fn sound() -> &'static str {
+        "//session:sound"
+    }
+    pub fn tts() -> &'static str {
+        "//session:tts"
+    }
 }

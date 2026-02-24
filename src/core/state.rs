@@ -576,12 +576,15 @@ impl BetrayerState {
 impl ContainerCache {
     /// Register a new container or update its metadata
     pub fn register_container(&mut self, id: String, title: String) {
-        let entry = self.containers.entry(id.clone()).or_insert_with(|| ContainerData {
-            id,
-            title: title.clone(),
-            items: Vec::new(),
-            generation: 0,
-        });
+        let entry = self
+            .containers
+            .entry(id.clone())
+            .or_insert_with(|| ContainerData {
+                id,
+                title: title.clone(),
+                items: Vec::new(),
+                generation: 0,
+            });
         // Update title if it changed
         if entry.title != title {
             entry.title = title;

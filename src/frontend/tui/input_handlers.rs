@@ -3,8 +3,8 @@
 //! These methods handle keyboard input routing based on the current input mode.
 //! Extracted from mod.rs to reduce file size and improve organization.
 
-use anyhow::Result;
 use crate::frontend::tui::menu_actions;
+use anyhow::Result;
 
 /// Input handling methods (impl extension for TuiFrontend)
 impl super::TuiFrontend {
@@ -119,9 +119,9 @@ impl super::TuiFrontend {
         modifiers: crate::frontend::KeyModifiers,
         app_core: &mut crate::core::AppCore,
     ) -> Result<Option<String>> {
-        use crate::frontend::KeyCode;
-        use crate::data::window::WidgetType;
         use super::session_keys;
+        use crate::data::window::WidgetType;
+        use crate::frontend::KeyCode;
 
         // If login wizard is active, route all keys to it
         if self.login_wizard.is_some() {
@@ -148,9 +148,15 @@ impl super::TuiFrontend {
                 KeyCode::Tab => return Ok(Some(session_keys::SessionCmd::next().to_string())),
                 KeyCode::Right => return Ok(Some(session_keys::SessionCmd::next().to_string())),
                 KeyCode::Char('b') => return Ok(Some("//session:broadcast".to_string())),
-                KeyCode::Char('c') if modifiers.shift => return Ok(Some(session_keys::SessionCmd::compact().to_string())),
-                KeyCode::Char('s') if modifiers.shift => return Ok(Some(session_keys::SessionCmd::sound().to_string())),
-                KeyCode::Char('t') if modifiers.shift => return Ok(Some(session_keys::SessionCmd::tts().to_string())),
+                KeyCode::Char('c') if modifiers.shift => {
+                    return Ok(Some(session_keys::SessionCmd::compact().to_string()))
+                }
+                KeyCode::Char('s') if modifiers.shift => {
+                    return Ok(Some(session_keys::SessionCmd::sound().to_string()))
+                }
+                KeyCode::Char('t') if modifiers.shift => {
+                    return Ok(Some(session_keys::SessionCmd::tts().to_string()))
+                }
                 _ => {}
             }
         }
@@ -168,23 +174,33 @@ impl super::TuiFrontend {
             if window.widget_type == WidgetType::Quickbar {
                 match code {
                     KeyCode::Left => {
-                        if let Some(widget) = self.widget_manager.quickbar_widgets.get_mut(&focused_name) {
+                        if let Some(widget) =
+                            self.widget_manager.quickbar_widgets.get_mut(&focused_name)
+                        {
                             widget.move_selection(-1);
                             app_core.needs_render = true;
                             return Ok(None);
                         }
                     }
                     KeyCode::Right => {
-                        if let Some(widget) = self.widget_manager.quickbar_widgets.get_mut(&focused_name) {
+                        if let Some(widget) =
+                            self.widget_manager.quickbar_widgets.get_mut(&focused_name)
+                        {
                             widget.move_selection(1);
                             app_core.needs_render = true;
                             return Ok(None);
                         }
                     }
                     KeyCode::Enter => {
-                        if let Some(widget) = self.widget_manager.quickbar_widgets.get_mut(&focused_name) {
+                        if let Some(widget) =
+                            self.widget_manager.quickbar_widgets.get_mut(&focused_name)
+                        {
                             if let Some(action) = widget.activate_selected() {
-                                return Ok(self.handle_quickbar_action(action, &focused_name, app_core));
+                                return Ok(self.handle_quickbar_action(
+                                    action,
+                                    &focused_name,
+                                    app_core,
+                                ));
                             }
                         }
                     }
@@ -214,7 +230,10 @@ impl super::TuiFrontend {
                 KeyCode::Char(c) => KeyCode::Char(c.to_ascii_lowercase()),
                 other => other,
             };
-            let key_event = crate::frontend::common::KeyEvent { code: normalized_code, modifiers };
+            let key_event = crate::frontend::common::KeyEvent {
+                code: normalized_code,
+                modifiers,
+            };
             if let Some(action) = app_core.keybind_map.get(&key_event).cloned() {
                 let is_command_input_action = matches!(&action,
                     crate::config::KeyBindAction::Action(s) if matches!(s.as_str(),
@@ -267,7 +286,10 @@ impl super::TuiFrontend {
                             "next_search_match" => {
                                 let focused_name = app_core.get_focused_window_name();
                                 if self.next_search_match(&focused_name) {
-                                    tracing::debug!("Jumped to next search match in '{}'", focused_name);
+                                    tracing::debug!(
+                                        "Jumped to next search match in '{}'",
+                                        focused_name
+                                    );
                                 } else {
                                     tracing::debug!("No more search matches in '{}'", focused_name);
                                 }
@@ -275,7 +297,10 @@ impl super::TuiFrontend {
                             "prev_search_match" => {
                                 let focused_name = app_core.get_focused_window_name();
                                 if self.prev_search_match(&focused_name) {
-                                    tracing::debug!("Jumped to previous search match in '{}'", focused_name);
+                                    tracing::debug!(
+                                        "Jumped to previous search match in '{}'",
+                                        focused_name
+                                    );
                                 } else {
                                     tracing::debug!("No more search matches in '{}'", focused_name);
                                 }
@@ -295,19 +320,31 @@ impl super::TuiFrontend {
                         match action_str.as_str() {
                             "scroll_current_window_up_one" => {
                                 self.scroll_window(&focused_name, 1);
-                                tracing::debug!("Scrolled '{}' up 1 line via frontend", focused_name);
+                                tracing::debug!(
+                                    "Scrolled '{}' up 1 line via frontend",
+                                    focused_name
+                                );
                             }
                             "scroll_current_window_down_one" => {
                                 self.scroll_window(&focused_name, -1);
-                                tracing::debug!("Scrolled '{}' down 1 line via frontend", focused_name);
+                                tracing::debug!(
+                                    "Scrolled '{}' down 1 line via frontend",
+                                    focused_name
+                                );
                             }
                             "scroll_current_window_up_page" => {
                                 self.scroll_window(&focused_name, 20);
-                                tracing::info!("Scrolled '{}' up 20 lines via frontend", focused_name);
+                                tracing::info!(
+                                    "Scrolled '{}' up 20 lines via frontend",
+                                    focused_name
+                                );
                             }
                             "scroll_current_window_down_page" => {
                                 self.scroll_window(&focused_name, -20);
-                                tracing::info!("Scrolled '{}' down 20 lines via frontend", focused_name);
+                                tracing::info!(
+                                    "Scrolled '{}' down 20 lines via frontend",
+                                    focused_name
+                                );
                             }
                             "scroll_current_window_home" => {
                                 // Scroll to top - use a large number
@@ -317,7 +354,10 @@ impl super::TuiFrontend {
                             "scroll_current_window_end" => {
                                 // Scroll to bottom - use a large negative number
                                 self.scroll_window(&focused_name, -100000);
-                                tracing::debug!("Scrolled '{}' to bottom via frontend", focused_name);
+                                tracing::debug!(
+                                    "Scrolled '{}' to bottom via frontend",
+                                    focused_name
+                                );
                             }
                             _ => {}
                         }
@@ -454,7 +494,10 @@ impl super::TuiFrontend {
             app_core.needs_render = true;
         } else {
             let to_send = app_core.send_command(command)?;
-            tracing::debug!("handle_command_submission: send_command returned '{}'", to_send);
+            tracing::debug!(
+                "handle_command_submission: send_command returned '{}'",
+                to_send
+            );
             if to_send.starts_with("action:") {
                 // Handle internal UI actions locally instead of sending to the game
                 menu_actions::handle_menu_action(app_core, self, &to_send)?;
@@ -540,10 +583,16 @@ impl super::TuiFrontend {
         // Check for result
         if let Some(result) = &wizard.result {
             let cmd = match result {
-                super::login_wizard::WizardResult::Connect { account, password, game_code, character } =>
-                    format!("//wizard:connect:{}:{}:{}:{}", account, password, game_code, character),
-                super::login_wizard::WizardResult::Cancel =>
-                    "//wizard:cancel".to_string(),
+                super::login_wizard::WizardResult::Connect {
+                    account,
+                    password,
+                    game_code,
+                    character,
+                } => format!(
+                    "//wizard:connect:{}:{}:{}:{}",
+                    account, password, game_code, character
+                ),
+                super::login_wizard::WizardResult::Cancel => "//wizard:cancel".to_string(),
             };
             return Ok(Some(cmd));
         }
@@ -570,7 +619,9 @@ impl super::TuiFrontend {
             KeyCode::Tab => picker.tab_field(),
             KeyCode::F(2) => picker.toggle_mode(),
             KeyCode::Enter => picker.confirm(),
-            KeyCode::Delete | KeyCode::Backspace if picker.focus == super::session_picker::PickerFocus::List => {
+            KeyCode::Delete | KeyCode::Backspace
+                if picker.focus == super::session_picker::PickerFocus::List =>
+            {
                 picker.remove_selected();
             }
             KeyCode::Backspace => picker.backspace(),
@@ -584,16 +635,15 @@ impl super::TuiFrontend {
         // Check if picker produced an action — return as special command for runtime
         if let Some(action) = &picker.action {
             let cmd = match action {
-                super::session_picker::PickerAction::Connect(i) =>
-                    format!("//picker:connect:{}", i),
-                super::session_picker::PickerAction::Remove(i) =>
-                    format!("//picker:remove:{}", i),
-                super::session_picker::PickerAction::AddSession(_) =>
-                    "//picker:add".to_string(),
-                super::session_picker::PickerAction::OpenWizard =>
-                    "//picker:open_wizard".to_string(),
-                super::session_picker::PickerAction::Quit =>
-                    "//picker:quit".to_string(),
+                super::session_picker::PickerAction::Connect(i) => {
+                    format!("//picker:connect:{}", i)
+                }
+                super::session_picker::PickerAction::Remove(i) => format!("//picker:remove:{}", i),
+                super::session_picker::PickerAction::AddSession(_) => "//picker:add".to_string(),
+                super::session_picker::PickerAction::OpenWizard => {
+                    "//picker:open_wizard".to_string()
+                }
+                super::session_picker::PickerAction::Quit => "//picker:quit".to_string(),
             };
             return Ok(Some(cmd));
         }
@@ -601,4 +651,3 @@ impl super::TuiFrontend {
         Ok(None)
     }
 }
-

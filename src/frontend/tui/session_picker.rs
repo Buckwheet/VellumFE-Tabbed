@@ -83,9 +83,15 @@ impl AddForm {
 
     pub fn backspace(&mut self) {
         match &self.focused_field {
-            Some(FormField::Label) => { self.label.pop(); }
-            Some(FormField::Host) => { self.host.pop(); }
-            Some(FormField::Port) => { self.port.pop(); }
+            Some(FormField::Label) => {
+                self.label.pop();
+            }
+            Some(FormField::Host) => {
+                self.host.pop();
+            }
+            Some(FormField::Port) => {
+                self.port.pop();
+            }
             None => {}
         }
     }
@@ -329,7 +335,9 @@ fn render_list(picker: &SessionPicker, area: Rect, buf: &mut Buffer) {
         }
         let is_selected = picker.selected == i;
         let style = if is_selected {
-            Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
         };
@@ -343,13 +351,7 @@ fn render_list(picker: &SessionPicker, area: Rect, buf: &mut Buffer) {
             _ => "—".to_string(),
         };
         let prefix = if is_selected { "▶ " } else { "  " };
-        let row = format!(
-            "{}{:<20} {:<8} {}",
-            prefix,
-            &session.label,
-            mode_str,
-            addr
-        );
+        let row = format!("{}{:<20} {:<8} {}", prefix, &session.label, mode_str, addr);
         buf.set_string(area.x, y, &row, style);
         y += 1;
     }
@@ -366,7 +368,9 @@ fn render_list(picker: &SessionPicker, area: Rect, buf: &mut Buffer) {
         let add_row = picker.sessions.len();
         let is_selected = picker.selected == add_row;
         let style = if is_selected {
-            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(Color::Green)
         };
@@ -379,19 +383,18 @@ fn render_list(picker: &SessionPicker, area: Rect, buf: &mut Buffer) {
     let help_y = area.bottom().saturating_sub(1);
     if help_y > y {
         let help = " Enter=Connect  Del=Remove  Esc=Quit";
-        buf.set_string(
-            area.x,
-            help_y,
-            help,
-            Style::default().fg(Color::DarkGray),
-        );
+        buf.set_string(area.x, help_y, help, Style::default().fg(Color::DarkGray));
     }
 }
 
 fn render_form(form: &AddForm, area: Rect, buf: &mut Buffer) {
     let mut y = area.y;
 
-    let mode_label = if form.lich_mode { "[Lich Proxy]  Direct     " } else { " Lich Proxy  [Direct]    " };
+    let mode_label = if form.lich_mode {
+        "[Lich Proxy]  Direct     "
+    } else {
+        " Lich Proxy  [Direct]    "
+    };
     let title = Line::from(vec![
         Span::styled(" Mode: ", Style::default().add_modifier(Modifier::BOLD)),
         Span::styled(mode_label, Style::default().fg(Color::Cyan)),
@@ -404,40 +407,77 @@ fn render_form(form: &AddForm, area: Rect, buf: &mut Buffer) {
 
     if form.lich_mode {
         let fields: &[(&str, &str, bool)] = &[
-            ("Label", &form.label, form.focused_field == Some(FormField::Label)),
-            ("Host ", &form.host,  form.focused_field == Some(FormField::Host)),
-            ("Port ", &form.port,  form.focused_field == Some(FormField::Port)),
+            (
+                "Label",
+                &form.label,
+                form.focused_field == Some(FormField::Label),
+            ),
+            (
+                "Host ",
+                &form.host,
+                form.focused_field == Some(FormField::Host),
+            ),
+            (
+                "Port ",
+                &form.port,
+                form.focused_field == Some(FormField::Port),
+            ),
         ];
         for (label, value, focused) in fields {
-            if y >= area.bottom() { break; }
+            if y >= area.bottom() {
+                break;
+            }
             let field_style = if *focused {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
             let cursor = if *focused { "█" } else { "" };
-            buf.set_string(area.x, y, &format!("  {}: [{}{}]", label, value, cursor), field_style);
+            buf.set_string(
+                area.x,
+                y,
+                &format!("  {}: [{}{}]", label, value, cursor),
+                field_style,
+            );
             y += 1;
         }
         y += 1;
         if y < area.bottom() {
-            buf.set_string(area.x, y, "  Tab=Next field  Enter=Save  Esc=Cancel",
-                Style::default().fg(Color::DarkGray));
+            buf.set_string(
+                area.x,
+                y,
+                "  Tab=Next field  Enter=Save  Esc=Cancel",
+                Style::default().fg(Color::DarkGray),
+            );
         }
     } else {
         if y < area.bottom() {
-            buf.set_string(area.x, y, "  Press Enter to open the login wizard.",
-                Style::default().fg(Color::Gray));
+            buf.set_string(
+                area.x,
+                y,
+                "  Press Enter to open the login wizard.",
+                Style::default().fg(Color::Gray),
+            );
             y += 1;
         }
         if y < area.bottom() {
-            buf.set_string(area.x, y, "  (account → game → character)",
-                Style::default().fg(Color::DarkGray));
+            buf.set_string(
+                area.x,
+                y,
+                "  (account → game → character)",
+                Style::default().fg(Color::DarkGray),
+            );
             y += 2;
         }
         if y < area.bottom() {
-            buf.set_string(area.x, y, "  Enter=Open wizard  Esc=Cancel",
-                Style::default().fg(Color::DarkGray));
+            buf.set_string(
+                area.x,
+                y,
+                "  Enter=Open wizard  Esc=Cancel",
+                Style::default().fg(Color::DarkGray),
+            );
         }
     }
 }

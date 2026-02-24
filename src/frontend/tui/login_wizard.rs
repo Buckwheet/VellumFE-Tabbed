@@ -16,9 +16,9 @@ use ratatui::{
 
 /// Known GemStone IV game codes.
 pub const GAMES: &[(&str, &str)] = &[
-    ("GS3",  "GemStone IV (Prime)"),
-    ("GSX",  "GemStone IV (Platinum)"),
-    ("GSF",  "GemStone IV (Shattered)"),
+    ("GS3", "GemStone IV (Prime)"),
+    ("GSX", "GemStone IV (Platinum)"),
+    ("GSF", "GemStone IV (Shattered)"),
 ];
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,7 +29,10 @@ pub enum WizardStep {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum CredField { Account, Password }
+pub enum CredField {
+    Account,
+    Password,
+}
 
 /// Result produced when the wizard completes or is cancelled.
 #[derive(Debug, Clone)]
@@ -88,8 +91,12 @@ impl LoginWizard {
     pub fn backspace(&mut self) {
         match self.step {
             WizardStep::Credentials => match self.cred_field {
-                CredField::Account => { self.account.pop(); }
-                CredField::Password => { self.password.pop(); }
+                CredField::Account => {
+                    self.account.pop();
+                }
+                CredField::Password => {
+                    self.password.pop();
+                }
             },
             _ => {}
         }
@@ -101,10 +108,14 @@ impl LoginWizard {
                 self.cred_field = CredField::Account;
             }
             WizardStep::GameSelect => {
-                if self.game_selected > 0 { self.game_selected -= 1; }
+                if self.game_selected > 0 {
+                    self.game_selected -= 1;
+                }
             }
             WizardStep::CharSelect => {
-                if self.char_selected > 0 { self.char_selected -= 1; }
+                if self.char_selected > 0 {
+                    self.char_selected -= 1;
+                }
             }
         }
     }
@@ -115,10 +126,14 @@ impl LoginWizard {
                 self.cred_field = CredField::Password;
             }
             WizardStep::GameSelect => {
-                if self.game_selected + 1 < GAMES.len() { self.game_selected += 1; }
+                if self.game_selected + 1 < GAMES.len() {
+                    self.game_selected += 1;
+                }
             }
             WizardStep::CharSelect => {
-                if self.char_selected + 1 < self.characters.len() { self.char_selected += 1; }
+                if self.char_selected + 1 < self.characters.len() {
+                    self.char_selected += 1;
+                }
             }
         }
     }
@@ -201,7 +216,10 @@ impl LoginWizard {
     }
 
     pub fn selected_game_code(&self) -> &str {
-        GAMES.get(self.game_selected).map(|(c, _)| *c).unwrap_or("GS3")
+        GAMES
+            .get(self.game_selected)
+            .map(|(c, _)| *c)
+            .unwrap_or("GS3")
     }
 }
 
@@ -222,8 +240,8 @@ pub fn render_wizard(wizard: &LoginWizard, area: Rect, buf: &mut Buffer) {
 
     let title = match wizard.step {
         WizardStep::Credentials => " Add Session — Credentials ",
-        WizardStep::GameSelect   => " Add Session — Select Game ",
-        WizardStep::CharSelect   => " Add Session — Select Character ",
+        WizardStep::GameSelect => " Add Session — Select Game ",
+        WizardStep::CharSelect => " Add Session — Select Character ",
     };
 
     let block = Block::default()
@@ -235,13 +253,21 @@ pub fn render_wizard(wizard: &LoginWizard, area: Rect, buf: &mut Buffer) {
 
     match wizard.step {
         WizardStep::Credentials => render_credentials(wizard, inner, buf),
-        WizardStep::GameSelect   => render_list(
+        WizardStep::GameSelect => render_list(
             &GAMES.iter().map(|(_, name)| *name).collect::<Vec<_>>(),
-            wizard.game_selected, inner, buf,
+            wizard.game_selected,
+            inner,
+            buf,
         ),
-        WizardStep::CharSelect   => render_list(
-            &wizard.characters.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-            wizard.char_selected, inner, buf,
+        WizardStep::CharSelect => render_list(
+            &wizard
+                .characters
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+            wizard.char_selected,
+            inner,
+            buf,
         ),
     }
 
@@ -256,8 +282,8 @@ pub fn render_wizard(wizard: &LoginWizard, area: Rect, buf: &mut Buffer) {
     let hy = popup.bottom().saturating_sub(1);
     let help = match wizard.step {
         WizardStep::Credentials => " Tab=Switch field  Enter=Next  Esc=Cancel",
-        WizardStep::GameSelect   => " ↑↓=Select  Enter=Next  Esc=Back",
-        WizardStep::CharSelect   => " ↑↓=Select  Enter=Connect  Esc=Back",
+        WizardStep::GameSelect => " ↑↓=Select  Enter=Next  Esc=Back",
+        WizardStep::CharSelect => " ↑↓=Select  Enter=Connect  Esc=Back",
     };
     buf.set_string(popup.x + 1, hy, help, Style::default().fg(Color::DarkGray));
 }
@@ -266,14 +292,26 @@ fn render_credentials(wizard: &LoginWizard, area: Rect, buf: &mut Buffer) {
     let mut y = area.y + 1;
 
     let fields: &[(&str, &str, bool)] = &[
-        ("Account ", &wizard.account,  wizard.cred_field == CredField::Account),
-        ("Password", &wizard.password, wizard.cred_field == CredField::Password),
+        (
+            "Account ",
+            &wizard.account,
+            wizard.cred_field == CredField::Account,
+        ),
+        (
+            "Password",
+            &wizard.password,
+            wizard.cred_field == CredField::Password,
+        ),
     ];
 
     for (label, value, focused) in fields {
-        if y >= area.bottom() { break; }
+        if y >= area.bottom() {
+            break;
+        }
         let style = if *focused {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
         };
@@ -292,10 +330,14 @@ fn render_credentials(wizard: &LoginWizard, area: Rect, buf: &mut Buffer) {
 fn render_list(items: &[&str], selected: usize, area: Rect, buf: &mut Buffer) {
     let mut y = area.y + 1;
     for (i, item) in items.iter().enumerate() {
-        if y >= area.bottom() { break; }
+        if y >= area.bottom() {
+            break;
+        }
         let is_sel = i == selected;
         let style = if is_sel {
-            Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
         };

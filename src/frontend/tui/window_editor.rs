@@ -3,19 +3,19 @@
 //! Presents a VellumFE-inspired popup that lets the user tweak geometry,
 //! borders, and stream assignments for a given window definition.
 //!
-use crate::frontend::common::{KeyCode, KeyEvent as TfKeyEvent};
 use crate::config::Config;
+use crate::config::{DashboardIndicatorDef, TabbedTextTab, WindowDef};
+use crate::frontend::common::{KeyCode, KeyEvent as TfKeyEvent};
 use crate::frontend::tui::crossterm_bridge;
 use crate::frontend::tui::textarea_bridge;
-use crate::config::{DashboardIndicatorDef, TabbedTextTab, WindowDef};
 use crate::theme::EditorTheme;
-use std::char;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Clear, Widget},
 };
+use std::char;
 use tui_textarea::TextArea;
 
 /// Available content alignment options (matches VellumFE)
@@ -40,10 +40,7 @@ const TITLE_POSITION_OPTIONS: &[&str] = &[
     "bottom-right",
 ];
 
-const SORT_DIRECTION_OPTIONS: &[&str] = &[
-    "ascending",
-    "descending",
-];
+const SORT_DIRECTION_OPTIONS: &[&str] = &["ascending", "descending"];
 
 /// Actions that can result from mouse interaction with the window editor
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -870,8 +867,7 @@ impl IndicatorEditor {
         self.id_input = WindowEditor::create_textarea();
         self.icon_input = WindowEditor::create_textarea();
         self.colors_input = WindowEditor::create_textarea();
-        self.colors_input
-            .insert_str("#000000, #ffffff".to_string());
+        self.colors_input.insert_str("#000000, #ffffff".to_string());
     }
 
     fn start_edit(&mut self) {
@@ -990,9 +986,9 @@ impl IndicatorEditor {
 /// Bar order item for MiniVitals editor
 #[derive(Clone, Debug)]
 struct BarOrderItem {
-    id: String,           // "health", "mana", "stamina", "spirit", "concentration"
-    label: String,        // Display name
-    enabled: bool,        // Whether this bar is shown
+    id: String,            // "health", "mana", "stamina", "spirit", "concentration"
+    label: String,         // Display name
+    enabled: bool,         // Whether this bar is shown
     color: Option<String>, // Custom color for the bar
 }
 
@@ -1193,7 +1189,9 @@ impl BarOrderEditor {
     fn sync_color_input_from_bar(&mut self) {
         self.color_input = WindowEditor::create_textarea();
         if let Some(bar) = self.bars.get(self.selected) {
-            let color_str = bar.color.as_deref()
+            let color_str = bar
+                .color
+                .as_deref()
                 .unwrap_or_else(|| Self::default_color_for_id(&bar.id));
             self.color_input.insert_str(color_str);
         }
@@ -1471,9 +1469,7 @@ impl WindowEditor {
                 }
 
                 let icon = data.icon.unwrap_or_default();
-                let inactive = data
-                    .inactive_color
-                    .unwrap_or_else(|| "#555555".to_string());
+                let inactive = data.inactive_color.unwrap_or_else(|| "#555555".to_string());
                 let active = data.active_color.unwrap_or_else(|| "#00ff00".to_string());
 
                 seen.insert(key);
@@ -1707,7 +1703,8 @@ impl WindowEditor {
             WindowDef::Container { .. } => {
                 // Could add container_id field in the future
             }
-            WindowDef::Spacer { .. } | WindowDef::Spells { .. } | WindowDef::Performance { .. } => {}
+            WindowDef::Spacer { .. } | WindowDef::Spells { .. } | WindowDef::Performance { .. } => {
+            }
             WindowDef::Perception { .. } => {
                 // Only sort_direction is configurable (stream="percWindow", buffer_size=100 are hardcoded)
                 fields.push(FieldRef::PerceptionSortDirection);
@@ -1866,7 +1863,10 @@ impl WindowEditor {
         if let crate::config::WindowDef::Targets { data, .. } = &window_def {
             entity_id_input.insert_str(&data.entity_id);
             targets_show_arms_count = data.show_body_part_count;
-            targets_status_position = data.status_position.clone().unwrap_or_else(|| "end".to_string());
+            targets_status_position = data
+                .status_position
+                .clone()
+                .unwrap_or_else(|| "end".to_string());
         }
         if let crate::config::WindowDef::Players { data, .. } = &window_def {
             entity_id_input.insert_str(&data.entity_id);
@@ -2136,13 +2136,27 @@ impl WindowEditor {
         ) = if let crate::config::WindowDef::Encumbrance { data, .. } = &window_def {
             (
                 data.show_label,
-                data.color_light.clone().unwrap_or_else(|| "#00FF00".to_string()),
-                data.color_moderate.clone().unwrap_or_else(|| "#FFFF00".to_string()),
-                data.color_heavy.clone().unwrap_or_else(|| "#FFA500".to_string()),
-                data.color_critical.clone().unwrap_or_else(|| "#FF0000".to_string()),
+                data.color_light
+                    .clone()
+                    .unwrap_or_else(|| "#00FF00".to_string()),
+                data.color_moderate
+                    .clone()
+                    .unwrap_or_else(|| "#FFFF00".to_string()),
+                data.color_heavy
+                    .clone()
+                    .unwrap_or_else(|| "#FFA500".to_string()),
+                data.color_critical
+                    .clone()
+                    .unwrap_or_else(|| "#FF0000".to_string()),
             )
         } else {
-            (true, "#00FF00".to_string(), "#FFFF00".to_string(), "#FFA500".to_string(), "#FF0000".to_string())
+            (
+                true,
+                "#00FF00".to_string(),
+                "#FFFF00".to_string(),
+                "#FFA500".to_string(),
+                "#FF0000".to_string(),
+            )
         };
 
         let mut encum_color_light_input = Self::create_textarea();
@@ -2164,7 +2178,9 @@ impl WindowEditor {
             (
                 data.show_level,
                 data.show_exp_bar,
-                data.mind_bar_color.clone().unwrap_or_else(|| "#00FFFF".to_string()),
+                data.mind_bar_color
+                    .clone()
+                    .unwrap_or_else(|| "#00FFFF".to_string()),
                 data.exp_bar_color.clone().unwrap_or_default(), // Empty = theme background
             )
         } else {
@@ -2188,13 +2204,28 @@ impl WindowEditor {
             (
                 data.numbers_only,
                 data.current_only,
-                data.health_color.clone().unwrap_or_else(|| "#6e0202".to_string()),
-                data.mana_color.clone().unwrap_or_else(|| "#08086d".to_string()),
-                data.stamina_color.clone().unwrap_or_else(|| "#bd7b00".to_string()),
-                data.spirit_color.clone().unwrap_or_else(|| "#6e727c".to_string()),
+                data.health_color
+                    .clone()
+                    .unwrap_or_else(|| "#6e0202".to_string()),
+                data.mana_color
+                    .clone()
+                    .unwrap_or_else(|| "#08086d".to_string()),
+                data.stamina_color
+                    .clone()
+                    .unwrap_or_else(|| "#bd7b00".to_string()),
+                data.spirit_color
+                    .clone()
+                    .unwrap_or_else(|| "#6e727c".to_string()),
             )
         } else {
-            (false, false, "#6e0202".to_string(), "#08086d".to_string(), "#bd7b00".to_string(), "#6e727c".to_string())
+            (
+                false,
+                false,
+                "#6e0202".to_string(),
+                "#08086d".to_string(),
+                "#bd7b00".to_string(),
+                "#6e727c".to_string(),
+            )
         };
 
         let mut minivitals_health_color_input = Self::create_textarea();
@@ -2211,7 +2242,9 @@ impl WindowEditor {
             if let crate::config::WindowDef::Betrayer { data, .. } = &window_def {
                 (
                     data.show_items,
-                    data.bar_color.clone().unwrap_or_else(|| "#8b0000".to_string()),
+                    data.bar_color
+                        .clone()
+                        .unwrap_or_else(|| "#8b0000".to_string()),
                 )
             } else {
                 (true, "#8b0000".to_string())
@@ -2370,8 +2403,8 @@ impl WindowEditor {
 
     pub fn new_window(widget_type: String) -> Self {
         use crate::config::{
-            BorderSides, CommandInputWidgetData, PerformanceWidgetData, RoomWidgetData, SpacerWidgetData,
-            TextWidgetData, WindowBase, WindowDef,
+            BorderSides, CommandInputWidgetData, PerformanceWidgetData, RoomWidgetData,
+            SpacerWidgetData, TextWidgetData, WindowBase, WindowDef,
         };
 
         // Create base configuration with defaults
@@ -2765,7 +2798,11 @@ impl WindowEditor {
     }
 
     pub fn is_sub_editor_active(&self) -> bool {
-        self.tab_editor.is_some() || self.indicator_editor.is_some() || self.performance_metrics_editor.is_some() || self.text_replacements_editor.is_some() || self.bar_order_editor.is_some()
+        self.tab_editor.is_some()
+            || self.indicator_editor.is_some()
+            || self.performance_metrics_editor.is_some()
+            || self.text_replacements_editor.is_some()
+            || self.bar_order_editor.is_some()
     }
 
     fn footer_help_text(&self) -> &str {
@@ -2797,8 +2834,7 @@ impl WindowEditor {
         if let WindowDef::TabbedText { data, .. } = &self.window_def {
             self.tab_editor = Some(TabEditor::from_tabs(&data.tabs));
         } else {
-            self.status_message =
-                "Tab editor only available for TabbedText windows".to_string();
+            self.status_message = "Tab editor only available for TabbedText windows".to_string();
         }
     }
 
@@ -2807,8 +2843,10 @@ impl WindowEditor {
             self.available_indicators = Self::indicator_templates();
         }
         if let WindowDef::Dashboard { data, .. } = &self.window_def {
-            self.indicator_editor =
-                Some(IndicatorEditor::from_defs(&data.indicators, self.available_indicators.clone()));
+            self.indicator_editor = Some(IndicatorEditor::from_defs(
+                &data.indicators,
+                self.available_indicators.clone(),
+            ));
         } else {
             self.status_message =
                 "Indicator editor only available for Dashboard windows".to_string();
@@ -2822,8 +2860,9 @@ impl WindowEditor {
 
     fn open_perception_replacements_editor(&mut self) {
         if let WindowDef::Perception { data, .. } = &self.window_def {
-            self.text_replacements_editor =
-                Some(TextReplacementsEditor::from_replacements(&data.text_replacements));
+            self.text_replacements_editor = Some(TextReplacementsEditor::from_replacements(
+                &data.text_replacements,
+            ));
         } else {
             self.status_message =
                 "Text replacements editor only available for Perception windows".to_string();
@@ -3123,22 +3162,34 @@ impl WindowEditor {
 
     /// Check if the current field is the Edit Bar Order button
     pub fn is_on_edit_bar_order(&self) -> bool {
-        matches!(self.current_field_ref(), Some(FieldRef::MiniVitalsEditBarOrder))
+        matches!(
+            self.current_field_ref(),
+            Some(FieldRef::MiniVitalsEditBarOrder)
+        )
     }
 
     /// Check if the current field is the Perception Sort Direction dropdown
     pub fn is_on_perception_sort_direction(&self) -> bool {
-        matches!(self.current_field_ref(), Some(FieldRef::PerceptionSortDirection))
+        matches!(
+            self.current_field_ref(),
+            Some(FieldRef::PerceptionSortDirection)
+        )
     }
 
     /// Check if the current field is the Perception Text Replacements button
     pub fn is_on_perception_replacements(&self) -> bool {
-        matches!(self.current_field_ref(), Some(FieldRef::PerceptionTextReplacements))
+        matches!(
+            self.current_field_ref(),
+            Some(FieldRef::PerceptionTextReplacements)
+        )
     }
 
     /// Check if the current field is the Perception Short Spell Names checkbox
     pub fn is_on_perception_short_spell_names(&self) -> bool {
-        matches!(self.current_field_ref(), Some(FieldRef::PerceptionUseShortSpellNames))
+        matches!(
+            self.current_field_ref(),
+            Some(FieldRef::PerceptionUseShortSpellNames)
+        )
     }
 
     /// Toggle the perception short spell names setting
@@ -3591,11 +3642,12 @@ impl WindowEditor {
                         }
                         FieldRef::TargetsStatusPosition => {
                             // Cycle between "start" and "end"
-                            self.targets_status_position = if self.targets_status_position == "start" {
-                                "end".to_string()
-                            } else {
-                                "start".to_string()
-                            };
+                            self.targets_status_position =
+                                if self.targets_status_position == "start" {
+                                    "end".to_string()
+                                } else {
+                                    "start".to_string()
+                                };
                         }
                         FieldRef::ProgressNumbersOnly => {
                             self.progress_numbers_only = !self.progress_numbers_only;
@@ -3822,10 +3874,18 @@ impl WindowEditor {
                 }
                 TextReplacementsEditorMode::Form => {
                     editor.form_field = match (editor.form_field, down) {
-                        (TextReplacementsFormField::Pattern, true) => TextReplacementsFormField::Replace,
-                        (TextReplacementsFormField::Replace, true) => TextReplacementsFormField::Pattern,
-                        (TextReplacementsFormField::Pattern, false) => TextReplacementsFormField::Replace,
-                        (TextReplacementsFormField::Replace, false) => TextReplacementsFormField::Pattern,
+                        (TextReplacementsFormField::Pattern, true) => {
+                            TextReplacementsFormField::Replace
+                        }
+                        (TextReplacementsFormField::Replace, true) => {
+                            TextReplacementsFormField::Pattern
+                        }
+                        (TextReplacementsFormField::Pattern, false) => {
+                            TextReplacementsFormField::Replace
+                        }
+                        (TextReplacementsFormField::Replace, false) => {
+                            TextReplacementsFormField::Pattern
+                        }
                     };
                 }
             }
@@ -3953,23 +4013,20 @@ impl WindowEditor {
                         self.handle_sub_editor_navigation(false);
                         return true;
                     }
-                    KeyCode::Char(' ') => {
-                        match editor.form_field {
-                            TabEditorFormField::Timestamps => {
-                                editor.show_timestamps = !editor.show_timestamps;
-                                return true;
-                            }
-                            TabEditorFormField::IgnoreActivity => {
-                                editor.ignore_activity = !editor.ignore_activity;
-                                return true;
-                            }
-                            _ => {}
+                    KeyCode::Char(' ') => match editor.form_field {
+                        TabEditorFormField::Timestamps => {
+                            editor.show_timestamps = !editor.show_timestamps;
+                            return true;
                         }
-                    }
+                        TabEditorFormField::IgnoreActivity => {
+                            editor.ignore_activity = !editor.ignore_activity;
+                            return true;
+                        }
+                        _ => {}
+                    },
                     _ => {
                         let ct_code = crossterm_bridge::to_crossterm_keycode(key_event.code);
-                        let ct_mods =
-                            crossterm_bridge::to_crossterm_modifiers(key_event.modifiers);
+                        let ct_mods = crossterm_bridge::to_crossterm_modifiers(key_event.modifiers);
                         let key = crossterm::event::KeyEvent::new(ct_code, ct_mods);
                         let ev = textarea_bridge::to_textarea_event(key);
                         match editor.form_field {
@@ -4052,8 +4109,7 @@ impl WindowEditor {
                     }
                     _ => {
                         let ct_code = crossterm_bridge::to_crossterm_keycode(key_event.code);
-                        let ct_mods =
-                            crossterm_bridge::to_crossterm_modifiers(key_event.modifiers);
+                        let ct_mods = crossterm_bridge::to_crossterm_modifiers(key_event.modifiers);
                         let key = crossterm::event::KeyEvent::new(ct_code, ct_mods);
                         let ev = textarea_bridge::to_textarea_event(key);
                         match editor.form_field {
@@ -4159,8 +4215,7 @@ impl WindowEditor {
                     }
                     _ => {
                         let ct_code = crossterm_bridge::to_crossterm_keycode(key_event.code);
-                        let ct_mods =
-                            crossterm_bridge::to_crossterm_modifiers(key_event.modifiers);
+                        let ct_mods = crossterm_bridge::to_crossterm_modifiers(key_event.modifiers);
                         let key = crossterm::event::KeyEvent::new(ct_code, ct_mods);
                         let ev = textarea_bridge::to_textarea_event(key);
                         match editor.form_field {
@@ -4198,7 +4253,12 @@ impl WindowEditor {
                         }
                         return true;
                     }
-                    KeyCode::Char('t') | KeyCode::Char('T') | KeyCode::Char('e') | KeyCode::Char('E') | KeyCode::Char(' ') | KeyCode::Enter => {
+                    KeyCode::Char('t')
+                    | KeyCode::Char('T')
+                    | KeyCode::Char('e')
+                    | KeyCode::Char('E')
+                    | KeyCode::Char(' ')
+                    | KeyCode::Enter => {
                         if !editor.toggle_selected() {
                             self.status_message = format!(
                                 "Max {} bars enabled. Disable one first.",
@@ -4268,8 +4328,7 @@ impl WindowEditor {
                     _ => {
                         // Forward keypress to color input textarea
                         let ct_code = crossterm_bridge::to_crossterm_keycode(key_event.code);
-                        let ct_mods =
-                            crossterm_bridge::to_crossterm_modifiers(key_event.modifiers);
+                        let ct_mods = crossterm_bridge::to_crossterm_modifiers(key_event.modifiers);
                         let key = crossterm::event::KeyEvent::new(ct_code, ct_mods);
                         let ev = textarea_bridge::to_textarea_event(key);
                         editor.color_input.input(ev);
@@ -4291,10 +4350,16 @@ impl WindowEditor {
         self.window_def.base_mut().col = self.col_input.lines()[0].parse().unwrap_or(0);
         // Rows/cols is now total size (VellumFE style), not content size
         // User specifies actual widget dimensions; content adjusts based on borders
-        let total_rows = self.rows_input.lines().first()
+        let total_rows = self
+            .rows_input
+            .lines()
+            .first()
             .and_then(|s| s.parse::<u16>().ok())
             .unwrap_or(1);
-        let total_cols = self.cols_input.lines().first()
+        let total_cols = self
+            .cols_input
+            .lines()
+            .first()
             .and_then(|s| s.parse::<u16>().ok())
             .unwrap_or(40);
         self.window_def.base_mut().rows = total_rows.max(1);
@@ -4408,7 +4473,8 @@ impl WindowEditor {
             data.buffer_size = 100;
 
             // Parse sort direction
-            data.sort_direction = match self.perception_sort_direction_input
+            data.sort_direction = match self
+                .perception_sort_direction_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_lowercase())
@@ -4443,22 +4509,26 @@ impl WindowEditor {
 
         if let crate::config::WindowDef::Encumbrance { data, .. } = &mut self.window_def {
             data.show_label = self.show_label_encum;
-            data.color_light = self.encum_color_light_input
+            data.color_light = self
+                .encum_color_light_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
-            data.color_moderate = self.encum_color_moderate_input
+            data.color_moderate = self
+                .encum_color_moderate_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
-            data.color_heavy = self.encum_color_heavy_input
+            data.color_heavy = self
+                .encum_color_heavy_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
-            data.color_critical = self.encum_color_critical_input
+            data.color_critical = self
+                .encum_color_critical_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
@@ -4468,12 +4538,14 @@ impl WindowEditor {
         if let crate::config::WindowDef::GS4Experience { data, .. } = &mut self.window_def {
             data.show_level = self.gs4_exp_show_level;
             data.show_exp_bar = self.gs4_exp_show_exp_bar;
-            data.mind_bar_color = self.gs4_exp_mind_bar_color_input
+            data.mind_bar_color = self
+                .gs4_exp_mind_bar_color_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
-            data.exp_bar_color = self.gs4_exp_exp_bar_color_input
+            data.exp_bar_color = self
+                .gs4_exp_exp_bar_color_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
@@ -4483,22 +4555,26 @@ impl WindowEditor {
         if let crate::config::WindowDef::MiniVitals { data, .. } = &mut self.window_def {
             data.numbers_only = self.minivitals_numbers_only;
             data.current_only = self.minivitals_current_only;
-            data.health_color = self.minivitals_health_color_input
+            data.health_color = self
+                .minivitals_health_color_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
-            data.mana_color = self.minivitals_mana_color_input
+            data.mana_color = self
+                .minivitals_mana_color_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
-            data.stamina_color = self.minivitals_stamina_color_input
+            data.stamina_color = self
+                .minivitals_stamina_color_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty());
-            data.spirit_color = self.minivitals_spirit_color_input
+            data.spirit_color = self
+                .minivitals_spirit_color_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
@@ -4507,7 +4583,8 @@ impl WindowEditor {
 
         if let crate::config::WindowDef::Betrayer { data, .. } = &mut self.window_def {
             data.show_items = self.betrayer_show_items;
-            data.bar_color = self.betrayer_bar_color_input
+            data.bar_color = self
+                .betrayer_bar_color_input
                 .lines()
                 .get(0)
                 .map(|s| s.trim().to_string())
@@ -4767,10 +4844,21 @@ impl WindowEditor {
 
     /// Get the current editor window position and size for persistence
     pub fn get_editor_geometry(&self) -> (u16, u16, u16, u16) {
-        (self.popup_x, self.popup_y, self.popup_width, self.popup_height)
+        (
+            self.popup_x,
+            self.popup_y,
+            self.popup_width,
+            self.popup_height,
+        )
     }
 
-    pub fn handle_mouse(&mut self, mouse_col: u16, mouse_row: u16, mouse_down: bool, area: Rect) -> WindowEditorMouseAction {
+    pub fn handle_mouse(
+        &mut self,
+        mouse_col: u16,
+        mouse_row: u16,
+        mouse_down: bool,
+        area: Rect,
+    ) -> WindowEditorMouseAction {
         if !mouse_down {
             self.dragging = false;
             return WindowEditorMouseAction::None;
@@ -4799,8 +4887,12 @@ impl WindowEditor {
         if self.dragging {
             self.popup_x = mouse_col.saturating_sub(self.drag_offset_x);
             self.popup_y = mouse_row.saturating_sub(self.drag_offset_y);
-            self.popup_x = self.popup_x.min(area.width.saturating_sub(self.popup_width));
-            self.popup_y = self.popup_y.min(area.height.saturating_sub(self.popup_height));
+            self.popup_x = self
+                .popup_x
+                .min(area.width.saturating_sub(self.popup_width));
+            self.popup_y = self
+                .popup_y
+                .min(area.height.saturating_sub(self.popup_height));
             return WindowEditorMouseAction::None; // Don't process field clicks while dragging
         }
 
@@ -4855,11 +4947,13 @@ impl WindowEditor {
         // Check if click is on a tracked field area
         // field_click_areas contains (y, x_start, field_ref)
         // We match by y (exact row) and distinguish side-by-side fields by x
-        let left_column_end = self.popup_x + 37;  // Left column ends at x=37 relative to popup
-        let geom_x2 = self.popup_x + 17;  // Divider for side-by-side geometry fields (Row/Col, etc.)
+        let left_column_end = self.popup_x + 37; // Left column ends at x=37 relative to popup
+        let geom_x2 = self.popup_x + 17; // Divider for side-by-side geometry fields (Row/Col, etc.)
 
         // Find all fields on this row
-        let fields_on_row: Vec<_> = self.field_click_areas.iter()
+        let fields_on_row: Vec<_> = self
+            .field_click_areas
+            .iter()
             .filter(|(y, _, _)| *y == mouse_row)
             .collect();
 
@@ -4935,8 +5029,12 @@ impl WindowEditor {
         }
 
         // Constrain position to screen bounds
-        self.popup_x = self.popup_x.min(area.width.saturating_sub(self.popup_width));
-        self.popup_y = self.popup_y.min(area.height.saturating_sub(self.popup_height));
+        self.popup_x = self
+            .popup_x
+            .min(area.width.saturating_sub(self.popup_width));
+        self.popup_y = self
+            .popup_y
+            .min(area.height.saturating_sub(self.popup_height));
 
         let popup_area = Rect {
             x: self.popup_x,
@@ -4962,10 +5060,11 @@ impl WindowEditor {
             " Edit Window "
         };
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(title)
-            .style(Style::default().bg(Color::Black).fg(crossterm_bridge::to_ratatui_color(theme.border_color)));
+        let block = Block::default().borders(Borders::ALL).title(title).style(
+            Style::default()
+                .bg(Color::Black)
+                .fg(crossterm_bridge::to_ratatui_color(theme.border_color)),
+        );
         block.render(popup_area, buf);
 
         // Draw combined bottom border with footer hints
@@ -4979,7 +5078,12 @@ impl WindowEditor {
         interior.push_str(&pad);
         let mut footer_line = String::new();
         footer_line.push('└');
-        footer_line.push_str(&interior.chars().take(inner_width as usize).collect::<String>());
+        footer_line.push_str(
+            &interior
+                .chars()
+                .take(inner_width as usize)
+                .collect::<String>(),
+        );
         footer_line.push('┘');
         buf.set_string(
             popup_area.x,
@@ -5000,7 +5104,6 @@ impl WindowEditor {
         } else {
             self.render_fields(content, buf, theme);
         }
-
     }
 
     fn render_sub_editor(&mut self, area: Rect, buf: &mut Buffer, theme: &EditorTheme) {
@@ -5041,14 +5144,15 @@ impl WindowEditor {
         theme: &EditorTheme,
         editor: &mut BarOrderEditor,
     ) {
-        let header_style =
-            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.section_header_color));
-        let label_style = Style::default()
-            .fg(crossterm_bridge::to_ratatui_color(theme.label_color));
-        let focused_style = Style::default()
-            .fg(crossterm_bridge::to_ratatui_color(theme.focused_label_color));
-        let text_style = Style::default()
-            .fg(crossterm_bridge::to_ratatui_color(theme.text_color));
+        let header_style = Style::default().fg(crossterm_bridge::to_ratatui_color(
+            theme.section_header_color,
+        ));
+        let label_style =
+            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.label_color));
+        let focused_style = Style::default().fg(crossterm_bridge::to_ratatui_color(
+            theme.focused_label_color,
+        ));
+        let text_style = Style::default().fg(crossterm_bridge::to_ratatui_color(theme.text_color));
         let cursor_style = Style::default()
             .fg(ratatui::style::Color::Black)
             .bg(crossterm_bridge::to_ratatui_color(theme.cursor_color));
@@ -5084,7 +5188,11 @@ impl WindowEditor {
             // Left column: Toggle checkbox
             let prefix = if is_toggle_focus { "→ " } else { "  " };
             let checkbox = if bar.enabled { "[x]" } else { "[ ]" };
-            let toggle_style = if is_toggle_focus { focused_style } else { label_style };
+            let toggle_style = if is_toggle_focus {
+                focused_style
+            } else {
+                label_style
+            };
             let toggle_text = format!("{}{} {}", prefix, checkbox, bar.label);
             buf.set_string(toggle_col_x, y, &toggle_text, toggle_style);
 
@@ -5096,7 +5204,8 @@ impl WindowEditor {
                 // Show current input for selected bar
                 editor.color_input.lines().join("")
             } else {
-                bar.color.clone()
+                bar.color
+                    .clone()
                     .unwrap_or_else(|| BarOrderEditor::default_color_for_id(&bar.id).to_string())
             };
 
@@ -5139,7 +5248,11 @@ impl WindowEditor {
                 }
                 // Fill remaining with underscores
                 let filled = chars.len().min(color_input_width);
-                let start = if cursor_pos >= chars.len() { filled + 1 } else { filled };
+                let start = if cursor_pos >= chars.len() {
+                    filled + 1
+                } else {
+                    filled
+                };
                 for i in start..color_input_width {
                     let x = input_x + i as u16;
                     if x < area.x + area.width {
@@ -5169,8 +5282,9 @@ impl WindowEditor {
         theme: &EditorTheme,
         editor: &mut TabEditor,
     ) {
-        let header_style =
-            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.section_header_color));
+        let header_style = Style::default().fg(crossterm_bridge::to_ratatui_color(
+            theme.section_header_color,
+        ));
         buf.set_string(area.x + 1, area.y, "Tab Editor", header_style);
 
         match editor.mode {
@@ -5203,10 +5317,8 @@ impl WindowEditor {
                         tab.streams.join(", ")
                     };
                     let name_text: String = tab.name.chars().take(name_col_width).collect();
-                    let stream_text: String = stream_display
-                        .chars()
-                        .take(stream_col_width)
-                        .collect();
+                    let stream_text: String =
+                        stream_display.chars().take(stream_col_width).collect();
                     let line = format!(
                         "{}{:name_width$} ->  {}",
                         prefix,
@@ -5221,9 +5333,10 @@ impl WindowEditor {
                         Style::default().fg(color),
                     );
                     // Add click area for this tab row
-                    editor.click_areas.push((idx, y, area.x + 1, available_width as u16));
+                    editor
+                        .click_areas
+                        .push((idx, y, area.x + 1, available_width as u16));
                 }
-
             }
             TabEditorMode::Form => {
                 let y = area.y + 2;
@@ -5280,8 +5393,9 @@ impl WindowEditor {
         theme: &EditorTheme,
         editor: &mut IndicatorEditor,
     ) {
-        let header_style =
-            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.section_header_color));
+        let header_style = Style::default().fg(crossterm_bridge::to_ratatui_color(
+            theme.section_header_color,
+        ));
         buf.set_string(area.x + 1, area.y, "Indicator Selector", header_style);
 
         match editor.mode {
@@ -5321,7 +5435,9 @@ impl WindowEditor {
                     }
                     buf.set_string(area.x + 1, y, line, style);
                     // Add click area for this indicator row
-                    editor.click_areas.push((idx, y, area.x + 1, max_width as u16));
+                    editor
+                        .click_areas
+                        .push((idx, y, area.x + 1, max_width as u16));
                 }
             }
             IndicatorEditorMode::Form => {
@@ -5365,8 +5481,7 @@ impl WindowEditor {
                     .get(0)
                     .map(|s| s.split(',').next().unwrap_or("").trim().to_string())
                     .unwrap_or_default();
-                let preview_x =
-                    area.x + 1 + 2 + "Colors:".len() as u16 + 1 + 10;
+                let preview_x = area.x + 1 + 2 + "Colors:".len() as u16 + 1 + 10;
                 self.render_color_preview(&value, preview_x, y + 4, buf, theme);
 
                 let footer = "Enter: Save | Esc: Cancel | Tab/Shift+Tab: Next/Prev";
@@ -5389,8 +5504,9 @@ impl WindowEditor {
         theme: &EditorTheme,
         editor: &mut PerformanceMetricsEditor,
     ) {
-        let header_style =
-            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.section_header_color));
+        let header_style = Style::default().fg(crossterm_bridge::to_ratatui_color(
+            theme.section_header_color,
+        ));
         buf.set_string(area.x + 1, area.y, "Performance Metrics", header_style);
 
         let max_rows = area.height.saturating_sub(2);
@@ -5424,8 +5540,9 @@ impl WindowEditor {
         theme: &EditorTheme,
         editor: &mut TextReplacementsEditor,
     ) {
-        let header_style =
-            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.section_header_color));
+        let header_style = Style::default().fg(crossterm_bridge::to_ratatui_color(
+            theme.section_header_color,
+        ));
         buf.set_string(area.x + 1, area.y, "Text Replacements Editor", header_style);
 
         match editor.mode {
@@ -5460,7 +5577,8 @@ impl WindowEditor {
                     };
 
                     // Format: pattern → replace (or pattern → (remove) if replace is empty)
-                    let pattern_display: String = item.pattern.chars().take(pattern_width).collect();
+                    let pattern_display: String =
+                        item.pattern.chars().take(pattern_width).collect();
                     let replace_display = if item.replace.is_empty() {
                         "(remove)".to_string()
                     } else {
@@ -5552,7 +5670,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::Name, self.focused_field),
         );
-        self.field_click_areas.push((left_y, left_x, FieldRef::Name));
+        self.field_click_areas
+            .push((left_y, left_x, FieldRef::Name));
         left_y += 1;
 
         self.render_textarea_compact(
@@ -5566,7 +5685,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::Title, self.focused_field),
         );
-        self.field_click_areas.push((left_y, left_x, FieldRef::Title));
+        self.field_click_areas
+            .push((left_y, left_x, FieldRef::Title));
         left_y += 1;
 
         // Title align
@@ -5585,7 +5705,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::TitlePosition, self.focused_field),
         );
-        self.field_click_areas.push((left_y, left_x, FieldRef::TitlePosition));
+        self.field_click_areas
+            .push((left_y, left_x, FieldRef::TitlePosition));
         left_y += 1;
 
         // Content align
@@ -5600,7 +5721,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::ContentAlign, self.focused_field),
         );
-        self.field_click_areas.push((left_y, left_x, FieldRef::ContentAlign));
+        self.field_click_areas
+            .push((left_y, left_x, FieldRef::ContentAlign));
         left_y += 1;
 
         // Border style
@@ -5615,7 +5737,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::BorderStyle, self.focused_field),
         );
-        self.field_click_areas.push((left_y, left_x, FieldRef::BorderStyle));
+        self.field_click_areas
+            .push((left_y, left_x, FieldRef::BorderStyle));
         left_y += 2;
 
         // Row / Col
@@ -5642,7 +5765,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::Col, self.focused_field),
         );
-        self.field_click_areas.push((left_y, geom_x2, FieldRef::Col));
+        self.field_click_areas
+            .push((left_y, geom_x2, FieldRef::Col));
         left_y += 1;
 
         // Rows / Cols
@@ -5657,7 +5781,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::Rows, self.focused_field),
         );
-        self.field_click_areas.push((left_y, left_x, FieldRef::Rows));
+        self.field_click_areas
+            .push((left_y, left_x, FieldRef::Rows));
         self.render_textarea_compact(
             FieldRef::Cols.legacy_field_id(),
             " Cols:",
@@ -5669,7 +5794,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::Cols, self.focused_field),
         );
-        self.field_click_areas.push((left_y, geom_x2, FieldRef::Cols));
+        self.field_click_areas
+            .push((left_y, geom_x2, FieldRef::Cols));
         left_y += 1;
 
         // Min/Max constraints
@@ -5684,7 +5810,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::MinRows, self.focused_field),
         );
-        self.field_click_areas.push((left_y, left_x, FieldRef::MinRows));
+        self.field_click_areas
+            .push((left_y, left_x, FieldRef::MinRows));
         self.render_textarea_compact(
             FieldRef::MinCols.legacy_field_id(),
             "  Min:",
@@ -5696,7 +5823,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::MinCols, self.focused_field),
         );
-        self.field_click_areas.push((left_y, geom_x2, FieldRef::MinCols));
+        self.field_click_areas
+            .push((left_y, geom_x2, FieldRef::MinCols));
         left_y += 1;
 
         self.render_textarea_compact(
@@ -5710,7 +5838,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::MaxRows, self.focused_field),
         );
-        self.field_click_areas.push((left_y, left_x, FieldRef::MaxRows));
+        self.field_click_areas
+            .push((left_y, left_x, FieldRef::MaxRows));
         self.render_textarea_compact(
             FieldRef::MaxCols.legacy_field_id(),
             "  Max:",
@@ -5722,7 +5851,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::MaxCols, self.focused_field),
         );
-        self.field_click_areas.push((left_y, geom_x2, FieldRef::MaxCols));
+        self.field_click_areas
+            .push((left_y, geom_x2, FieldRef::MaxCols));
         left_y += 2;
 
         // Right column: appearance
@@ -5737,7 +5867,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::Locked, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::Locked));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::Locked));
         right_y += 1;
         self.render_checkbox_compact(
             FieldRef::ShowTitle.legacy_field_id(),
@@ -5750,7 +5881,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::ShowTitle, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::ShowTitle));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::ShowTitle));
         right_y += 1;
         self.render_checkbox_compact(
             FieldRef::TransparentBg.legacy_field_id(),
@@ -5763,7 +5895,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::TransparentBg, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::TransparentBg));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::TransparentBg));
         right_y += 1;
         self.render_checkbox_compact(
             FieldRef::ShowBorder.legacy_field_id(),
@@ -5776,7 +5909,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::ShowBorder, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::ShowBorder));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::ShowBorder));
         right_y += 1;
         self.render_checkbox_compact(
             FieldRef::BorderTop.legacy_field_id(),
@@ -5789,7 +5923,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::BorderTop, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::BorderTop));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::BorderTop));
         right_y += 1;
         self.render_checkbox_compact(
             FieldRef::BorderBottom.legacy_field_id(),
@@ -5802,7 +5937,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::BorderBottom, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::BorderBottom));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::BorderBottom));
         right_y += 1;
         self.render_checkbox_compact(
             FieldRef::BorderLeft.legacy_field_id(),
@@ -5815,7 +5951,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::BorderLeft, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::BorderLeft));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::BorderLeft));
         right_y += 1;
         self.render_checkbox_compact(
             FieldRef::BorderRight.legacy_field_id(),
@@ -5828,7 +5965,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::BorderRight, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::BorderRight));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::BorderRight));
         right_y += 1;
 
         self.render_color_field(
@@ -5842,7 +5980,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::BgColor, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::BgColor));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::BgColor));
         right_y += 1;
 
         self.render_color_field(
@@ -5856,7 +5995,8 @@ impl WindowEditor {
             theme,
             is_focus(FieldRef::BorderColor, self.focused_field),
         );
-        self.field_click_areas.push((right_y, right_x, FieldRef::BorderColor));
+        self.field_click_areas
+            .push((right_y, right_x, FieldRef::BorderColor));
 
         // Special section
         let special_y = left_y.max(right_y) + 1;
@@ -5875,7 +6015,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TextColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::TextColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::TextColor));
                 special_row += 1;
 
                 // Icon text + cursor foreground
@@ -5890,7 +6031,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::PromptIcon, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::PromptIcon));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::PromptIcon));
                 self.render_color_field(
                     FieldRef::CursorColor.legacy_field_id(),
                     "Cursor FG",
@@ -5902,7 +6044,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::CursorColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::CursorColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::CursorColor));
                 special_row += 1;
 
                 // Icon color + cursor background
@@ -5917,7 +6060,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::PromptIconColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::PromptIconColor));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::PromptIconColor));
                 self.render_color_field(
                     FieldRef::CursorBg.legacy_field_id(),
                     "Cursor BG",
@@ -5929,7 +6073,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::CursorBg, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::CursorBg));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::CursorBg));
             }
             WindowDef::Text { .. } => {
                 // Bounty window is special: hide Streams and BufferSize
@@ -5949,7 +6094,8 @@ impl WindowEditor {
                         theme,
                         is_focus(FieldRef::Wordwrap, self.focused_field),
                     );
-                    self.field_click_areas.push((special_row, left_x, FieldRef::Wordwrap));
+                    self.field_click_areas
+                        .push((special_row, left_x, FieldRef::Wordwrap));
                     self.render_checkbox_compact(
                         FieldRef::Timestamps.legacy_field_id(),
                         "Timestamps",
@@ -5961,7 +6107,8 @@ impl WindowEditor {
                         theme,
                         is_focus(FieldRef::Timestamps, self.focused_field),
                     );
-                    self.field_click_areas.push((special_row, right_x, FieldRef::Timestamps));
+                    self.field_click_areas
+                        .push((special_row, right_x, FieldRef::Timestamps));
                     special_row += 1;
                     self.render_checkbox_compact(
                         FieldRef::TextCompact.legacy_field_id(),
@@ -5974,7 +6121,8 @@ impl WindowEditor {
                         theme,
                         is_focus(FieldRef::TextCompact, self.focused_field),
                     );
-                    self.field_click_areas.push((special_row, left_x, FieldRef::TextCompact));
+                    self.field_click_areas
+                        .push((special_row, left_x, FieldRef::TextCompact));
                 } else {
                     // Standard text window layout
                     self.render_textarea_compact(
@@ -5988,7 +6136,8 @@ impl WindowEditor {
                         theme,
                         is_focus(FieldRef::Streams, self.focused_field),
                     );
-                    self.field_click_areas.push((special_row, left_x, FieldRef::Streams));
+                    self.field_click_areas
+                        .push((special_row, left_x, FieldRef::Streams));
                     self.render_checkbox_compact(
                         FieldRef::Wordwrap.legacy_field_id(),
                         "Wordwrap",
@@ -6000,7 +6149,8 @@ impl WindowEditor {
                         theme,
                         is_focus(FieldRef::Wordwrap, self.focused_field),
                     );
-                    self.field_click_areas.push((special_row, right_x, FieldRef::Wordwrap));
+                    self.field_click_areas
+                        .push((special_row, right_x, FieldRef::Wordwrap));
                     special_row += 1;
                     self.render_textarea_compact(
                         FieldRef::BufferSize.legacy_field_id(),
@@ -6013,7 +6163,8 @@ impl WindowEditor {
                         theme,
                         is_focus(FieldRef::BufferSize, self.focused_field),
                     );
-                    self.field_click_areas.push((special_row, left_x, FieldRef::BufferSize));
+                    self.field_click_areas
+                        .push((special_row, left_x, FieldRef::BufferSize));
                     self.render_checkbox_compact(
                         FieldRef::Timestamps.legacy_field_id(),
                         "Timestamps",
@@ -6025,7 +6176,8 @@ impl WindowEditor {
                         theme,
                         is_focus(FieldRef::Timestamps, self.focused_field),
                     );
-                    self.field_click_areas.push((special_row, right_x, FieldRef::Timestamps));
+                    self.field_click_areas
+                        .push((special_row, right_x, FieldRef::Timestamps));
                     special_row += 1;
                     // Compact mode checkbox
                     self.render_checkbox_compact(
@@ -6039,7 +6191,8 @@ impl WindowEditor {
                         theme,
                         is_focus(FieldRef::TextCompact, self.focused_field),
                     );
-                    self.field_click_areas.push((special_row, left_x, FieldRef::TextCompact));
+                    self.field_click_areas
+                        .push((special_row, left_x, FieldRef::TextCompact));
                 }
             }
             WindowDef::Inventory { .. } => {
@@ -6054,7 +6207,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Streams, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::Streams));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::Streams));
                 self.render_checkbox_compact(
                     FieldRef::Wordwrap.legacy_field_id(),
                     "Wordwrap",
@@ -6066,7 +6220,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Wordwrap, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::Wordwrap));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::Wordwrap));
                 special_row += 1;
                 self.render_textarea_compact(
                     FieldRef::BufferSize.legacy_field_id(),
@@ -6079,7 +6234,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::BufferSize, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::BufferSize));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::BufferSize));
                 self.render_checkbox_compact(
                     FieldRef::Timestamps.legacy_field_id(),
                     "Timestamps",
@@ -6091,7 +6247,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Timestamps, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::Timestamps));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::Timestamps));
             }
             WindowDef::Targets { .. } => {
                 self.render_textarea_compact(
@@ -6105,7 +6262,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EntityId, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::EntityId));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::EntityId));
                 self.render_checkbox_compact(
                     FieldRef::TargetsShowAppendages.legacy_field_id(),
                     "Show Appendages",
@@ -6117,7 +6275,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TargetsShowAppendages, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::TargetsShowAppendages));
+                self.field_click_areas.push((
+                    special_row,
+                    right_x,
+                    FieldRef::TargetsShowAppendages,
+                ));
 
                 // Second row: Status Position dropdown
                 let special_row_2 = special_row + 1;
@@ -6138,7 +6300,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TargetsStatusPosition, self.focused_field),
                 );
-                self.field_click_areas.push((special_row_2, left_x, FieldRef::TargetsStatusPosition));
+                self.field_click_areas.push((
+                    special_row_2,
+                    left_x,
+                    FieldRef::TargetsStatusPosition,
+                ));
             }
             WindowDef::Players { .. } => {
                 self.render_textarea_compact(
@@ -6152,16 +6318,17 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EntityId, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::EntityId));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::EntityId));
             }
             WindowDef::TabbedText { .. } => {
                 let special_left_x = left_x + 2;
                 self.render_dropdown_compact(
                     FieldRef::TabBarPosition.legacy_field_id(),
                     "Tab Bar Pos:",
-            self.tab_bar_position_input
-                .lines()
-                .get(0)
+                    self.tab_bar_position_input
+                        .lines()
+                        .get(0)
                         .map(|s| s.as_str())
                         .unwrap_or("top"),
                     special_left_x,
@@ -6171,7 +6338,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TabBarPosition, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, special_left_x, FieldRef::TabBarPosition));
+                self.field_click_areas.push((
+                    special_row,
+                    special_left_x,
+                    FieldRef::TabBarPosition,
+                ));
                 self.render_color_field(
                     FieldRef::TabActiveColor.legacy_field_id(),
                     "Active",
@@ -6183,7 +6354,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TabActiveColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::TabActiveColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::TabActiveColor));
                 special_row += 1;
                 self.render_checkbox_compact(
                     FieldRef::TabSeparator.legacy_field_id(),
@@ -6196,7 +6368,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TabSeparator, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, special_left_x, FieldRef::TabSeparator));
+                self.field_click_areas
+                    .push((special_row, special_left_x, FieldRef::TabSeparator));
                 self.render_color_field(
                     FieldRef::TabInactiveColor.legacy_field_id(),
                     "Inactive",
@@ -6208,7 +6381,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TabInactiveColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::TabInactiveColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::TabInactiveColor));
                 special_row += 1;
                 self.render_textarea_compact(
                     FieldRef::TabUnreadPrefix.legacy_field_id(),
@@ -6221,7 +6395,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TabUnreadPrefix, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, special_left_x, FieldRef::TabUnreadPrefix));
+                self.field_click_areas.push((
+                    special_row,
+                    special_left_x,
+                    FieldRef::TabUnreadPrefix,
+                ));
                 self.render_color_field(
                     FieldRef::TabUnreadColor.legacy_field_id(),
                     "Unread",
@@ -6233,7 +6411,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TabUnreadColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::TabUnreadColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::TabUnreadColor));
                 special_row += 1;
                 self.render_button(
                     FieldRef::EditTabs.legacy_field_id(),
@@ -6244,7 +6423,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EditTabs, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, special_left_x, FieldRef::EditTabs));
+                self.field_click_areas
+                    .push((special_row, special_left_x, FieldRef::EditTabs));
             }
             WindowDef::Room { .. } => {
                 self.render_checkbox_compact(
@@ -6258,7 +6438,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ShowName, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::ShowName));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::ShowName));
                 self.render_checkbox_compact(
                     FieldRef::ShowDesc.legacy_field_id(),
                     "Show Desc",
@@ -6270,7 +6451,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ShowDesc, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::ShowDesc));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::ShowDesc));
                 special_row += 1;
                 self.render_checkbox_compact(
                     FieldRef::ShowObjs.legacy_field_id(),
@@ -6283,7 +6465,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ShowObjs, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::ShowObjs));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::ShowObjs));
                 self.render_checkbox_compact(
                     FieldRef::ShowPlayers.legacy_field_id(),
                     "Show Players",
@@ -6295,7 +6478,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ShowPlayers, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::ShowPlayers));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::ShowPlayers));
                 special_row += 1;
                 self.render_checkbox_compact(
                     FieldRef::ShowExits.legacy_field_id(),
@@ -6308,7 +6492,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ShowExits, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::ShowExits));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::ShowExits));
             }
             WindowDef::Progress { .. } => {
                 self.render_textarea_compact(
@@ -6322,7 +6507,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ProgressId, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::ProgressId));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::ProgressId));
                 self.render_color_field(
                     FieldRef::TextColor.legacy_field_id(),
                     "Text Color",
@@ -6334,7 +6520,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::TextColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::TextColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::TextColor));
                 special_row += 1;
                 self.render_checkbox_compact(
                     FieldRef::ProgressNumbersOnly.legacy_field_id(),
@@ -6347,7 +6534,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ProgressNumbersOnly, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::ProgressNumbersOnly));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::ProgressNumbersOnly));
                 self.render_color_field(
                     FieldRef::ProgressColor.legacy_field_id(),
                     "Bar Color",
@@ -6359,7 +6547,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ProgressColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::ProgressColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::ProgressColor));
                 special_row += 1;
                 self.render_checkbox_compact(
                     FieldRef::ProgressCurrentOnly.legacy_field_id(),
@@ -6372,7 +6561,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ProgressCurrentOnly, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::ProgressCurrentOnly));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::ProgressCurrentOnly));
             }
             WindowDef::Countdown { .. } => {
                 self.render_textarea_compact(
@@ -6386,7 +6576,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::CountdownIcon, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::CountdownIcon));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::CountdownIcon));
                 self.render_textarea_compact(
                     FieldRef::CountdownId.legacy_field_id(),
                     "Countdown ID:",
@@ -6398,7 +6589,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::CountdownId, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::CountdownId));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::CountdownId));
                 special_row += 1;
                 self.render_color_field(
                     FieldRef::CountdownColor.legacy_field_id(),
@@ -6411,7 +6603,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::CountdownColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::CountdownColor));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::CountdownColor));
             }
             WindowDef::Compass { .. } => {
                 // Clear left column row for a clean right-column layout
@@ -6432,7 +6625,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::CompassActiveColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::CompassActiveColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::CompassActiveColor));
                 special_row += 1;
                 self.render_color_field(
                     FieldRef::CompassInactiveColor.legacy_field_id(),
@@ -6445,7 +6639,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::CompassInactiveColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::CompassInactiveColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::CompassInactiveColor));
             }
             WindowDef::InjuryDoll { .. } => {
                 self.render_color_field(
@@ -6459,7 +6654,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Injury1Color, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::Injury1Color));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::Injury1Color));
                 self.render_color_field(
                     FieldRef::Scar1Color.legacy_field_id(),
                     "Scar1",
@@ -6471,7 +6667,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Scar1Color, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::Scar1Color));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::Scar1Color));
                 special_row += 1;
                 self.render_color_field(
                     FieldRef::Injury2Color.legacy_field_id(),
@@ -6484,7 +6681,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Injury2Color, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::Injury2Color));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::Injury2Color));
                 self.render_color_field(
                     FieldRef::Scar2Color.legacy_field_id(),
                     "Scar2",
@@ -6496,7 +6694,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Scar2Color, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::Scar2Color));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::Scar2Color));
                 special_row += 1;
                 self.render_color_field(
                     FieldRef::Injury3Color.legacy_field_id(),
@@ -6509,7 +6708,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Injury3Color, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::Injury3Color));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::Injury3Color));
                 self.render_color_field(
                     FieldRef::Scar3Color.legacy_field_id(),
                     "Scar3",
@@ -6521,7 +6721,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::Scar3Color, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::Scar3Color));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::Scar3Color));
                 special_row += 1;
                 self.render_color_field(
                     FieldRef::InjuryDefaultColor.legacy_field_id(),
@@ -6534,7 +6735,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::InjuryDefaultColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::InjuryDefaultColor));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::InjuryDefaultColor));
             }
             WindowDef::Indicator { .. } => {
                 self.render_textarea_compact(
@@ -6548,7 +6750,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::IndicatorId, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::IndicatorId));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::IndicatorId));
                 special_row += 1;
                 self.render_textarea_compact(
                     FieldRef::IndicatorIcon.legacy_field_id(),
@@ -6561,7 +6764,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::IndicatorIcon, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::IndicatorIcon));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::IndicatorIcon));
                 if let Some(icon_char) = Self::parse_icon_char(
                     self.indicator_icon_input
                         .lines()
@@ -6569,12 +6773,7 @@ impl WindowEditor {
                         .map(|s| s.as_str())
                         .unwrap_or(""),
                 ) {
-                    let preview_x = left_x
-                        + 2
-                        + "Icon:".len() as u16
-                        + 1
-                        + column_width
-                        + 1;
+                    let preview_x = left_x + 2 + "Icon:".len() as u16 + 1 + column_width + 1;
                     if preview_x < buf.area().width && special_row < buf.area().height {
                         buf[(preview_x, special_row)].set_char(icon_char);
                         buf[(preview_x, special_row)]
@@ -6592,7 +6791,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::IndicatorActiveColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::IndicatorActiveColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::IndicatorActiveColor));
                 special_row += 1;
                 self.render_color_field(
                     FieldRef::IndicatorInactiveColor.legacy_field_id(),
@@ -6605,7 +6805,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::IndicatorInactiveColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::IndicatorInactiveColor));
+                self.field_click_areas.push((
+                    special_row,
+                    right_x,
+                    FieldRef::IndicatorInactiveColor,
+                ));
             }
             WindowDef::Hand { .. } => {
                 self.render_textarea_compact(
@@ -6619,7 +6823,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::HandIcon, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::HandIcon));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::HandIcon));
                 self.render_color_field(
                     FieldRef::HandIconColor.legacy_field_id(),
                     "Icon Color",
@@ -6631,7 +6836,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::HandIconColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::HandIconColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::HandIconColor));
                 special_row += 1;
                 self.render_color_field(
                     FieldRef::HandTextColor.legacy_field_id(),
@@ -6644,7 +6850,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::HandTextColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::HandTextColor));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::HandTextColor));
             }
             WindowDef::Dashboard { .. } => {
                 self.render_dropdown_compact(
@@ -6662,7 +6869,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::DashboardLayout, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::DashboardLayout));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::DashboardLayout));
                 self.render_textarea_compact(
                     FieldRef::DashboardSpacing.legacy_field_id(),
                     "Spacing:",
@@ -6674,7 +6882,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::DashboardSpacing, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::DashboardSpacing));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::DashboardSpacing));
                 special_row += 1;
                 self.render_button(
                     FieldRef::EditIndicators.legacy_field_id(),
@@ -6685,7 +6894,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EditIndicators, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::EditIndicators));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::EditIndicators));
                 self.render_checkbox_compact(
                     FieldRef::DashboardHideInactive.legacy_field_id(),
                     "Hide Inactive",
@@ -6697,7 +6907,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::DashboardHideInactive, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::DashboardHideInactive));
+                self.field_click_areas.push((
+                    special_row,
+                    right_x,
+                    FieldRef::DashboardHideInactive,
+                ));
             }
             WindowDef::ActiveEffects { .. } => {
                 self.render_textarea_compact(
@@ -6711,7 +6925,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::ActiveEffectsCategory, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::ActiveEffectsCategory));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::ActiveEffectsCategory));
             }
             WindowDef::Performance { .. } => {
                 // Performance widget uses overlay-only system, no fields to render here
@@ -6768,7 +6983,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::GS4ExpShowLevel, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::GS4ExpShowLevel));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::GS4ExpShowLevel));
                 self.render_checkbox_compact(
                     FieldRef::GS4ExpShowExpBar.legacy_field_id(),
                     "Show Exp Bar",
@@ -6780,7 +6996,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::GS4ExpShowExpBar, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::GS4ExpShowExpBar));
+                self.field_click_areas
+                    .push((special_row, right_x, FieldRef::GS4ExpShowExpBar));
                 // Row 2: Bar colors
                 self.render_color_field(
                     FieldRef::GS4ExpMindBarColor.legacy_field_id(),
@@ -6793,7 +7010,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::GS4ExpMindBarColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row + 1, left_x, FieldRef::GS4ExpMindBarColor));
+                self.field_click_areas.push((
+                    special_row + 1,
+                    left_x,
+                    FieldRef::GS4ExpMindBarColor,
+                ));
                 self.render_color_field(
                     FieldRef::GS4ExpExpBarColor.legacy_field_id(),
                     "Exp",
@@ -6805,7 +7026,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::GS4ExpExpBarColor, self.focused_field),
                 );
-                self.field_click_areas.push((special_row + 1, right_x, FieldRef::GS4ExpExpBarColor));
+                self.field_click_areas.push((
+                    special_row + 1,
+                    right_x,
+                    FieldRef::GS4ExpExpBarColor,
+                ));
             }
             WindowDef::Encumbrance { .. } => {
                 // Row 1: Show label checkbox
@@ -6820,7 +7045,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EncumShowLabel, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::EncumShowLabel));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::EncumShowLabel));
                 // Row 2: Light (0-20) and Moderate (21-50) colors
                 self.render_color_field(
                     FieldRef::EncumColorLight.legacy_field_id(),
@@ -6833,7 +7059,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EncumColorLight, self.focused_field),
                 );
-                self.field_click_areas.push((special_row + 1, left_x, FieldRef::EncumColorLight));
+                self.field_click_areas
+                    .push((special_row + 1, left_x, FieldRef::EncumColorLight));
                 self.render_color_field(
                     FieldRef::EncumColorModerate.legacy_field_id(),
                     "Moderate",
@@ -6845,7 +7072,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EncumColorModerate, self.focused_field),
                 );
-                self.field_click_areas.push((special_row + 1, right_x, FieldRef::EncumColorModerate));
+                self.field_click_areas.push((
+                    special_row + 1,
+                    right_x,
+                    FieldRef::EncumColorModerate,
+                ));
                 // Row 3: Heavy (51-80) and Critical (81-100) colors
                 self.render_color_field(
                     FieldRef::EncumColorHeavy.legacy_field_id(),
@@ -6858,7 +7089,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EncumColorHeavy, self.focused_field),
                 );
-                self.field_click_areas.push((special_row + 2, left_x, FieldRef::EncumColorHeavy));
+                self.field_click_areas
+                    .push((special_row + 2, left_x, FieldRef::EncumColorHeavy));
                 self.render_color_field(
                     FieldRef::EncumColorCritical.legacy_field_id(),
                     "Critical",
@@ -6870,7 +7102,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::EncumColorCritical, self.focused_field),
                 );
-                self.field_click_areas.push((special_row + 2, right_x, FieldRef::EncumColorCritical));
+                self.field_click_areas.push((
+                    special_row + 2,
+                    right_x,
+                    FieldRef::EncumColorCritical,
+                ));
             }
             WindowDef::MiniVitals { .. } => {
                 // Row 1: Display mode checkboxes
@@ -6885,7 +7121,8 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::MiniVitalsNumbersOnly, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, left_x, FieldRef::MiniVitalsNumbersOnly));
+                self.field_click_areas
+                    .push((special_row, left_x, FieldRef::MiniVitalsNumbersOnly));
                 self.render_checkbox_compact(
                     FieldRef::MiniVitalsCurrentOnly.legacy_field_id(),
                     "Current Only",
@@ -6897,7 +7134,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::MiniVitalsCurrentOnly, self.focused_field),
                 );
-                self.field_click_areas.push((special_row, right_x, FieldRef::MiniVitalsCurrentOnly));
+                self.field_click_areas.push((
+                    special_row,
+                    right_x,
+                    FieldRef::MiniVitalsCurrentOnly,
+                ));
                 // Row 2: Bar order and colors editor button (handles all 5 bars)
                 self.render_button(
                     FieldRef::MiniVitalsEditBarOrder.legacy_field_id(),
@@ -6908,7 +7149,11 @@ impl WindowEditor {
                     theme,
                     is_focus(FieldRef::MiniVitalsEditBarOrder, self.focused_field),
                 );
-                self.field_click_areas.push((special_row + 1, left_x, FieldRef::MiniVitalsEditBarOrder));
+                self.field_click_areas.push((
+                    special_row + 1,
+                    left_x,
+                    FieldRef::MiniVitalsEditBarOrder,
+                ));
             }
             WindowDef::Betrayer { .. } => {
                 // Betrayer widget: show_items toggle and bar color
@@ -6944,7 +7189,6 @@ impl WindowEditor {
                 );
             }
         }
-
     }
 
     /// Render a text input field (compact format for section-based layout)
@@ -7026,12 +7270,7 @@ impl WindowEditor {
         let padded_value = format!("{:<width$}", truncated, width = input_width);
 
         let start_x = x;
-        buf.set_string(
-            start_x,
-            y,
-            prefix,
-            Style::default().fg(label_color),
-        );
+        buf.set_string(start_x, y, prefix, Style::default().fg(label_color));
         buf.set_string(
             start_x + prefix.len() as u16,
             y,
@@ -7039,12 +7278,7 @@ impl WindowEditor {
             Style::default().fg(label_color),
         );
         let input_x = start_x + prefix.len() as u16 + label_width as u16 + 1;
-        buf.set_string(
-            input_x,
-            y,
-            padded_value,
-            Style::default().fg(text_color),
-        );
+        buf.set_string(input_x, y, padded_value, Style::default().fg(text_color));
     }
 
     fn render_tab_editor_checkbox(
@@ -7131,7 +7365,7 @@ impl WindowEditor {
         theme: &EditorTheme,
         is_current: bool,
     ) {
-        let label_color = crossterm_bridge::to_ratatui_color(if is_current  {
+        let label_color = crossterm_bridge::to_ratatui_color(if is_current {
             theme.focused_label_color
         } else {
             theme.label_color
@@ -7163,7 +7397,7 @@ impl WindowEditor {
         theme: &EditorTheme,
         is_current: bool,
     ) {
-        let label_color = crossterm_bridge::to_ratatui_color(if is_current  {
+        let label_color = crossterm_bridge::to_ratatui_color(if is_current {
             theme.focused_label_color
         } else {
             theme.label_color
@@ -7177,7 +7411,12 @@ impl WindowEditor {
         let truncated: String = display_value.chars().take(width).collect();
         let padded = format!("{:<width$}", truncated, width = width);
         let input_x = x + 2 + label.len() as u16 + 1;
-        buf.set_string(input_x, y, &padded, Style::default().fg(crossterm_bridge::to_ratatui_color(theme.text_color)));
+        buf.set_string(
+            input_x,
+            y,
+            &padded,
+            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.text_color)),
+        );
     }
 
     fn render_textarea(
@@ -7193,7 +7432,7 @@ impl WindowEditor {
         theme: &EditorTheme,
     ) {
         let is_focused = self.focused_field == field_id;
-        let label_color = crossterm_bridge::to_ratatui_color(if is_focused  {
+        let label_color = crossterm_bridge::to_ratatui_color(if is_focused {
             theme.focused_label_color
         } else {
             theme.label_color
@@ -7208,7 +7447,7 @@ impl WindowEditor {
         } else {
             &textarea.lines()[0]
         };
-        let text_color = crossterm_bridge::to_ratatui_color(if is_focused  {
+        let text_color = crossterm_bridge::to_ratatui_color(if is_focused {
             theme.cursor_color
         } else {
             theme.text_color
@@ -7250,7 +7489,12 @@ impl WindowEditor {
         // Use centralized mode-aware color parser
         let color = super::colors::parse_color_to_ratatui(color_str);
 
-        buf.set_string(x, y, "[", Style::default().fg(crossterm_bridge::to_ratatui_color(theme.label_color)));
+        buf.set_string(
+            x,
+            y,
+            "[",
+            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.label_color)),
+        );
         if let Some(color) = color {
             let style = Style::default().bg(color);
             buf[(x + 1, y)].set_char(' ').set_style(style);
@@ -7259,7 +7503,12 @@ impl WindowEditor {
             buf[(x + 1, y)].set_char(' ').reset();
             buf[(x + 2, y)].set_char(' ').reset();
         }
-        buf.set_string(x + 3, y, "]", Style::default().fg(crossterm_bridge::to_ratatui_color(theme.label_color)));
+        buf.set_string(
+            x + 3,
+            y,
+            "]",
+            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.label_color)),
+        );
     }
 
     fn render_checkbox(
@@ -7273,7 +7522,7 @@ impl WindowEditor {
         theme: &EditorTheme,
     ) {
         let is_focused = self.focused_field == field_id;
-        let label_color = crossterm_bridge::to_ratatui_color(if is_focused  {
+        let label_color = crossterm_bridge::to_ratatui_color(if is_focused {
             theme.focused_label_color
         } else {
             theme.label_color
@@ -7354,7 +7603,18 @@ impl WindowEditor {
             theme.text_color
         });
 
-        buf.set_string(x, y, label, Style::default().fg(label_color).add_modifier(if is_focused { Modifier::BOLD } else { Modifier::empty() }));
+        buf.set_string(
+            x,
+            y,
+            label,
+            Style::default()
+                .fg(label_color)
+                .add_modifier(if is_focused {
+                    Modifier::BOLD
+                } else {
+                    Modifier::empty()
+                }),
+        );
     }
 
     fn render_dropdown(
@@ -7368,7 +7628,7 @@ impl WindowEditor {
         theme: &EditorTheme,
     ) {
         let is_focused = self.focused_field == field_id;
-        let label_color = crossterm_bridge::to_ratatui_color(if is_focused  {
+        let label_color = crossterm_bridge::to_ratatui_color(if is_focused {
             theme.focused_label_color
         } else {
             theme.label_color
@@ -7377,7 +7637,12 @@ impl WindowEditor {
         buf.set_string(x, y, label, Style::default().fg(label_color));
         let input_x = x + label.len() as u16 + 1;
         let display = format!("{} ▼", value);
-        buf.set_string(input_x, y, &display, Style::default().fg(crossterm_bridge::to_ratatui_color(theme.text_color)));
+        buf.set_string(
+            input_x,
+            y,
+            &display,
+            Style::default().fg(crossterm_bridge::to_ratatui_color(theme.text_color)),
+        );
     }
 }
 

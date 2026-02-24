@@ -158,7 +158,9 @@ impl MessageProcessor {
             squelch_matcher: None,
             squelch_regexes: Vec::new(),
             has_redirect_highlights: false,
-            warned_empty_redirect_patterns: std::cell::RefCell::new(std::collections::HashSet::new()),
+            warned_empty_redirect_patterns: std::cell::RefCell::new(
+                std::collections::HashSet::new(),
+            ),
             text_stream_subscribers: std::collections::HashMap::new(),
             newly_registered_container: None,
             pending_sounds: Vec::new(),
@@ -213,8 +215,14 @@ impl MessageProcessor {
             .presets
             .iter()
             .map(|(id, preset)| {
-                let resolved_fg = preset.fg.as_ref().map(|c| self.config.resolve_palette_color(c));
-                let resolved_bg = preset.bg.as_ref().map(|c| self.config.resolve_palette_color(c));
+                let resolved_fg = preset
+                    .fg
+                    .as_ref()
+                    .map(|c| self.config.resolve_palette_color(c));
+                let resolved_bg = preset
+                    .bg
+                    .as_ref()
+                    .map(|c| self.config.resolve_palette_color(c));
                 (id.clone(), resolved_fg, resolved_bg)
             })
             .collect();
@@ -233,10 +241,7 @@ impl MessageProcessor {
 
         // Update highlight engine with new patterns
         self.update_highlights();
-        tracing::debug!(
-            "apply_config: total elapsed {:?}",
-            apply_start.elapsed()
-        );
+        tracing::debug!("apply_config: total elapsed {:?}", apply_start.elapsed());
     }
 
     /// Update the highlight engine with current config patterns.
@@ -551,23 +556,27 @@ impl MessageProcessor {
             } => {
                 // Use the stream from the element (inline <stream id="...">) if different from current
                 // This handles both <pushStream> (which sets current_stream) and <stream> (inline)
-                let effective_stream = if !stream.is_empty()
-                    && stream.as_str() != self.current_stream.as_str()
-                {
-                    tracing::debug!(
-                        "Inline stream tag: switching from '{}' to '{}' for this text element",
-                        self.current_stream, stream
-                    );
-                    stream.as_str()
-                } else {
-                    self.current_stream.as_str()
-                };
+                let effective_stream =
+                    if !stream.is_empty() && stream.as_str() != self.current_stream.as_str() {
+                        tracing::debug!(
+                            "Inline stream tag: switching from '{}' to '{}' for this text element",
+                            self.current_stream,
+                            stream
+                        );
+                        stream.as_str()
+                    } else {
+                        self.current_stream.as_str()
+                    };
 
                 // Debug: log perception stream text elements
                 if effective_stream == "percWindow" {
                     tracing::debug!(
                         "Text element on percWindow stream: '{}'",
-                        if content.len() > 50 { format!("{}...", &content[..50]) } else { content.to_string() }
+                        if content.len() > 50 {
+                            format!("{}...", &content[..50])
+                        } else {
+                            content.to_string()
+                        }
                     );
                 }
 
@@ -604,7 +613,11 @@ impl MessageProcessor {
                     self.spells_line_buffer.push(segment);
                     tracing::trace!(
                         "Accumulated Spells segment: '{}'",
-                        if content.len() > 50 { format!("{}...", &content[..50]) } else { content.to_string() }
+                        if content.len() > 50 {
+                            format!("{}...", &content[..50])
+                        } else {
+                            content.to_string()
+                        }
                     );
                     return; // Don't add to current_segments
                 }
@@ -887,7 +900,9 @@ impl MessageProcessor {
                 // Note: DR uses "concentration" instead of "mana"
                 match id.as_str() {
                     "health" | "mana" | "concentration" | "stamina" | "spirit" => {
-                        game_state.minivitals.update_vital(id, *value, *max, text.clone());
+                        game_state
+                            .minivitals
+                            .update_vital(id, *value, *max, text.clone());
                     }
                     _ => {}
                 }
@@ -895,10 +910,14 @@ impl MessageProcessor {
                 // Update GS4 experience state for expr dialog elements
                 match id.as_str() {
                     "mindState" => {
-                        game_state.gs4_experience.update_mind_state(*value, text.clone());
+                        game_state
+                            .gs4_experience
+                            .update_mind_state(*value, text.clone());
                     }
                     "nextLvlPB" => {
-                        game_state.gs4_experience.update_next_level(*value, text.clone());
+                        game_state
+                            .gs4_experience
+                            .update_next_level(*value, text.clone());
                     }
                     "encumlevel" => {
                         game_state.encumbrance.update_level(*value, text.clone());
@@ -1022,7 +1041,12 @@ impl MessageProcessor {
             }
             ParsedElement::DialogOpen { id, title, save } => {
                 self.chunk_has_silent_updates = true;
-                tracing::debug!("DialogOpen received: id={}, title={:?}, save={}", id, title, save);
+                tracing::debug!(
+                    "DialogOpen received: id={}, title={:?}, save={}",
+                    id,
+                    title,
+                    save
+                );
 
                 // Check blocklist first
                 if self
@@ -1060,7 +1084,11 @@ impl MessageProcessor {
 
                 // If a widget template exists for this dialog, add it to layout instead of popup
                 if Config::get_window_template(template_name).is_some() {
-                    tracing::debug!("DialogOpen redirected to widget: id={} -> template={}", id, template_name);
+                    tracing::debug!(
+                        "DialogOpen redirected to widget: id={} -> template={}",
+                        id,
+                        template_name
+                    );
                     // Queue the window to be added to layout (use template name, not dialog ID)
                     let template_owned = template_name.to_string();
                     if !ui_state.pending_window_additions.contains(&template_owned) {
@@ -1533,8 +1561,8 @@ impl MessageProcessor {
             }
             ParsedElement::TargetList {
                 current_target,
-                targets: _,  // Ignore names - we get richer data from room objs
-                target_ids,  // Store IDs to filter room_creatures
+                targets: _, // Ignore names - we get richer data from room objs
+                target_ids, // Store IDs to filter room_creatures
             } => {
                 self.chunk_has_silent_updates = true; // Mark as silent update
 
@@ -1553,7 +1581,9 @@ impl MessageProcessor {
                 self.chunk_has_silent_updates = true; // Mark as silent update
 
                 // Register container in cache
-                game_state.container_cache.register_container(id.clone(), title.clone());
+                game_state
+                    .container_cache
+                    .register_container(id.clone(), title.clone());
 
                 // Signal container for discovery mode (every LOOK IN triggers this)
                 // The runtime will check if a window already exists before creating
@@ -1576,14 +1606,26 @@ impl MessageProcessor {
 
                 tracing::debug!("Cleared container: id='{}'", id);
             }
-            ParsedElement::ContainerItem { container_id, content } => {
+            ParsedElement::ContainerItem {
+                container_id,
+                content,
+            } => {
                 self.chunk_has_silent_updates = true; // Mark as silent update
 
                 // Add item to container
-                game_state.container_cache.add_item(container_id, content.clone());
+                game_state
+                    .container_cache
+                    .add_item(container_id, content.clone());
 
-                tracing::trace!("Added item to container '{}': {}", container_id,
-                    if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
+                tracing::trace!(
+                    "Added item to container '{}': {}",
+                    container_id,
+                    if content.len() > 50 {
+                        format!("{}...", &content[..50])
+                    } else {
+                        content.clone()
+                    }
+                );
             }
             ParsedElement::LaunchURL { url } => {
                 // Build full URL by prepending play.net base
@@ -1607,11 +1649,19 @@ impl MessageProcessor {
     /// Handle a `<vellumfe cmd="..." />` tag sent by a Lich script.
     /// Applies highlight/squelch changes to the current session's config at runtime.
     fn handle_vellumfe_cmd(&mut self, cmd: &str, attrs: &[(String, String)]) {
-        let get = |key: &str| attrs.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str());
+        let get = |key: &str| {
+            attrs
+                .iter()
+                .find(|(k, _)| k == key)
+                .map(|(_, v)| v.as_str())
+        };
 
         match cmd {
             "highlight.add" => {
-                let pattern = match get("pattern") { Some(p) => p.to_string(), None => return };
+                let pattern = match get("pattern") {
+                    Some(p) => p.to_string(),
+                    None => return,
+                };
                 let hp = crate::config::HighlightPattern {
                     pattern: pattern.clone(),
                     fg: get("fg").map(str::to_string),
@@ -1634,30 +1684,51 @@ impl MessageProcessor {
                 let persist = get("persist") == Some("true");
                 self.config.highlights.insert(pattern, hp);
                 if persist {
-                    if let Err(e) = self.config.save_highlights(self.config.character.clone().as_deref()) {
+                    if let Err(e) = self
+                        .config
+                        .save_highlights(self.config.character.clone().as_deref())
+                    {
                         tracing::warn!("vellumfe highlight.add persist failed: {}", e);
                     }
                 }
             }
             "highlight.remove" => {
-                if let Some(p) = get("pattern") { self.config.highlights.remove(p); }
+                if let Some(p) = get("pattern") {
+                    self.config.highlights.remove(p);
+                }
             }
             "highlight.clear" => {
                 if let Some(cat) = get("category") {
-                    self.config.highlights.retain(|_, v| v.category.as_deref() != Some(cat));
+                    self.config
+                        .highlights
+                        .retain(|_, v| v.category.as_deref() != Some(cat));
                 } else {
                     self.config.highlights.clear();
                 }
             }
             "squelch.add" => {
-                let pattern = match get("pattern") { Some(p) => p.to_string(), None => return };
+                let pattern = match get("pattern") {
+                    Some(p) => p.to_string(),
+                    None => return,
+                };
                 let hp = crate::config::HighlightPattern {
                     pattern: pattern.clone(),
-                    fg: None, bg: None, bold: false, color_entire_line: false,
-                    fast_parse: false, sound: None, sound_volume: None, category: None,
-                    squelch: true, silent_prompt: false, redirect_to: None,
-                    redirect_mode: Default::default(), replace: None, stream: None,
-                    window: None, compiled_regex: None,
+                    fg: None,
+                    bg: None,
+                    bold: false,
+                    color_entire_line: false,
+                    fast_parse: false,
+                    sound: None,
+                    sound_volume: None,
+                    category: None,
+                    squelch: true,
+                    silent_prompt: false,
+                    redirect_to: None,
+                    redirect_mode: Default::default(),
+                    replace: None,
+                    stream: None,
+                    window: None,
+                    compiled_regex: None,
                 };
                 self.config.highlights.insert(pattern, hp);
             }
@@ -1705,7 +1776,12 @@ impl MessageProcessor {
             if let Some(subscribers) = self.text_stream_subscribers.get(id) {
                 if !subscribers.is_empty() {
                     self.discard_current_stream = false;
-                } else if self.config.streams.drop_unsubscribed.contains(&id.to_string()) {
+                } else if self
+                    .config
+                    .streams
+                    .drop_unsubscribed
+                    .contains(&id.to_string())
+                {
                     self.discard_current_stream = true;
                     tracing::debug!("Discarding stream '{}' (in drop_unsubscribed list)", id);
                 } else {
@@ -1719,7 +1795,12 @@ impl MessageProcessor {
                 }
             } else {
                 // No subscribers map entry - check drop list
-                if self.config.streams.drop_unsubscribed.contains(&id.to_string()) {
+                if self
+                    .config
+                    .streams
+                    .drop_unsubscribed
+                    .contains(&id.to_string())
+                {
                     self.discard_current_stream = true;
                 } else {
                     self.discard_current_stream = false;
@@ -1813,7 +1894,11 @@ impl MessageProcessor {
                 );
             }
         } else if id == "room objs" {
-            tracing::debug!("Room objs first seen: len={}, empty={}", value.len(), value.is_empty());
+            tracing::debug!(
+                "Room objs first seen: len={}, empty={}",
+                value.len(),
+                value.is_empty()
+            );
         }
 
         tracing::debug!(
@@ -1835,7 +1920,10 @@ impl MessageProcessor {
 
             // Log when room objs becomes empty (item picked up, etc.)
             if value.is_empty() {
-                tracing::debug!("Room objs now empty (previously had creatures: {})", had_objs);
+                tracing::debug!(
+                    "Room objs now empty (previously had creatures: {})",
+                    had_objs
+                );
             }
 
             let mut remaining = value;
@@ -1865,12 +1953,20 @@ impl MessageProcessor {
                                             let exist_id = &after_exist[1..=end_quote];
 
                                             // Extract noun from the link tag (optional)
-                                            let noun = if let Some(noun_pos) = link_tag.find("noun=") {
+                                            let noun = if let Some(noun_pos) =
+                                                link_tag.find("noun=")
+                                            {
                                                 let after_noun = &link_tag[noun_pos + 5..];
-                                                if let Some(noun_quote) = after_noun.chars().next() {
+                                                if let Some(noun_quote) = after_noun.chars().next()
+                                                {
                                                     if noun_quote == '\'' || noun_quote == '"' {
-                                                        if let Some(noun_end_quote) = after_noun[1..].find(noun_quote) {
-                                                            Some(after_noun[1..=noun_end_quote].to_string())
+                                                        if let Some(noun_end_quote) =
+                                                            after_noun[1..].find(noun_quote)
+                                                        {
+                                                            Some(
+                                                                after_noun[1..=noun_end_quote]
+                                                                    .to_string(),
+                                                            )
                                                         } else {
                                                             None
                                                         }
@@ -1886,9 +1982,11 @@ impl MessageProcessor {
 
                                             // Check for status after </b>: " (stunned)" or " (dead)"
                                             let after_bold = &remaining[bold_end + 4..];
-                                            let status = if after_bold.trim_start().starts_with('(') {
+                                            let status = if after_bold.trim_start().starts_with('(')
+                                            {
                                                 // Extract text between ( and )
-                                                let after_paren = &after_bold[after_bold.find('(').unwrap() + 1..];
+                                                let after_paren = &after_bold
+                                                    [after_bold.find('(').unwrap() + 1..];
                                                 after_paren
                                                     .find(')')
                                                     .map(|end| after_paren[..end].to_string())
@@ -1898,8 +1996,15 @@ impl MessageProcessor {
 
                                             // Check if noun should be excluded (configurable filter for non-creatures)
                                             if let Some(ref noun_val) = noun {
-                                                if self.config.target_list.excluded_nouns.iter()
-                                                    .any(|excluded| excluded.eq_ignore_ascii_case(noun_val)) {
+                                                if self
+                                                    .config
+                                                    .target_list
+                                                    .excluded_nouns
+                                                    .iter()
+                                                    .any(|excluded| {
+                                                        excluded.eq_ignore_ascii_case(noun_val)
+                                                    })
+                                                {
                                                     tracing::debug!(
                                                         "Skipping creature with excluded noun: '{}' (name: '{}')",
                                                         noun_val, creature_name
@@ -1988,7 +2093,9 @@ impl MessageProcessor {
                                             let after_noun = &link_tag[noun_pos + 5..];
                                             if let Some(noun_quote) = after_noun.chars().next() {
                                                 if noun_quote == '\'' || noun_quote == '"' {
-                                                    if let Some(noun_end) = after_noun[1..].find(noun_quote) {
+                                                    if let Some(noun_end) =
+                                                        after_noun[1..].find(noun_quote)
+                                                    {
                                                         Some(after_noun[1..=noun_end].to_string())
                                                     } else {
                                                         None
@@ -2011,7 +2118,9 @@ impl MessageProcessor {
 
                                         tracing::debug!(
                                             "Parsed room object: name='{}', noun={:?}, id='{}'",
-                                            room_object.name, room_object.noun, room_object.id
+                                            room_object.name,
+                                            room_object.noun,
+                                            room_object.id
                                         );
 
                                         game_state.room_objects.push(room_object);
@@ -2066,11 +2175,13 @@ impl MessageProcessor {
 
                                         // Parse prepended status (e.g., "a stunned")
                                         let before_link = &remaining[..link_start];
-                                        let primary_status = Self::parse_prepended_status(before_link);
+                                        let primary_status =
+                                            Self::parse_prepended_status(before_link);
 
                                         // Parse appended status (e.g., "(prone)")
                                         let after_link = &remaining[link_section_end..];
-                                        let secondary_status = Self::parse_appended_status(after_link);
+                                        let secondary_status =
+                                            Self::parse_appended_status(after_link);
 
                                         let player = crate::core::state::Player {
                                             id: exist_id.to_string(),
@@ -2114,10 +2225,7 @@ impl MessageProcessor {
         }
 
         // ALWAYS clear the component buffer when receiving new data (game sends full replacement, not append)
-        room_components
-            .entry(id.to_string())
-            .or_default()
-            .clear();
+        room_components.entry(id.to_string()).or_default().clear();
         *current_room_component = Some(id.to_string());
         tracing::debug!("Started/replaced room component: {}", id);
 
@@ -2254,7 +2362,11 @@ impl MessageProcessor {
         if full_text.contains("GSj") {
             tracing::warn!(
                 "[ARTIFACT_FLUSH] Found 'GSj' in line='{}' stream='{}' segments={}",
-                if full_text.len() > 100 { format!("{}...", &full_text[..100]) } else { full_text.clone() },
+                if full_text.len() > 100 {
+                    format!("{}...", &full_text[..100])
+                } else {
+                    full_text.clone()
+                },
                 self.current_stream,
                 self.current_segments.len()
             );
@@ -2344,7 +2456,10 @@ impl MessageProcessor {
         // Filter out Speech-typed segments ONLY when on a speech-related stream with no consumer
         // When on main stream, keep Speech segments even if no speech window (main displays full text)
         // This prevents "You say" from being cut off when there's no speech window
-        let should_filter_speech = if self.current_stream == "speech" || self.current_stream == "talk" || self.current_stream == "whisper" {
+        let should_filter_speech = if self.current_stream == "speech"
+            || self.current_stream == "talk"
+            || self.current_stream == "whisper"
+        {
             // On speech stream - check if there's a consumer
             !ui_state.windows.iter().any(|(name, window)| {
                 if name == &self.current_stream {
@@ -2413,7 +2528,10 @@ impl MessageProcessor {
         if self.current_stream.eq_ignore_ascii_case("society") {
             let plain_text: String = line.segments.iter().map(|s| s.text.as_str()).collect();
             self.society_buffer.push(plain_text);
-            tracing::debug!("Buffered society line for reload ({} total)", self.society_buffer.len());
+            tracing::debug!(
+                "Buffered society line for reload ({} total)",
+                self.society_buffer.len()
+            );
             // Continue processing - don't return here, still send to windows
         }
 
@@ -2448,7 +2566,9 @@ impl MessageProcessor {
                 .values()
                 .any(|w| matches!(w.content, WindowContent::Perception(_)))
             {
-                tracing::debug!("Discarding percWindow stream content - no perception window exists");
+                tracing::debug!(
+                    "Discarding percWindow stream content - no perception window exists"
+                );
                 return;
             }
 
@@ -2462,7 +2582,8 @@ impl MessageProcessor {
             for entry_text in split_entries {
                 // Find link data for this specific entry (if any)
                 let entry_name = entry_text.split('(').next().unwrap_or("").trim();
-                let link_data = line.segments
+                let link_data = line
+                    .segments
                     .iter()
                     .find(|seg| seg.text.trim() == entry_name)
                     .and_then(|seg| seg.link_data.clone());
@@ -2508,7 +2629,11 @@ impl MessageProcessor {
                         );
                     }
                     // Check if this text window listens to the current stream
-                    if content.streams.iter().any(|s| s.eq_ignore_ascii_case(&self.current_stream)) {
+                    if content
+                        .streams
+                        .iter()
+                        .any(|s| s.eq_ignore_ascii_case(&self.current_stream))
+                    {
                         tracing::debug!("  -> MATCHED: adding line to '{}'", window_name);
                         // Apply window-specific replacements if any
                         let final_line = if deferred_replacements.is_empty() {
@@ -2527,12 +2652,18 @@ impl MessageProcessor {
                         // Check for compact bounty mode
                         if content.compact && self.current_stream.eq_ignore_ascii_case("bounty") {
                             // Extract plain text from segments
-                            let plain_text: String = final_line.segments.iter().map(|s| s.text.as_str()).collect();
+                            let plain_text: String = final_line
+                                .segments
+                                .iter()
+                                .map(|s| s.text.as_str())
+                                .collect();
                             if let Some(compact) = bounty_parser::parse_bounty(&plain_text) {
                                 // Clear existing lines and add compact bounty lines
                                 content.lines.clear();
                                 for text in compact.lines {
-                                    content.add_line(StyledLine::from_text_with_stream(text, "bounty"));
+                                    content.add_line(StyledLine::from_text_with_stream(
+                                        text, "bounty",
+                                    ));
                                 }
                                 added_here = true;
                                 // Skip normal add_line - we've handled this specially
@@ -2546,14 +2677,22 @@ impl MessageProcessor {
                 }
                 WindowContent::Inventory(content) => {
                     // Check if this inventory window listens to the current stream
-                    if content.streams.iter().any(|s| s.eq_ignore_ascii_case(&self.current_stream)) {
+                    if content
+                        .streams
+                        .iter()
+                        .any(|s| s.eq_ignore_ascii_case(&self.current_stream))
+                    {
                         content.add_line(line.clone());
                         added_here = true;
                     }
                 }
                 WindowContent::Spells(content) => {
                     // Check if this spells window listens to the current stream
-                    if content.streams.iter().any(|s| s.eq_ignore_ascii_case(&self.current_stream)) {
+                    if content
+                        .streams
+                        .iter()
+                        .any(|s| s.eq_ignore_ascii_case(&self.current_stream))
+                    {
                         content.add_line(line.clone());
                         added_here = true;
                     }
@@ -2573,11 +2712,12 @@ impl MessageProcessor {
                                 line.clone()
                             } else {
                                 // Try window name first, then tab name
-                                let mut segments = super::highlight_engine::apply_deferred_for_window(
-                                    &line.segments,
-                                    &deferred_replacements,
-                                    window_name,
-                                );
+                                let mut segments =
+                                    super::highlight_engine::apply_deferred_for_window(
+                                        &line.segments,
+                                        &deferred_replacements,
+                                        window_name,
+                                    );
                                 // Also check tab name (allows targeting specific tabs)
                                 segments = super::highlight_engine::apply_deferred_for_window(
                                     &segments,
@@ -2664,11 +2804,12 @@ impl MessageProcessor {
                                     line.clone()
                                 } else {
                                     StyledLine {
-                                        segments: super::highlight_engine::apply_deferred_for_window(
-                                            &line.segments,
-                                            &deferred_replacements,
-                                            "main",
-                                        ),
+                                        segments:
+                                            super::highlight_engine::apply_deferred_for_window(
+                                                &line.segments,
+                                                &deferred_replacements,
+                                                "main",
+                                            ),
                                         stream: line.stream.clone(),
                                     }
                                 };
@@ -2848,7 +2989,9 @@ impl MessageProcessor {
             }
 
             if updated_count == 0 {
-                tracing::debug!("No spells windows found to update (buffer preserved for future windows)");
+                tracing::debug!(
+                    "No spells windows found to update (buffer preserved for future windows)"
+                );
             } else {
                 tracing::debug!("Updated {} spells window(s)", updated_count);
             }
@@ -2880,10 +3023,7 @@ impl MessageProcessor {
 
         for line_segments in &self.perception_buffer {
             // Get text from segment (should be a single segment with the entry text)
-            let text: String = line_segments
-                .iter()
-                .map(|seg| seg.text.as_str())
-                .collect();
+            let text: String = line_segments.iter().map(|seg| seg.text.as_str()).collect();
 
             // Skip empty lines
             if text.trim().is_empty() {
@@ -2891,9 +3031,7 @@ impl MessageProcessor {
             }
 
             // Get link data from segment
-            let link_data = line_segments
-                .iter()
-                .find_map(|seg| seg.link_data.clone());
+            let link_data = line_segments.iter().find_map(|seg| seg.link_data.clone());
 
             entries.push(Self::parse_perception_entry(&text, link_data));
         }
@@ -2949,8 +3087,7 @@ impl MessageProcessor {
                 PerceptionFormat::Fading
             } else if suffix.ends_with("%)") {
                 // Extract percentage: "(94%)"
-                if let Some(pct_str) = suffix.strip_prefix('(').and_then(|s| s.strip_suffix("%)"))
-                {
+                if let Some(pct_str) = suffix.strip_prefix('(').and_then(|s| s.strip_suffix("%)")) {
                     if let Ok(pct) = pct_str.parse::<u8>() {
                         PerceptionFormat::Percentage(pct)
                     } else {
@@ -3111,7 +3248,12 @@ impl MessageProcessor {
     }
 
     /// Enqueue text for TTS if enabled and configured for this window
-    fn enqueue_tts(&self, tts_manager: &mut crate::tts::TtsManager, window_name: &str, line: &StyledLine) {
+    fn enqueue_tts(
+        &self,
+        tts_manager: &mut crate::tts::TtsManager,
+        window_name: &str,
+        line: &StyledLine,
+    ) {
         // Early exit if TTS not enabled
         if !self.config.tts.enabled {
             return;
@@ -3139,7 +3281,10 @@ impl MessageProcessor {
 
         // Skip prompts (single character lines like ">")
         if text.trim().len() <= 1 {
-            tracing::trace!("Skipping TTS for single-character prompt: {:?}", text.trim());
+            tracing::trace!(
+                "Skipping TTS for single-character prompt: {:?}",
+                text.trim()
+            );
             return;
         }
 
@@ -3203,8 +3348,17 @@ impl MessageProcessor {
     /// Returns: Some(window_name) to route to, or None to discard.
     fn resolve_orphaned_stream(&self, stream: &str) -> Option<String> {
         // Check if stream is in the drop list
-        if self.config.streams.drop_unsubscribed.iter().any(|s| s.eq_ignore_ascii_case(stream)) {
-            tracing::debug!("Stream '{}' is in drop_unsubscribed list, discarding", stream);
+        if self
+            .config
+            .streams
+            .drop_unsubscribed
+            .iter()
+            .any(|s| s.eq_ignore_ascii_case(stream))
+        {
+            tracing::debug!(
+                "Stream '{}' is in drop_unsubscribed list, discarding",
+                stream
+            );
             return None;
         }
 
@@ -3233,7 +3387,9 @@ impl MessageProcessor {
     /// Should be called when a new spells window is created
     pub fn populate_spells_window(&self, window_content: &mut crate::data::TextContent) {
         if self.spells_buffer.is_empty() {
-            tracing::debug!("Spells buffer is empty - new window will remain empty until data arrives");
+            tracing::debug!(
+                "Spells buffer is empty - new window will remain empty until data arrives"
+            );
             return;
         }
 
@@ -3484,7 +3640,10 @@ impl MessageProcessor {
                 continue;
             }
 
-            let redirect_window = pattern.redirect_to.as_ref().expect("redirect_to checked above");
+            let redirect_window = pattern
+                .redirect_to
+                .as_ref()
+                .expect("redirect_to checked above");
 
             // Check if pattern matches
             let match_len = if pattern.fast_parse {
@@ -3534,13 +3693,12 @@ impl MessageProcessor {
 
             // Update best match if this match is longer
             if let Some(len) = match_len {
-                let is_better = best_match.as_ref().map_or(true, |(_, _, best_len)| len > *best_len);
+                let is_better = best_match
+                    .as_ref()
+                    .map_or(true, |(_, _, best_len)| len > *best_len);
                 if is_better {
-                    best_match = Some((
-                        redirect_window.clone(),
-                        pattern.redirect_mode.clone(),
-                        len,
-                    ));
+                    best_match =
+                        Some((redirect_window.clone(), pattern.redirect_mode.clone(), len));
                 }
             }
         }
@@ -3678,7 +3836,10 @@ mod tests {
     #[test]
     fn test_map_stream_announcements() {
         let processor = create_test_processor();
-        assert_eq!(processor.map_stream_to_window("announcements"), "announcements");
+        assert_eq!(
+            processor.map_stream_to_window("announcements"),
+            "announcements"
+        );
     }
 
     #[test]

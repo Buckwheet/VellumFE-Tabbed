@@ -8,9 +8,9 @@
 //! that still expects crossterm types. This is temporary until Phase 2 (Core Decoupling)
 //! removes crossterm from core.
 
+use crate::frontend::common::*;
 use crossterm::event as ct;
 use ratatui::style as ratatui_style;
-use crate::frontend::common::*;
 
 /// Convert crossterm KeyCode to frontend-agnostic KeyCode
 pub fn convert_keycode(code: ct::KeyCode) -> Option<KeyCode> {

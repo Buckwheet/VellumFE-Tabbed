@@ -5,17 +5,17 @@ use crate::config::Config;
 /// Searches slots 16-231 (color cube range) for the first unused slot.
 /// Returns None if all slots are taken.
 fn find_next_available_slot(palette: &[crate::config::PaletteColor]) -> Option<u8> {
-    let used_slots: std::collections::HashSet<u8> = palette
-        .iter()
-        .filter_map(|c| c.slot)
-        .collect();
+    let used_slots: std::collections::HashSet<u8> = palette.iter().filter_map(|c| c.slot).collect();
 
     // Search in color cube range (16-231), avoiding ANSI colors (0-15) and grayscale (232-255)
     (16u8..=231).find(|slot| !used_slots.contains(slot))
 }
 
 /// Assign the next available slot to a color if it doesn't have one
-fn auto_assign_slot(mut color: crate::config::PaletteColor, palette: &[crate::config::PaletteColor]) -> crate::config::PaletteColor {
+fn auto_assign_slot(
+    mut color: crate::config::PaletteColor,
+    palette: &[crate::config::PaletteColor],
+) -> crate::config::PaletteColor {
     if color.slot.is_none() {
         color.slot = find_next_available_slot(palette);
         if let Some(slot) = color.slot {
@@ -143,9 +143,12 @@ impl TuiFrontend {
         handle_menu_action_fn: impl Fn(&mut crate::core::AppCore, &mut Self, &str) -> Result<()>,
     ) -> Result<(bool, Option<String>)> {
         use crate::data::ui_state::InputMode;
-        use crate::frontend::MouseEventKind;
-        use crate::data::{DragOperation, DialogDragState, DialogDragOperation, LinkDragState, MouseDragState, PendingLinkClick, window::WidgetType};
+        use crate::data::{
+            window::WidgetType, DialogDragOperation, DialogDragState, DragOperation, LinkDragState,
+            MouseDragState, PendingLinkClick,
+        };
         use crate::frontend::tui::dialog;
+        use crate::frontend::MouseEventKind;
         use ratatui::layout::Rect;
 
         let kind = &mouse_event.kind;
@@ -827,82 +830,156 @@ impl TuiFrontend {
 
                             match drag_state.operation {
                                 DialogDragOperation::Move => {
-                                    let new_x = (drag_state.original_dialog_pos.0 as i32 + dx).max(0) as u16;
-                                    let new_y = (drag_state.original_dialog_pos.1 as i32 + dy).max(0) as u16;
+                                    let new_x = (drag_state.original_dialog_pos.0 as i32 + dx)
+                                        .max(0)
+                                        as u16;
+                                    let new_y = (drag_state.original_dialog_pos.1 as i32 + dy)
+                                        .max(0)
+                                        as u16;
 
                                     // Get current dialog size to clamp position
-                                    let dialog_size = dialog.size.unwrap_or(drag_state.original_dialog_size);
+                                    let dialog_size =
+                                        dialog.size.unwrap_or(drag_state.original_dialog_size);
                                     let max_x = term_width.saturating_sub(dialog_size.0);
                                     let max_y = term_height.saturating_sub(dialog_size.1);
 
                                     dialog.position = Some((new_x.min(max_x), new_y.min(max_y)));
                                 }
                                 DialogDragOperation::ResizeRight => {
-                                    let new_width = (drag_state.original_dialog_size.0 as i32 + dx).max(min_width as i32) as u16;
-                                    let max_width = term_width.saturating_sub(drag_state.original_dialog_pos.0);
-                                    dialog.size = Some((new_width.min(max_width), drag_state.original_dialog_size.1));
+                                    let new_width = (drag_state.original_dialog_size.0 as i32 + dx)
+                                        .max(min_width as i32)
+                                        as u16;
+                                    let max_width =
+                                        term_width.saturating_sub(drag_state.original_dialog_pos.0);
+                                    dialog.size = Some((
+                                        new_width.min(max_width),
+                                        drag_state.original_dialog_size.1,
+                                    ));
                                 }
                                 DialogDragOperation::ResizeBottom => {
-                                    let new_height = (drag_state.original_dialog_size.1 as i32 + dy).max(min_height as i32) as u16;
-                                    let max_height = term_height.saturating_sub(drag_state.original_dialog_pos.1);
-                                    dialog.size = Some((drag_state.original_dialog_size.0, new_height.min(max_height)));
+                                    let new_height = (drag_state.original_dialog_size.1 as i32 + dy)
+                                        .max(min_height as i32)
+                                        as u16;
+                                    let max_height = term_height
+                                        .saturating_sub(drag_state.original_dialog_pos.1);
+                                    dialog.size = Some((
+                                        drag_state.original_dialog_size.0,
+                                        new_height.min(max_height),
+                                    ));
                                 }
                                 DialogDragOperation::ResizeBottomRight => {
-                                    let new_width = (drag_state.original_dialog_size.0 as i32 + dx).max(min_width as i32) as u16;
-                                    let new_height = (drag_state.original_dialog_size.1 as i32 + dy).max(min_height as i32) as u16;
-                                    let max_width = term_width.saturating_sub(drag_state.original_dialog_pos.0);
-                                    let max_height = term_height.saturating_sub(drag_state.original_dialog_pos.1);
-                                    dialog.size = Some((new_width.min(max_width), new_height.min(max_height)));
+                                    let new_width = (drag_state.original_dialog_size.0 as i32 + dx)
+                                        .max(min_width as i32)
+                                        as u16;
+                                    let new_height = (drag_state.original_dialog_size.1 as i32 + dy)
+                                        .max(min_height as i32)
+                                        as u16;
+                                    let max_width =
+                                        term_width.saturating_sub(drag_state.original_dialog_pos.0);
+                                    let max_height = term_height
+                                        .saturating_sub(drag_state.original_dialog_pos.1);
+                                    dialog.size = Some((
+                                        new_width.min(max_width),
+                                        new_height.min(max_height),
+                                    ));
                                 }
                                 DialogDragOperation::ResizeLeft => {
-                                    let new_x = (drag_state.original_dialog_pos.0 as i32 + dx).max(0) as u16;
-                                    let width_delta = drag_state.original_dialog_pos.0 as i32 - new_x as i32;
-                                    let new_width = (drag_state.original_dialog_size.0 as i32 + width_delta).max(min_width as i32) as u16;
+                                    let new_x = (drag_state.original_dialog_pos.0 as i32 + dx)
+                                        .max(0)
+                                        as u16;
+                                    let width_delta =
+                                        drag_state.original_dialog_pos.0 as i32 - new_x as i32;
+                                    let new_width = (drag_state.original_dialog_size.0 as i32
+                                        + width_delta)
+                                        .max(min_width as i32)
+                                        as u16;
                                     if new_width >= min_width {
-                                        dialog.position = Some((new_x, drag_state.original_dialog_pos.1));
-                                        dialog.size = Some((new_width, drag_state.original_dialog_size.1));
+                                        dialog.position =
+                                            Some((new_x, drag_state.original_dialog_pos.1));
+                                        dialog.size =
+                                            Some((new_width, drag_state.original_dialog_size.1));
                                     }
                                 }
                                 DialogDragOperation::ResizeTop => {
-                                    let new_y = (drag_state.original_dialog_pos.1 as i32 + dy).max(0) as u16;
-                                    let height_delta = drag_state.original_dialog_pos.1 as i32 - new_y as i32;
-                                    let new_height = (drag_state.original_dialog_size.1 as i32 + height_delta).max(min_height as i32) as u16;
+                                    let new_y = (drag_state.original_dialog_pos.1 as i32 + dy)
+                                        .max(0)
+                                        as u16;
+                                    let height_delta =
+                                        drag_state.original_dialog_pos.1 as i32 - new_y as i32;
+                                    let new_height = (drag_state.original_dialog_size.1 as i32
+                                        + height_delta)
+                                        .max(min_height as i32)
+                                        as u16;
                                     if new_height >= min_height {
-                                        dialog.position = Some((drag_state.original_dialog_pos.0, new_y));
-                                        dialog.size = Some((drag_state.original_dialog_size.0, new_height));
+                                        dialog.position =
+                                            Some((drag_state.original_dialog_pos.0, new_y));
+                                        dialog.size =
+                                            Some((drag_state.original_dialog_size.0, new_height));
                                     }
                                 }
                                 DialogDragOperation::ResizeTopLeft => {
-                                    let new_x = (drag_state.original_dialog_pos.0 as i32 + dx).max(0) as u16;
-                                    let new_y = (drag_state.original_dialog_pos.1 as i32 + dy).max(0) as u16;
-                                    let width_delta = drag_state.original_dialog_pos.0 as i32 - new_x as i32;
-                                    let height_delta = drag_state.original_dialog_pos.1 as i32 - new_y as i32;
-                                    let new_width = (drag_state.original_dialog_size.0 as i32 + width_delta).max(min_width as i32) as u16;
-                                    let new_height = (drag_state.original_dialog_size.1 as i32 + height_delta).max(min_height as i32) as u16;
+                                    let new_x = (drag_state.original_dialog_pos.0 as i32 + dx)
+                                        .max(0)
+                                        as u16;
+                                    let new_y = (drag_state.original_dialog_pos.1 as i32 + dy)
+                                        .max(0)
+                                        as u16;
+                                    let width_delta =
+                                        drag_state.original_dialog_pos.0 as i32 - new_x as i32;
+                                    let height_delta =
+                                        drag_state.original_dialog_pos.1 as i32 - new_y as i32;
+                                    let new_width = (drag_state.original_dialog_size.0 as i32
+                                        + width_delta)
+                                        .max(min_width as i32)
+                                        as u16;
+                                    let new_height = (drag_state.original_dialog_size.1 as i32
+                                        + height_delta)
+                                        .max(min_height as i32)
+                                        as u16;
                                     if new_width >= min_width && new_height >= min_height {
                                         dialog.position = Some((new_x, new_y));
                                         dialog.size = Some((new_width, new_height));
                                     }
                                 }
                                 DialogDragOperation::ResizeTopRight => {
-                                    let new_y = (drag_state.original_dialog_pos.1 as i32 + dy).max(0) as u16;
-                                    let new_width = (drag_state.original_dialog_size.0 as i32 + dx).max(min_width as i32) as u16;
-                                    let height_delta = drag_state.original_dialog_pos.1 as i32 - new_y as i32;
-                                    let new_height = (drag_state.original_dialog_size.1 as i32 + height_delta).max(min_height as i32) as u16;
-                                    let max_width = term_width.saturating_sub(drag_state.original_dialog_pos.0);
+                                    let new_y = (drag_state.original_dialog_pos.1 as i32 + dy)
+                                        .max(0)
+                                        as u16;
+                                    let new_width = (drag_state.original_dialog_size.0 as i32 + dx)
+                                        .max(min_width as i32)
+                                        as u16;
+                                    let height_delta =
+                                        drag_state.original_dialog_pos.1 as i32 - new_y as i32;
+                                    let new_height = (drag_state.original_dialog_size.1 as i32
+                                        + height_delta)
+                                        .max(min_height as i32)
+                                        as u16;
+                                    let max_width =
+                                        term_width.saturating_sub(drag_state.original_dialog_pos.0);
                                     if new_height >= min_height {
-                                        dialog.position = Some((drag_state.original_dialog_pos.0, new_y));
+                                        dialog.position =
+                                            Some((drag_state.original_dialog_pos.0, new_y));
                                         dialog.size = Some((new_width.min(max_width), new_height));
                                     }
                                 }
                                 DialogDragOperation::ResizeBottomLeft => {
-                                    let new_x = (drag_state.original_dialog_pos.0 as i32 + dx).max(0) as u16;
-                                    let new_height = (drag_state.original_dialog_size.1 as i32 + dy).max(min_height as i32) as u16;
-                                    let width_delta = drag_state.original_dialog_pos.0 as i32 - new_x as i32;
-                                    let new_width = (drag_state.original_dialog_size.0 as i32 + width_delta).max(min_width as i32) as u16;
-                                    let max_height = term_height.saturating_sub(drag_state.original_dialog_pos.1);
+                                    let new_x = (drag_state.original_dialog_pos.0 as i32 + dx)
+                                        .max(0)
+                                        as u16;
+                                    let new_height = (drag_state.original_dialog_size.1 as i32 + dy)
+                                        .max(min_height as i32)
+                                        as u16;
+                                    let width_delta =
+                                        drag_state.original_dialog_pos.0 as i32 - new_x as i32;
+                                    let new_width = (drag_state.original_dialog_size.0 as i32
+                                        + width_delta)
+                                        .max(min_width as i32)
+                                        as u16;
+                                    let max_height = term_height
+                                        .saturating_sub(drag_state.original_dialog_pos.1);
                                     if new_width >= min_width {
-                                        dialog.position = Some((new_x, drag_state.original_dialog_pos.1));
+                                        dialog.position =
+                                            Some((new_x, drag_state.original_dialog_pos.1));
                                         dialog.size = Some((new_width, new_height.min(max_height)));
                                     }
                                 }
@@ -925,13 +1002,22 @@ impl TuiFrontend {
                                         width: dialog.size.map(|(w, _)| w),
                                         height: dialog.size.map(|(_, h)| h),
                                     };
-                                    app_core.saved_dialog_positions.dialogs.insert(dialog.id.clone(), pos);
+                                    app_core
+                                        .saved_dialog_positions
+                                        .dialogs
+                                        .insert(dialog.id.clone(), pos);
                                     // Save to disk asynchronously (best-effort)
                                     let character = app_core.config.character.clone();
                                     let positions = app_core.saved_dialog_positions.clone();
                                     std::thread::spawn(move || {
-                                        if let Err(e) = Config::save_dialog_positions(character.as_deref(), &positions) {
-                                            tracing::warn!("Failed to save dialog positions: {}", e);
+                                        if let Err(e) = Config::save_dialog_positions(
+                                            character.as_deref(),
+                                            &positions,
+                                        ) {
+                                            tracing::warn!(
+                                                "Failed to save dialog positions: {}",
+                                                e
+                                            );
                                         }
                                     });
                                 }
@@ -957,8 +1043,12 @@ impl TuiFrontend {
 
                     // Check resize handles first
                     if let Some(resize_op) = dialog::hit_test_resize_handle(&layout, *x, *y) {
-                        let current_pos = dialog_state.position.unwrap_or((layout.area.x, layout.area.y));
-                        let current_size = dialog_state.size.unwrap_or((layout.area.width, layout.area.height));
+                        let current_pos = dialog_state
+                            .position
+                            .unwrap_or((layout.area.x, layout.area.y));
+                        let current_size = dialog_state
+                            .size
+                            .unwrap_or((layout.area.width, layout.area.height));
                         app_core.ui_state.dialog_drag = Some(DialogDragState {
                             operation: resize_op,
                             start_pos: (*x, *y),
@@ -978,8 +1068,12 @@ impl TuiFrontend {
 
                     // Check title bar for move
                     if dialog::hit_test_title_bar(&layout, *x, *y) {
-                        let current_pos = dialog_state.position.unwrap_or((layout.area.x, layout.area.y));
-                        let current_size = dialog_state.size.unwrap_or((layout.area.width, layout.area.height));
+                        let current_pos = dialog_state
+                            .position
+                            .unwrap_or((layout.area.x, layout.area.y));
+                        let current_size = dialog_state
+                            .size
+                            .unwrap_or((layout.area.width, layout.area.height));
                         app_core.ui_state.dialog_drag = Some(DialogDragState {
                             operation: DialogDragOperation::Move,
                             start_pos: (*x, *y),
@@ -1008,8 +1102,7 @@ impl TuiFrontend {
                     if let Some(index) = dialog::hit_test_button(&layout, *x, *y) {
                         Self::set_dialog_focus(dialog_state, None);
                         dialog_state.selected = index;
-                        let (cmd, should_close) =
-                            Self::activate_dialog_button(dialog_state, index);
+                        let (cmd, should_close) = Self::activate_dialog_button(dialog_state, index);
                         command_to_send = cmd;
                         close_dialog = should_close;
                     }
@@ -1047,23 +1140,23 @@ impl TuiFrontend {
                     let (screen_width, screen_height) = self.size();
 
                     // Helper to calculate menu area with screen bounds
-                    let calc_menu_area = |menu: &crate::data::ui_state::PopupMenu| -> (u16, u16, u16, u16) {
-                        let pos = menu.get_position();
-                        let menu_height = menu.get_items().len() as u16 + 2; // +2 for borders
-                        let menu_width = menu
-                            .get_items()
-                            .iter()
-                            .map(|item| item.text.len())
-                            .max()
-                            .unwrap_or(10)
-                            as u16
-                            + 4; // +4 for borders and padding
-                        let max_x = screen_width.saturating_sub(menu_width);
-                        let max_y = screen_height.saturating_sub(menu_height);
-                        let menu_x = pos.0.min(max_x);
-                        let menu_y = pos.1.min(max_y);
-                        (menu_x, menu_y, menu_width, menu_height)
-                    };
+                    let calc_menu_area =
+                        |menu: &crate::data::ui_state::PopupMenu| -> (u16, u16, u16, u16) {
+                            let pos = menu.get_position();
+                            let menu_height = menu.get_items().len() as u16 + 2; // +2 for borders
+                            let menu_width = menu
+                                .get_items()
+                                .iter()
+                                .map(|item| item.text.len())
+                                .max()
+                                .unwrap_or(10) as u16
+                                + 4; // +4 for borders and padding
+                            let max_x = screen_width.saturating_sub(menu_width);
+                            let max_y = screen_height.saturating_sub(menu_height);
+                            let menu_x = pos.0.min(max_x);
+                            let menu_y = pos.1.min(max_y);
+                            (menu_x, menu_y, menu_width, menu_height)
+                        };
 
                     // Check menus from DEEPEST to SHALLOWEST (deep_submenu first, popup_menu last)
                     // This ensures clicks on submenus are handled before checking parent menus
@@ -1114,11 +1207,7 @@ impl TuiFrontend {
 
                     if let Some(item) = clicked_item {
                         let command = item.command.clone();
-                        tracing::info!(
-                            "Menu item clicked: {} (command: {})",
-                            item.text,
-                            command
-                        );
+                        tracing::info!("Menu item clicked: {} (command: {})", item.text, command);
 
                         // Handle command same way as Enter key
                         if let Some(submenu_name) = command.strip_prefix("menu:") {
@@ -1141,16 +1230,19 @@ impl TuiFrontend {
                                     .submenu
                                     .as_ref()
                                     .map(|m| m.get_position())
-                                    .or_else(|| app_core.ui_state.popup_menu.as_ref().map(|m| m.get_position()))
+                                    .or_else(|| {
+                                        app_core
+                                            .ui_state
+                                            .popup_menu
+                                            .as_ref()
+                                            .map(|m| m.get_position())
+                                    })
                                     .unwrap_or((40, 12));
                                 let nested_pos = (position.0 + 2, position.1);
 
                                 // Create nested_submenu since we already have submenu
                                 app_core.ui_state.nested_submenu =
-                                    Some(crate::data::ui_state::PopupMenu::new(
-                                        items,
-                                        nested_pos,
-                                    ));
+                                    Some(crate::data::ui_state::PopupMenu::new(items, nested_pos));
                                 tracing::info!("Opened nested submenu from menu: {}", submenu_name);
                             } else {
                                 tracing::warn!("No items for menu submenu: {}", submenu_name);
@@ -1176,14 +1268,8 @@ impl TuiFrontend {
                                     .unwrap_or((40, 12));
                                 let submenu_pos = (position.0 + 2, position.1);
                                 app_core.ui_state.submenu =
-                                    Some(crate::data::ui_state::PopupMenu::new(
-                                        items,
-                                        submenu_pos,
-                                    ));
-                                tracing::info!(
-                                    "Opened submenu: {}",
-                                    category
-                                );
+                                    Some(crate::data::ui_state::PopupMenu::new(items, submenu_pos));
+                                tracing::info!("Opened submenu: {}", category);
                             }
                         } else if !command.is_empty() {
                             // Close menu first
@@ -1222,21 +1308,66 @@ impl TuiFrontend {
                             // Handle performance metric toggle from right-click menu
                             if let Some(metric) = command.strip_prefix("__TOGGLE_PERF__") {
                                 match metric {
-                                    "fps" => app_core.config.ui.perf_show_fps = !app_core.config.ui.perf_show_fps,
-                                    "frame_times" => app_core.config.ui.perf_show_frame_times = !app_core.config.ui.perf_show_frame_times,
-                                    "render_times" => app_core.config.ui.perf_show_render_times = !app_core.config.ui.perf_show_render_times,
-                                    "ui_times" => app_core.config.ui.perf_show_ui_times = !app_core.config.ui.perf_show_ui_times,
-                                    "wrap_times" => app_core.config.ui.perf_show_wrap_times = !app_core.config.ui.perf_show_wrap_times,
-                                    "net" => app_core.config.ui.perf_show_net = !app_core.config.ui.perf_show_net,
-                                    "parse" => app_core.config.ui.perf_show_parse = !app_core.config.ui.perf_show_parse,
-                                    "events" => app_core.config.ui.perf_show_events = !app_core.config.ui.perf_show_events,
-                                    "memory" => app_core.config.ui.perf_show_memory = !app_core.config.ui.perf_show_memory,
-                                    "lines" => app_core.config.ui.perf_show_lines = !app_core.config.ui.perf_show_lines,
-                                    "uptime" => app_core.config.ui.perf_show_uptime = !app_core.config.ui.perf_show_uptime,
-                                    "jitter" => app_core.config.ui.perf_show_jitter = !app_core.config.ui.perf_show_jitter,
-                                    "frame_spikes" => app_core.config.ui.perf_show_frame_spikes = !app_core.config.ui.perf_show_frame_spikes,
-                                    "event_lag" => app_core.config.ui.perf_show_event_lag = !app_core.config.ui.perf_show_event_lag,
-                                    "memory_delta" => app_core.config.ui.perf_show_memory_delta = !app_core.config.ui.perf_show_memory_delta,
+                                    "fps" => {
+                                        app_core.config.ui.perf_show_fps =
+                                            !app_core.config.ui.perf_show_fps
+                                    }
+                                    "frame_times" => {
+                                        app_core.config.ui.perf_show_frame_times =
+                                            !app_core.config.ui.perf_show_frame_times
+                                    }
+                                    "render_times" => {
+                                        app_core.config.ui.perf_show_render_times =
+                                            !app_core.config.ui.perf_show_render_times
+                                    }
+                                    "ui_times" => {
+                                        app_core.config.ui.perf_show_ui_times =
+                                            !app_core.config.ui.perf_show_ui_times
+                                    }
+                                    "wrap_times" => {
+                                        app_core.config.ui.perf_show_wrap_times =
+                                            !app_core.config.ui.perf_show_wrap_times
+                                    }
+                                    "net" => {
+                                        app_core.config.ui.perf_show_net =
+                                            !app_core.config.ui.perf_show_net
+                                    }
+                                    "parse" => {
+                                        app_core.config.ui.perf_show_parse =
+                                            !app_core.config.ui.perf_show_parse
+                                    }
+                                    "events" => {
+                                        app_core.config.ui.perf_show_events =
+                                            !app_core.config.ui.perf_show_events
+                                    }
+                                    "memory" => {
+                                        app_core.config.ui.perf_show_memory =
+                                            !app_core.config.ui.perf_show_memory
+                                    }
+                                    "lines" => {
+                                        app_core.config.ui.perf_show_lines =
+                                            !app_core.config.ui.perf_show_lines
+                                    }
+                                    "uptime" => {
+                                        app_core.config.ui.perf_show_uptime =
+                                            !app_core.config.ui.perf_show_uptime
+                                    }
+                                    "jitter" => {
+                                        app_core.config.ui.perf_show_jitter =
+                                            !app_core.config.ui.perf_show_jitter
+                                    }
+                                    "frame_spikes" => {
+                                        app_core.config.ui.perf_show_frame_spikes =
+                                            !app_core.config.ui.perf_show_frame_spikes
+                                    }
+                                    "event_lag" => {
+                                        app_core.config.ui.perf_show_event_lag =
+                                            !app_core.config.ui.perf_show_event_lag
+                                    }
+                                    "memory_delta" => {
+                                        app_core.config.ui.perf_show_memory_delta =
+                                            !app_core.config.ui.perf_show_memory_delta
+                                    }
                                     _ => {}
                                 }
                                 // Re-apply enabled flags to perf_stats collector
@@ -1244,7 +1375,8 @@ impl TuiFrontend {
                                 app_core.perf_stats.apply_enabled_from(&data);
                                 // Rebuild menu with updated checkmarks (keep it open)
                                 if let Some(ref mut menu) = app_core.ui_state.popup_menu {
-                                    menu.items = Self::build_perf_metrics_context_menu(&app_core.config.ui);
+                                    menu.items =
+                                        Self::build_perf_metrics_context_menu(&app_core.config.ui);
                                     // Keep selection in bounds
                                     if menu.selected >= menu.items.len() {
                                         menu.selected = menu.items.len().saturating_sub(1);
@@ -1280,7 +1412,11 @@ impl TuiFrontend {
                                     let id = id.trim();
                                     if !id.is_empty() {
                                         app_core.ui_state.active_quickbar_id = Some(id.to_string());
-                                        if !app_core.ui_state.quickbar_order.contains(&id.to_string()) {
+                                        if !app_core
+                                            .ui_state
+                                            .quickbar_order
+                                            .contains(&id.to_string())
+                                        {
                                             app_core.ui_state.quickbar_order.push(id.to_string());
                                         }
                                     }
@@ -1308,9 +1444,17 @@ impl TuiFrontend {
                 // Mouse down handling (find links, start drags)
                 // Unfreeze any frozen text window before clearing selection
                 if let Some(ref selection) = app_core.ui_state.selection_state {
-                    if let Some(text_window) = self.widget_manager.text_windows.get_mut(&selection.window_name) {
+                    if let Some(text_window) = self
+                        .widget_manager
+                        .text_windows
+                        .get_mut(&selection.window_name)
+                    {
                         text_window.unfreeze_and_apply_pending();
-                    } else if let Some(tabbed_window) = self.widget_manager.tabbed_text_windows.get_mut(&selection.window_name) {
+                    } else if let Some(tabbed_window) = self
+                        .widget_manager
+                        .tabbed_text_windows
+                        .get_mut(&selection.window_name)
+                    {
                         tabbed_window.unfreeze_and_apply_pending();
                     }
                 }
@@ -1320,12 +1464,19 @@ impl TuiFrontend {
                 let (is_quickbar, window_pos) = app_core
                     .ui_state
                     .get_window(&topmost_window)
-                    .map(|window| (window.widget_type == WidgetType::Quickbar, Some(window.position.clone())))
+                    .map(|window| {
+                        (
+                            window.widget_type == WidgetType::Quickbar,
+                            Some(window.position.clone()),
+                        )
+                    })
                     .unwrap_or((false, None));
 
                 if is_quickbar {
-                    if let Some(quickbar_widget) =
-                        self.widget_manager.quickbar_widgets.get_mut(&topmost_window)
+                    if let Some(quickbar_widget) = self
+                        .widget_manager
+                        .quickbar_widgets
+                        .get_mut(&topmost_window)
                     {
                         let window_pos = window_pos.unwrap_or(crate::data::WindowPosition {
                             x: 0,
@@ -1347,10 +1498,15 @@ impl TuiFrontend {
                                     app_core.needs_render = true;
                                     return Ok((true, None));
                                 }
-                                crate::frontend::tui::quickbar::QuickbarAction::ExecuteCommand(command) => {
+                                crate::frontend::tui::quickbar::QuickbarAction::ExecuteCommand(
+                                    command,
+                                ) => {
                                     return Ok((true, Some(command)));
                                 }
-                                crate::frontend::tui::quickbar::QuickbarAction::MenuRequest { exist, noun } => {
+                                crate::frontend::tui::quickbar::QuickbarAction::MenuRequest {
+                                    exist,
+                                    noun,
+                                } => {
                                     let command = app_core.request_menu(exist, noun, (*x, *y));
                                     return Ok((true, Some(command)));
                                 }
@@ -1368,13 +1524,18 @@ impl TuiFrontend {
 
                 tracing::debug!(
                     "Mouse down at ({}, {}), topmost_window='{}'",
-                    *x, *y, topmost_window
+                    *x,
+                    *y,
+                    topmost_window
                 );
 
                 if let Some(window) = app_core.ui_state.get_window(&topmost_window) {
                     tracing::debug!(
                         "  Window pos: y={}, height={}, click_y={}, is_top_row={}",
-                        window.position.y, window.position.height, *y, *y == window.position.y
+                        window.position.y,
+                        window.position.height,
+                        *y,
+                        *y == window.position.y
                     );
                     let pos = &window.position;
                     let name = &topmost_window;
@@ -1395,9 +1556,7 @@ impl TuiFrontend {
                             width: pos.width,
                             height: pos.height,
                         };
-                        if let Some(new_index) =
-                            self.handle_tabbed_click(name, rect, *x, *y)
-                        {
+                        if let Some(new_index) = self.handle_tabbed_click(name, rect, *x, *y) {
                             handled_tab_click = Some((name.clone(), new_index));
                         }
                     }
@@ -1451,7 +1610,9 @@ impl TuiFrontend {
                     return Ok((true, None));
                 }
 
-                if let (Some(window_name), Some(operation)) = (found_window.clone(), drag_op.clone()) {
+                if let (Some(window_name), Some(operation)) =
+                    (found_window.clone(), drag_op.clone())
+                {
                     // Check if window is locked
                     let is_locked = app_core
                         .layout
@@ -1484,12 +1645,11 @@ impl TuiFrontend {
                                 {
                                     if has_ctrl {
                                         // Ctrl+click always starts link drag
-                                        app_core.ui_state.link_drag_state =
-                                            Some(LinkDragState {
-                                                link_data,
-                                                start_pos: (*x, *y),
-                                                current_pos: (*x, *y),
-                                            });
+                                        app_core.ui_state.link_drag_state = Some(LinkDragState {
+                                            link_data,
+                                            start_pos: (*x, *y),
+                                            current_pos: (*x, *y),
+                                        });
                                     } else {
                                         // Locked window without Ctrl: open menu
                                         app_core.ui_state.pending_link_click =
@@ -1535,7 +1695,11 @@ impl TuiFrontend {
 
                         tracing::debug!(
                             "Non-drag click on '{}' at ({}, {}), window_rect: y={}, height={}",
-                            window_name, *x, *y, window_rect.y, window_rect.height
+                            window_name,
+                            *x,
+                            *y,
+                            window_rect.y,
+                            window_rect.height
                         );
 
                         if let Some(link_data) =
@@ -1545,35 +1709,28 @@ impl TuiFrontend {
                             let has_ctrl = modifiers.ctrl;
 
                             if has_ctrl {
-                                app_core.ui_state.link_drag_state =
-                                    Some(LinkDragState {
-                                        link_data,
-                                        start_pos: (*x, *y),
-                                        current_pos: (*x, *y),
-                                    });
+                                app_core.ui_state.link_drag_state = Some(LinkDragState {
+                                    link_data,
+                                    start_pos: (*x, *y),
+                                    current_pos: (*x, *y),
+                                });
                             } else {
-                                app_core.ui_state.pending_link_click =
-                                    Some(PendingLinkClick {
-                                        link_data,
-                                        click_pos: (*x, *y),
-                                    });
+                                app_core.ui_state.pending_link_click = Some(PendingLinkClick {
+                                    link_data,
+                                    click_pos: (*x, *y),
+                                });
                             }
                         } else {
                             // Start text selection
                             app_core.ui_state.selection_drag_start = Some((*x, *y));
 
                             // Convert mouse coords to text coords for selection
-                            if let Some((line, col)) = self.mouse_to_text_coords(
-                                &window_name,
-                                *x,
-                                *y,
-                                window_rect,
-                            ) {
+                            if let Some((line, col)) =
+                                self.mouse_to_text_coords(&window_name, *x, *y, window_rect)
+                            {
                                 // Find window index from the stable mapping
-                                let window_index = window_index_map
-                                    .get(&window_name)
-                                    .copied()
-                                    .unwrap_or(0);
+                                let window_index =
+                                    window_index_map.get(&window_name).copied().unwrap_or(0);
                                 app_core.ui_state.selection_state =
                                     Some(crate::selection::SelectionState::new(
                                         window_index,
@@ -1584,11 +1741,17 @@ impl TuiFrontend {
 
                                 // Freeze the text window if it's scrolled back
                                 // This prevents new lines from shifting selection indices
-                                if let Some(text_window) = self.widget_manager.text_windows.get_mut(&window_name) {
+                                if let Some(text_window) =
+                                    self.widget_manager.text_windows.get_mut(&window_name)
+                                {
                                     if text_window.is_scrolled_back() {
                                         text_window.freeze_for_selection();
                                     }
-                                } else if let Some(tabbed_window) = self.widget_manager.tabbed_text_windows.get_mut(&window_name) {
+                                } else if let Some(tabbed_window) = self
+                                    .widget_manager
+                                    .tabbed_text_windows
+                                    .get_mut(&window_name)
+                                {
                                     if tabbed_window.is_scrolled_back() {
                                         tabbed_window.freeze_for_selection();
                                     }
@@ -1618,8 +1781,7 @@ impl TuiFrontend {
                     let (min_width_constraint, min_height_constraint) =
                         app_core.window_min_size(&drag_state.window_name);
 
-                    if let Some(window) =
-                        app_core.ui_state.get_window_mut(&drag_state.window_name)
+                    if let Some(window) = app_core.ui_state.get_window_mut(&drag_state.window_name)
                     {
                         let min_width_i32 = min_width_constraint as i32;
                         let min_height_i32 = min_height_constraint as i32;
@@ -1627,64 +1789,50 @@ impl TuiFrontend {
                         match drag_state.operation {
                             DragOperation::Move => {
                                 // Calculate new position
-                                let new_x = (drag_state.original_window_pos.0 as i32
-                                    + dx)
-                                    .max(0)
-                                    as u16;
-                                let new_y = (drag_state.original_window_pos.1 as i32
-                                    + dy)
-                                    .max(0)
-                                    as u16;
+                                let new_x =
+                                    (drag_state.original_window_pos.0 as i32 + dx).max(0) as u16;
+                                let new_y =
+                                    (drag_state.original_window_pos.1 as i32 + dy).max(0) as u16;
 
                                 // Clamp to prevent overflow beyond terminal boundaries
-                                let max_x =
-                                    term_width.saturating_sub(window.position.width);
-                                let max_y =
-                                    term_height.saturating_sub(window.position.height);
+                                let max_x = term_width.saturating_sub(window.position.width);
+                                let max_y = term_height.saturating_sub(window.position.height);
 
                                 window.position.x = new_x.min(max_x);
                                 window.position.y = new_y.min(max_y);
                             }
                             DragOperation::ResizeRight => {
                                 // Calculate new width
-                                let new_width =
-                                    (drag_state.original_window_pos.2 as i32 + dx)
-                                        .max(min_width_i32)
-                                        as u16;
+                                let new_width = (drag_state.original_window_pos.2 as i32 + dx)
+                                    .max(min_width_i32)
+                                    as u16;
 
                                 // Clamp to prevent overflow beyond terminal edge
-                                let max_width =
-                                    term_width.saturating_sub(window.position.x);
+                                let max_width = term_width.saturating_sub(window.position.x);
                                 window.position.width = new_width.min(max_width);
                             }
                             DragOperation::ResizeBottom => {
                                 // Calculate new height
-                                let new_height =
-                                    (drag_state.original_window_pos.3 as i32 + dy)
-                                        .max(min_height_i32)
-                                        as u16;
+                                let new_height = (drag_state.original_window_pos.3 as i32 + dy)
+                                    .max(min_height_i32)
+                                    as u16;
 
                                 // Clamp to prevent overflow beyond terminal edge
-                                let max_height =
-                                    term_height.saturating_sub(window.position.y);
+                                let max_height = term_height.saturating_sub(window.position.y);
                                 window.position.height = new_height.min(max_height);
                             }
                             DragOperation::ResizeBottomRight => {
                                 // Calculate new dimensions
-                                let new_width =
-                                    (drag_state.original_window_pos.2 as i32 + dx)
-                                        .max(min_width_i32)
-                                        as u16;
-                                let new_height =
-                                    (drag_state.original_window_pos.3 as i32 + dy)
-                                        .max(min_height_i32)
-                                        as u16;
+                                let new_width = (drag_state.original_window_pos.2 as i32 + dx)
+                                    .max(min_width_i32)
+                                    as u16;
+                                let new_height = (drag_state.original_window_pos.3 as i32 + dy)
+                                    .max(min_height_i32)
+                                    as u16;
 
                                 // Clamp to prevent overflow beyond terminal edges
-                                let max_width =
-                                    term_width.saturating_sub(window.position.x);
-                                let max_height =
-                                    term_height.saturating_sub(window.position.y);
+                                let max_width = term_width.saturating_sub(window.position.x);
+                                let max_height = term_height.saturating_sub(window.position.y);
 
                                 window.position.width = new_width.min(max_width);
                                 window.position.height = new_height.min(max_height);
@@ -1694,8 +1842,7 @@ impl TuiFrontend {
                     }
                 } else if app_core.ui_state.pending_link_click.is_some() {
                     app_core.ui_state.pending_link_click = None;
-                } else if let Some(_drag_start) = app_core.ui_state.selection_drag_start
-                {
+                } else if let Some(_drag_start) = app_core.ui_state.selection_drag_start {
                     // Update text selection on drag
                     if let Some(ref mut selection) = app_core.ui_state.selection_state {
                         // Find which window we're dragging in
@@ -1712,13 +1859,11 @@ impl TuiFrontend {
                                     width: pos.width,
                                     height: pos.height,
                                 };
-                                if let Some((line, col)) = self
-                                    .mouse_to_text_coords(name, *x, *y, window_rect)
+                                if let Some((line, col)) =
+                                    self.mouse_to_text_coords(name, *x, *y, window_rect)
                                 {
-                                    let window_index = window_index_map
-                                        .get(name)
-                                        .copied()
-                                        .unwrap_or(0);
+                                    let window_index =
+                                        window_index_map.get(name).copied().unwrap_or(0);
                                     selection.update_end(window_index, line, col);
                                     app_core.needs_render = true;
                                 }
@@ -1764,8 +1909,13 @@ impl TuiFrontend {
                                 };
 
                                 // Inventory window: check link first, fallback to wear
-                                if matches!(window.content, crate::data::WindowContent::Inventory(_)) {
-                                    if let Some(target_link) = self.link_at_position(name, *x, *y, window_rect) {
+                                if matches!(
+                                    window.content,
+                                    crate::data::WindowContent::Inventory(_)
+                                ) {
+                                    if let Some(target_link) =
+                                        self.link_at_position(name, *x, *y, window_rect)
+                                    {
                                         drop_target_id = Some(target_link.exist_id);
                                     } else {
                                         drop_target_hand = Some("wear".to_string());
@@ -1774,26 +1924,37 @@ impl TuiFrontend {
                                 }
 
                                 // Container windows: check link first, fallback to container
-                                if let crate::data::WindowContent::Container { ref container_title } = window.content {
+                                if let crate::data::WindowContent::Container {
+                                    ref container_title,
+                                } = window.content
+                                {
                                     // First: try to find a link at the drop position (nested container)
-                                    if let Some(target_link) = self.link_at_position(name, *x, *y, window_rect) {
+                                    if let Some(target_link) =
+                                        self.link_at_position(name, *x, *y, window_rect)
+                                    {
                                         drop_target_id = Some(target_link.exist_id);
                                     } else {
                                         // Fallback: use the window's container ID
-                                        if let Some(container_data) = app_core.game_state.container_cache.find_by_title(container_title) {
+                                        if let Some(container_data) = app_core
+                                            .game_state
+                                            .container_cache
+                                            .find_by_title(container_title)
+                                        {
                                             drop_target_id = Some(container_data.id.clone());
                                         }
                                     }
-                                    break;  // Container window handled
+                                    break; // Container window handled
                                 }
 
                                 // Items window: check link first, fallback to drop
                                 if matches!(window.content, crate::data::WindowContent::Items) {
-                                    if let Some(target_link) = self.link_at_position(name, *x, *y, window_rect) {
+                                    if let Some(target_link) =
+                                        self.link_at_position(name, *x, *y, window_rect)
+                                    {
                                         drop_target_id = Some(target_link.exist_id);
                                     }
                                     // No else - if no link clicked, fall through to "drop" at line ~1782
-                                    break;  // Items window handled
+                                    break; // Items window handled
                                 }
 
                                 // Otherwise check if we dropped on a link (non-container windows)
@@ -1807,23 +1968,15 @@ impl TuiFrontend {
                         }
 
                         let command = if let Some(hand_type) = drop_target_hand {
-                            format!(
-                                "_drag #{} {}\n",
-                                link_drag.link_data.exist_id, hand_type
-                            )
+                            format!("_drag #{} {}\n", link_drag.link_data.exist_id, hand_type)
                         } else if let Some(target_id) = drop_target_id {
-                            format!(
-                                "_drag #{} #{}\n",
-                                link_drag.link_data.exist_id, target_id
-                            )
+                            format!("_drag #{} #{}\n", link_drag.link_data.exist_id, target_id)
                         } else {
                             format!("_drag #{} drop\n", link_drag.link_data.exist_id)
                         };
                         command_to_send = Some(command);
                     }
-                } else if let Some(pending_click) =
-                    app_core.ui_state.pending_link_click.take()
-                {
+                } else if let Some(pending_click) = app_core.ui_state.pending_link_click.take() {
                     let dx = (*x as i16 - pending_click.click_pos.0 as i16).abs();
                     let dy = (*y as i16 - pending_click.click_pos.1 as i16).abs();
 
@@ -1838,10 +1991,7 @@ impl TuiFrontend {
                                 format!("{}\n", pending_click.link_data.text)
                                 // Use text content
                             };
-                            tracing::info!(
-                                "Executing <d> direct command: {}",
-                                command.trim()
-                            );
+                            tracing::info!("Executing <d> direct command: {}", command.trim());
                             command_to_send = Some(command);
                         } else if let Some(ref coord) = pending_click.link_data.coord {
                             // Link has coord field: Look up command in cmdlist and send directly
@@ -1890,18 +2040,13 @@ impl TuiFrontend {
                             command_to_send = Some(command);
                         }
                     } else {
-                        tracing::debug!(
-                            "Link click cancelled - dragged {} pixels",
-                            dx.max(dy)
-                        );
+                        tracing::debug!("Link click cancelled - dragged {} pixels", dx.max(dy));
                     }
                 }
 
                 // Sync UI state positions back to layout WindowDefs after mouse resize/move
                 if let Some(drag_state) = &app_core.ui_state.mouse_drag {
-                    if let Some(window) =
-                        app_core.ui_state.get_window(&drag_state.window_name)
-                    {
+                    if let Some(window) = app_core.ui_state.get_window(&drag_state.window_name) {
                         // Find the corresponding WindowDef in layout and update it
                         if let Some(window_def) = app_core
                             .layout
@@ -1920,7 +2065,11 @@ impl TuiFrontend {
                         }
 
                         // Save ephemeral container window positions to widget_state.toml
-                        if app_core.ui_state.ephemeral_windows.contains(&drag_state.window_name) {
+                        if app_core
+                            .ui_state
+                            .ephemeral_windows
+                            .contains(&drag_state.window_name)
+                        {
                             use crate::config::{Config, DialogPosition};
                             let pos = DialogPosition {
                                 x: window.position.x,
@@ -1928,19 +2077,24 @@ impl TuiFrontend {
                                 width: Some(window.position.width),
                                 height: Some(window.position.height),
                             };
-                            app_core.saved_dialog_positions.containers.insert(
-                                drag_state.window_name.clone(),
-                                pos,
-                            );
+                            app_core
+                                .saved_dialog_positions
+                                .containers
+                                .insert(drag_state.window_name.clone(), pos);
                             // Save to disk asynchronously (best-effort)
                             let character = app_core.config.character.clone();
                             let positions = app_core.saved_dialog_positions.clone();
                             std::thread::spawn(move || {
-                                if let Err(e) = Config::save_dialog_positions(character.as_deref(), &positions) {
+                                if let Err(e) =
+                                    Config::save_dialog_positions(character.as_deref(), &positions)
+                                {
                                     tracing::warn!("Failed to save container positions: {}", e);
                                 }
                             });
-                            tracing::debug!("Saved ephemeral container position for '{}'", drag_state.window_name);
+                            tracing::debug!(
+                                "Saved ephemeral container position for '{}'",
+                                drag_state.window_name
+                            );
                         }
                     }
                 }
@@ -1958,16 +2112,17 @@ impl TuiFrontend {
                         let window_name = &selection.window_name;
 
                         if let Some(text) = self.extract_selection_text(
-                            window_name, start.line, start.col, end.line, end.col,
+                            window_name,
+                            start.line,
+                            start.col,
+                            end.line,
+                            end.col,
                         ) {
                             // Copy to clipboard
                             match arboard::Clipboard::new() {
                                 Ok(mut clipboard) => {
                                     if let Err(e) = clipboard.set_text(&text) {
-                                        tracing::warn!(
-                                            "Failed to copy to clipboard: {}",
-                                            e
-                                        );
+                                        tracing::warn!("Failed to copy to clipboard: {}", e);
                                     } else {
                                         tracing::info!(
                                             "Copied {} chars to clipboard from '{}'",
@@ -1977,10 +2132,7 @@ impl TuiFrontend {
                                     }
                                 }
                                 Err(e) => {
-                                    tracing::warn!(
-                                        "Failed to access clipboard: {}",
-                                        e
-                                    );
+                                    tracing::warn!("Failed to access clipboard: {}", e);
                                 }
                             }
                         }
@@ -1989,9 +2141,17 @@ impl TuiFrontend {
                     if auto_copy {
                         // Unfreeze the text window before clearing selection
                         let window_to_unfreeze = selection.window_name.clone();
-                        if let Some(text_window) = self.widget_manager.text_windows.get_mut(&window_to_unfreeze) {
+                        if let Some(text_window) = self
+                            .widget_manager
+                            .text_windows
+                            .get_mut(&window_to_unfreeze)
+                        {
                             text_window.unfreeze_and_apply_pending();
-                        } else if let Some(tabbed_window) = self.widget_manager.tabbed_text_windows.get_mut(&window_to_unfreeze) {
+                        } else if let Some(tabbed_window) = self
+                            .widget_manager
+                            .tabbed_text_windows
+                            .get_mut(&window_to_unfreeze)
+                        {
                             tabbed_window.unfreeze_and_apply_pending();
                         }
                         app_core.ui_state.selection_state = None;
@@ -2005,8 +2165,11 @@ impl TuiFrontend {
                 // Right-click on performance overlay: show metrics toggle menu
                 if let Some(window) = app_core.ui_state.windows.get("performance_overlay") {
                     let pos = &window.position;
-                    if *x >= pos.x && *x < pos.x + pos.width
-                       && *y >= pos.y && *y < pos.y + pos.height {
+                    if *x >= pos.x
+                        && *x < pos.x + pos.width
+                        && *y >= pos.y
+                        && *y < pos.y + pos.height
+                    {
                         // Build performance metrics context menu
                         let items = Self::build_perf_metrics_context_menu(&app_core.config.ui);
                         app_core.ui_state.popup_menu =
@@ -2072,9 +2235,9 @@ impl TuiFrontend {
         app_core: &mut crate::core::AppCore,
         handle_menu_action_fn: impl Fn(&mut crate::core::AppCore, &mut Self, &str) -> Result<()>,
     ) -> Result<Option<String>> {
+        use crate::core::input_router;
         use crate::data::ui_state::InputMode;
         use crate::frontend::{KeyCode, KeyModifiers};
-        use crate::core::input_router;
 
         tracing::debug!(
             "Key event: code={:?}, modifiers={:?}, input_mode={:?}",
@@ -2110,19 +2273,22 @@ impl TuiFrontend {
 
                     match action {
                         crate::core::menu_actions::MenuAction::NextItem
-                        | crate::core::menu_actions::MenuAction::NavigateDown => browser.navigate_down(),
-                        crate::core::menu_actions::MenuAction::PreviousItem
-                        | crate::core::menu_actions::MenuAction::NavigateUp => browser.navigate_up(),
-                        crate::core::menu_actions::MenuAction::NextPage => {
-                            browser.next_page()
+                        | crate::core::menu_actions::MenuAction::NavigateDown => {
+                            browser.navigate_down()
                         }
+                        crate::core::menu_actions::MenuAction::PreviousItem
+                        | crate::core::menu_actions::MenuAction::NavigateUp => {
+                            browser.navigate_up()
+                        }
+                        crate::core::menu_actions::MenuAction::NextPage => browser.next_page(),
                         crate::core::menu_actions::MenuAction::PreviousPage => {
                             browser.previous_page()
                         }
                         crate::core::menu_actions::MenuAction::Save => {
                             // Ctrl+S: persist highlights, refresh caches, close browser
-                            if let Err(e) =
-                                app_core.config.save_highlights(app_core.config.character.as_deref())
+                            if let Err(e) = app_core
+                                .config
+                                .save_highlights(app_core.config.character.as_deref())
                             {
                                 app_core.add_system_message(&format!(
                                     "Failed to save highlights: {}",
@@ -2145,7 +2311,8 @@ impl TuiFrontend {
                             if let Some(name) = browser.get_selected() {
                                 if let Some(pattern) = app_core.config.highlights.get(&name) {
                                     // Default to global if unknown
-                                    let is_global = browser.get_selected_is_global().unwrap_or(true);
+                                    let is_global =
+                                        browser.get_selected_is_global().unwrap_or(true);
                                     let mut form = crate::frontend::tui::highlight_form::HighlightFormWidget::new_edit(
                                         name, pattern,
                                     );
@@ -2178,7 +2345,10 @@ impl TuiFrontend {
                                     ));
                                 } else {
                                     let scope = if is_global { "global" } else { "character" };
-                                    app_core.add_system_message(&format!("Highlight deleted from {} config", scope));
+                                    app_core.add_system_message(&format!(
+                                        "Highlight deleted from {} config",
+                                        scope
+                                    ));
                                     // Update in-memory config
                                     app_core.config.highlights.remove(&name);
                                     crate::config::Config::compile_highlight_patterns(
@@ -2188,13 +2358,20 @@ impl TuiFrontend {
                                         .message_processor
                                         .apply_config(app_core.config.clone());
                                     // Refresh browser with source tracking
-                                    let global = crate::config::Config::load_common_highlights().unwrap_or_default();
-                                    let character = crate::config::Config::load_character_highlights_only(
-                                        app_core.config.character.as_deref()
-                                    ).unwrap_or_default();
+                                    let global = crate::config::Config::load_common_highlights()
+                                        .unwrap_or_default();
+                                    let character =
+                                        crate::config::Config::load_character_highlights_only(
+                                            app_core.config.character.as_deref(),
+                                        )
+                                        .unwrap_or_default();
                                     browser.update_items_with_source(&global, &character);
                                 }
-                                tracing::info!("Deleted highlight: {} (global={})", name, is_global);
+                                tracing::info!(
+                                    "Deleted highlight: {} (global={})",
+                                    name,
+                                    is_global
+                                );
                             }
                         }
                         crate::core::menu_actions::MenuAction::Cancel => {
@@ -2218,12 +2395,14 @@ impl TuiFrontend {
 
                     match action {
                         crate::core::menu_actions::MenuAction::NextItem
-                        | crate::core::menu_actions::MenuAction::NavigateDown => browser.navigate_down(),
-                        crate::core::menu_actions::MenuAction::PreviousItem
-                        | crate::core::menu_actions::MenuAction::NavigateUp => browser.navigate_up(),
-                        crate::core::menu_actions::MenuAction::NextPage => {
-                            browser.next_page()
+                        | crate::core::menu_actions::MenuAction::NavigateDown => {
+                            browser.navigate_down()
                         }
+                        crate::core::menu_actions::MenuAction::PreviousItem
+                        | crate::core::menu_actions::MenuAction::NavigateUp => {
+                            browser.navigate_up()
+                        }
+                        crate::core::menu_actions::MenuAction::NextPage => browser.next_page(),
                         crate::core::menu_actions::MenuAction::PreviousPage => {
                             browser.previous_page()
                         }
@@ -2264,10 +2443,15 @@ impl TuiFrontend {
                                 // Reload with source tracking for proper [G]/[C] display
                                 let global_keybinds = crate::config::Config::load_common_keybinds()
                                     .unwrap_or_default();
-                                let character_keybinds = crate::config::Config::load_character_keybinds_only(
-                                    app_core.config.character.as_deref()
-                                ).unwrap_or_default();
-                                browser.update_items_with_source(&global_keybinds, &character_keybinds);
+                                let character_keybinds =
+                                    crate::config::Config::load_character_keybinds_only(
+                                        app_core.config.character.as_deref(),
+                                    )
+                                    .unwrap_or_default();
+                                browser.update_items_with_source(
+                                    &global_keybinds,
+                                    &character_keybinds,
+                                );
                                 tracing::info!("Deleted keybind: {}", key_combo);
                             }
                         }
@@ -2292,12 +2476,14 @@ impl TuiFrontend {
 
                     match action {
                         crate::core::menu_actions::MenuAction::NextItem
-                        | crate::core::menu_actions::MenuAction::NavigateDown => browser.navigate_down(),
-                        crate::core::menu_actions::MenuAction::PreviousItem
-                        | crate::core::menu_actions::MenuAction::NavigateUp => browser.navigate_up(),
-                        crate::core::menu_actions::MenuAction::NextPage => {
-                            browser.next_page()
+                        | crate::core::menu_actions::MenuAction::NavigateDown => {
+                            browser.navigate_down()
                         }
+                        crate::core::menu_actions::MenuAction::PreviousItem
+                        | crate::core::menu_actions::MenuAction::NavigateUp => {
+                            browser.navigate_up()
+                        }
+                        crate::core::menu_actions::MenuAction::NextPage => browser.next_page(),
                         crate::core::menu_actions::MenuAction::PreviousPage => {
                             browser.previous_page()
                         }
@@ -2325,33 +2511,41 @@ impl TuiFrontend {
                                 let is_global = browser.get_selected_is_global().unwrap_or(true);
 
                                 // Delete from appropriate file based on scope
-                                if let Err(e) = crate::config::ColorConfig::delete_single_palette_color(
-                                    &color_name,
-                                    is_global,
-                                    app_core.config.character.as_deref(),
-                                ) {
+                                if let Err(e) =
+                                    crate::config::ColorConfig::delete_single_palette_color(
+                                        &color_name,
+                                        is_global,
+                                        app_core.config.character.as_deref(),
+                                    )
+                                {
                                     tracing::error!("Failed to delete color: {}", e);
                                 }
 
                                 // Reload colors to update in-memory state
                                 if let Ok(colors) = crate::config::ColorConfig::load_with_merge(
-                                    app_core.config.character.as_deref()
+                                    app_core.config.character.as_deref(),
                                 ) {
                                     app_core.config.colors = colors;
                                 }
 
                                 // Refresh browser with updated colors
-                                let global_colors = crate::config::ColorConfig::load_common_colors()
-                                    .map(|c| c.color_palette)
-                                    .unwrap_or_default();
-                                let char_colors = crate::config::ColorConfig::load_character_colors_only(
-                                    app_core.config.character.as_deref()
-                                )
+                                let global_colors =
+                                    crate::config::ColorConfig::load_common_colors()
+                                        .map(|c| c.color_palette)
+                                        .unwrap_or_default();
+                                let char_colors =
+                                    crate::config::ColorConfig::load_character_colors_only(
+                                        app_core.config.character.as_deref(),
+                                    )
                                     .map(|c| c.color_palette)
                                     .unwrap_or_default();
                                 browser.update_items_with_source(&global_colors, &char_colors);
 
-                                tracing::info!("Deleted color: {} ({})", color_name, if is_global { "global" } else { "character" });
+                                tracing::info!(
+                                    "Deleted color: {} ({})",
+                                    color_name,
+                                    if is_global { "global" } else { "character" }
+                                );
                             }
                         }
                         crate::core::menu_actions::MenuAction::Cancel => {
@@ -2375,12 +2569,14 @@ impl TuiFrontend {
 
                     match action {
                         crate::core::menu_actions::MenuAction::NextItem
-                        | crate::core::menu_actions::MenuAction::NavigateDown => browser.navigate_down(),
-                        crate::core::menu_actions::MenuAction::PreviousItem
-                        | crate::core::menu_actions::MenuAction::NavigateUp => browser.navigate_up(),
-                        crate::core::menu_actions::MenuAction::NextPage => {
-                            browser.next_page()
+                        | crate::core::menu_actions::MenuAction::NavigateDown => {
+                            browser.navigate_down()
                         }
+                        crate::core::menu_actions::MenuAction::PreviousItem
+                        | crate::core::menu_actions::MenuAction::NavigateUp => {
+                            browser.navigate_up()
+                        }
+                        crate::core::menu_actions::MenuAction::NextPage => browser.next_page(),
                         crate::core::menu_actions::MenuAction::PreviousPage => {
                             browser.previous_page()
                         }
@@ -2405,12 +2601,14 @@ impl TuiFrontend {
 
                     match action {
                         crate::core::menu_actions::MenuAction::NextItem
-                        | crate::core::menu_actions::MenuAction::NavigateDown => browser.navigate_down(),
-                        crate::core::menu_actions::MenuAction::PreviousItem
-                        | crate::core::menu_actions::MenuAction::NavigateUp => browser.navigate_up(),
-                        crate::core::menu_actions::MenuAction::NextPage => {
-                            browser.next_page()
+                        | crate::core::menu_actions::MenuAction::NavigateDown => {
+                            browser.navigate_down()
                         }
+                        crate::core::menu_actions::MenuAction::PreviousItem
+                        | crate::core::menu_actions::MenuAction::NavigateUp => {
+                            browser.navigate_up()
+                        }
+                        crate::core::menu_actions::MenuAction::NextPage => browser.next_page(),
                         crate::core::menu_actions::MenuAction::PreviousPage => {
                             browser.previous_page()
                         }
@@ -2432,8 +2630,7 @@ impl TuiFrontend {
                         crate::core::menu_actions::MenuAction::New
                         | crate::core::menu_actions::MenuAction::Add => {
                             self.spell_color_form = Some(
-                                crate::frontend::tui::spell_color_form::SpellColorFormWidget::new(
-                                ),
+                                crate::frontend::tui::spell_color_form::SpellColorFormWidget::new(),
                             );
                             app_core.ui_state.input_mode = InputMode::SpellColorForm;
                         }
@@ -2441,8 +2638,7 @@ impl TuiFrontend {
                             if let Some(index) = browser.get_selected() {
                                 if index < app_core.config.colors.spell_colors.len() {
                                     app_core.config.colors.spell_colors.remove(index);
-                                    browser
-                                        .update_items(&app_core.config.colors.spell_colors);
+                                    browser.update_items(&app_core.config.colors.spell_colors);
                                     tracing::info!("Deleted spell color range at index {}", index);
                                 }
                             }
@@ -2468,12 +2664,14 @@ impl TuiFrontend {
 
                     match action {
                         crate::core::menu_actions::MenuAction::NextItem
-                        | crate::core::menu_actions::MenuAction::NavigateDown => browser.navigate_down(),
-                        crate::core::menu_actions::MenuAction::PreviousItem
-                        | crate::core::menu_actions::MenuAction::NavigateUp => browser.navigate_up(),
-                        crate::core::menu_actions::MenuAction::NextPage => {
-                            browser.next_page()
+                        | crate::core::menu_actions::MenuAction::NavigateDown => {
+                            browser.navigate_down()
                         }
+                        crate::core::menu_actions::MenuAction::PreviousItem
+                        | crate::core::menu_actions::MenuAction::NavigateUp => {
+                            browser.navigate_up()
+                        }
+                        crate::core::menu_actions::MenuAction::NextPage => browser.next_page(),
                         crate::core::menu_actions::MenuAction::PreviousPage => {
                             browser.previous_page()
                         }
@@ -2484,13 +2682,19 @@ impl TuiFrontend {
                                 self.update_theme_cache(theme_name, theme);
                                 self.theme_browser = None;
                                 app_core.ui_state.input_mode = InputMode::Normal;
-                                tracing::info!("Switched to theme: {}", app_core.config.active_theme);
+                                tracing::info!(
+                                    "Switched to theme: {}",
+                                    app_core.config.active_theme
+                                );
                             }
                         }
                         crate::core::menu_actions::MenuAction::Edit => {
                             if let Some(theme) = browser.get_selected_theme() {
-                                self.theme_editor =
-                                    Some(crate::frontend::tui::theme_editor::ThemeEditor::new_edit(theme));
+                                self.theme_editor = Some(
+                                    crate::frontend::tui::theme_editor::ThemeEditor::new_edit(
+                                        theme,
+                                    ),
+                                );
                                 self.theme_browser = None;
                                 app_core.ui_state.input_mode = InputMode::ThemeEditor;
                             }
@@ -2517,8 +2721,10 @@ impl TuiFrontend {
                     // First let the editor handle input directly
                     // Convert our KeyCode/KeyModifiers to crossterm's
                     let crossterm_code = super::crossterm_bridge::to_crossterm_keycode(code);
-                    let crossterm_modifiers = super::crossterm_bridge::to_crossterm_modifiers(modifiers);
-                    let key_event = crossterm::event::KeyEvent::new(crossterm_code, crossterm_modifiers);
+                    let crossterm_modifiers =
+                        super::crossterm_bridge::to_crossterm_modifiers(modifiers);
+                    let key_event =
+                        crossterm::event::KeyEvent::new(crossterm_code, crossterm_modifiers);
                     let handled = editor.handle_input(key_event);
 
                     if handled {
@@ -2534,7 +2740,8 @@ impl TuiFrontend {
                         editor.apply_to_config(&mut app_core.config);
 
                         // Get all items and save each with its scope
-                        let items_to_save: Vec<_> = editor.all_items()
+                        let items_to_save: Vec<_> = editor
+                            .all_items()
                             .map(|item| (item.key.clone(), item.is_global))
                             .collect();
 
@@ -2581,14 +2788,22 @@ impl TuiFrontend {
 
                     // Fast-path Ctrl+S even if keybinds are overridden/misparsed
                     if modifiers.ctrl && matches!(code, KeyCode::Char(c) if c == 's' || c == 'S') {
-                        if let Some(result) = form.handle_action(crate::core::menu_actions::MenuAction::Save) {
+                        if let Some(result) =
+                            form.handle_action(crate::core::menu_actions::MenuAction::Save)
+                        {
                             match result {
-                                crate::frontend::tui::highlight_form::FormResult::Save { name, mut pattern, is_global } => {
+                                crate::frontend::tui::highlight_form::FormResult::Save {
+                                    name,
+                                    mut pattern,
+                                    is_global,
+                                } => {
                                     if let Some(ref fg) = pattern.fg {
-                                        pattern.fg = Some(app_core.config.resolve_palette_color(fg));
+                                        pattern.fg =
+                                            Some(app_core.config.resolve_palette_color(fg));
                                     }
                                     if let Some(ref bg) = pattern.bg {
-                                        pattern.bg = Some(app_core.config.resolve_palette_color(bg));
+                                        pattern.bg =
+                                            Some(app_core.config.resolve_palette_color(bg));
                                     }
                                     // Save to appropriate file based on scope
                                     if let Err(e) = crate::config::Config::save_single_highlight(
@@ -2603,7 +2818,10 @@ impl TuiFrontend {
                                         ));
                                     } else {
                                         let scope = if is_global { "global" } else { "character" };
-                                        app_core.add_system_message(&format!("Highlight saved to {} config", scope));
+                                        app_core.add_system_message(&format!(
+                                            "Highlight saved to {} config",
+                                            scope
+                                        ));
                                         // Update in-memory config
                                         app_core.config.highlights.insert(name.clone(), pattern);
                                         crate::config::Config::compile_highlight_patterns(
@@ -2614,20 +2832,27 @@ impl TuiFrontend {
                                             .apply_config(app_core.config.clone());
                                         // Refresh browser with source tracking
                                         if let Some(ref mut browser) = self.highlight_browser {
-                                            let global = crate::config::Config::load_common_highlights().unwrap_or_default();
+                                            let global =
+                                                crate::config::Config::load_common_highlights()
+                                                    .unwrap_or_default();
                                             let character = crate::config::Config::load_character_highlights_only(
                                                 app_core.config.character.as_deref()
                                             ).unwrap_or_default();
                                             browser.update_items_with_source(&global, &character);
                                         }
                                     }
-                                    tracing::info!("Saved highlight: {} (global={})", name, is_global);
+                                    tracing::info!(
+                                        "Saved highlight: {} (global={})",
+                                        name,
+                                        is_global
+                                    );
                                     self.highlight_form = None;
-                                    app_core.ui_state.input_mode = if self.highlight_browser.is_some() {
-                                        InputMode::HighlightBrowser
-                                    } else {
-                                        InputMode::Normal
-                                    };
+                                    app_core.ui_state.input_mode =
+                                        if self.highlight_browser.is_some() {
+                                            InputMode::HighlightBrowser
+                                        } else {
+                                            InputMode::Normal
+                                        };
                                 }
                                 _ => {}
                             }
@@ -2668,116 +2893,151 @@ impl TuiFrontend {
                                 InputMode::Normal
                             };
                         }
-                        crate::core::menu_actions::MenuAction::NavigateUp |
-                        crate::core::menu_actions::MenuAction::NavigateDown |
-                        crate::core::menu_actions::MenuAction::CycleBackward |
-                        crate::core::menu_actions::MenuAction::CycleForward |
-                        crate::core::menu_actions::MenuAction::Select |
-                        crate::core::menu_actions::MenuAction::Save |
-                        crate::core::menu_actions::MenuAction::Delete => {
+                        crate::core::menu_actions::MenuAction::NavigateUp
+                        | crate::core::menu_actions::MenuAction::NavigateDown
+                        | crate::core::menu_actions::MenuAction::CycleBackward
+                        | crate::core::menu_actions::MenuAction::CycleForward
+                        | crate::core::menu_actions::MenuAction::Select
+                        | crate::core::menu_actions::MenuAction::Save
+                        | crate::core::menu_actions::MenuAction::Delete => {
                             // Handle navigation, cycling, and save/delete via handle_action
-                    if let Some(result) = form.handle_action(action.clone()) {
-                        match result {
-                            crate::frontend::tui::highlight_form::FormResult::Save {
-                                name,
-                                mut pattern,
-                                is_global,
-                            } => {
-                                // Resolve palette color names to hex codes
-                                if let Some(ref fg) = pattern.fg {
-                                    pattern.fg = Some(app_core.config.resolve_palette_color(fg));
-                                }
-                                if let Some(ref bg) = pattern.bg {
-                                    pattern.bg = Some(app_core.config.resolve_palette_color(bg));
-                                }
+                            if let Some(result) = form.handle_action(action.clone()) {
+                                match result {
+                                    crate::frontend::tui::highlight_form::FormResult::Save {
+                                        name,
+                                        mut pattern,
+                                        is_global,
+                                    } => {
+                                        // Resolve palette color names to hex codes
+                                        if let Some(ref fg) = pattern.fg {
+                                            pattern.fg =
+                                                Some(app_core.config.resolve_palette_color(fg));
+                                        }
+                                        if let Some(ref bg) = pattern.bg {
+                                            pattern.bg =
+                                                Some(app_core.config.resolve_palette_color(bg));
+                                        }
 
-                                // Save to appropriate file based on scope
-                                if let Err(e) = crate::config::Config::save_single_highlight(
-                                    &name,
-                                    &pattern,
-                                    is_global,
-                                    app_core.config.character.as_deref(),
-                                ) {
-                                    app_core.add_system_message(&format!(
-                                        "Failed to save highlight: {}",
-                                        e
-                                    ));
-                                } else {
-                                    let scope = if is_global { "global" } else { "character" };
-                                    app_core.add_system_message(&format!("Highlight saved to {} config", scope));
-                                    // Update in-memory config
-                                    app_core.config.highlights.insert(name.clone(), pattern);
-                                    crate::config::Config::compile_highlight_patterns(
-                                        &mut app_core.config.highlights,
-                                    );
-                                    app_core
-                                        .message_processor
-                                        .apply_config(app_core.config.clone());
-                                    // Refresh browser with source tracking
-                                    if let Some(ref mut browser) = self.highlight_browser {
-                                        let global = crate::config::Config::load_common_highlights().unwrap_or_default();
-                                        let character = crate::config::Config::load_character_highlights_only(
+                                        // Save to appropriate file based on scope
+                                        if let Err(e) = crate::config::Config::save_single_highlight(
+                                            &name,
+                                            &pattern,
+                                            is_global,
+                                            app_core.config.character.as_deref(),
+                                        ) {
+                                            app_core.add_system_message(&format!(
+                                                "Failed to save highlight: {}",
+                                                e
+                                            ));
+                                        } else {
+                                            let scope =
+                                                if is_global { "global" } else { "character" };
+                                            app_core.add_system_message(&format!(
+                                                "Highlight saved to {} config",
+                                                scope
+                                            ));
+                                            // Update in-memory config
+                                            app_core
+                                                .config
+                                                .highlights
+                                                .insert(name.clone(), pattern);
+                                            crate::config::Config::compile_highlight_patterns(
+                                                &mut app_core.config.highlights,
+                                            );
+                                            app_core
+                                                .message_processor
+                                                .apply_config(app_core.config.clone());
+                                            // Refresh browser with source tracking
+                                            if let Some(ref mut browser) = self.highlight_browser {
+                                                let global =
+                                                    crate::config::Config::load_common_highlights()
+                                                        .unwrap_or_default();
+                                                let character = crate::config::Config::load_character_highlights_only(
                                             app_core.config.character.as_deref()
                                         ).unwrap_or_default();
-                                        browser.update_items_with_source(&global, &character);
+                                                browser
+                                                    .update_items_with_source(&global, &character);
+                                            }
+                                        }
+                                        tracing::info!(
+                                            "Saved highlight: {} (global={})",
+                                            name,
+                                            is_global
+                                        );
+                                        self.highlight_form = None;
+                                        app_core.ui_state.input_mode =
+                                            if self.highlight_browser.is_some() {
+                                                InputMode::HighlightBrowser
+                                            } else {
+                                                InputMode::Normal
+                                            };
                                     }
-                                }
-                                tracing::info!("Saved highlight: {} (global={})", name, is_global);
-                                self.highlight_form = None;
-                                app_core.ui_state.input_mode = if self.highlight_browser.is_some() {
-                                    InputMode::HighlightBrowser
-                                } else {
-                                    InputMode::Normal
-                                };
-                            }
-                            crate::frontend::tui::highlight_form::FormResult::Delete { name, is_global } => {
-                                // Delete from appropriate file based on scope
-                                if let Err(e) = crate::config::Config::delete_single_highlight(
-                                    &name,
-                                    is_global,
-                                    app_core.config.character.as_deref(),
-                                ) {
-                                    app_core.add_system_message(&format!(
-                                        "Failed to delete highlight: {}",
-                                        e
-                                    ));
-                                } else {
-                                    let scope = if is_global { "global" } else { "character" };
-                                    app_core.add_system_message(&format!("Highlight deleted from {} config", scope));
-                                    // Update in-memory config
-                                    app_core.config.highlights.remove(&name);
-                                    crate::config::Config::compile_highlight_patterns(
-                                        &mut app_core.config.highlights,
-                                    );
-                                    app_core
-                                        .message_processor
-                                        .apply_config(app_core.config.clone());
-                                    // Refresh browser with source tracking
-                                    if let Some(ref mut browser) = self.highlight_browser {
-                                        let global = crate::config::Config::load_common_highlights().unwrap_or_default();
-                                        let character = crate::config::Config::load_character_highlights_only(
+                                    crate::frontend::tui::highlight_form::FormResult::Delete {
+                                        name,
+                                        is_global,
+                                    } => {
+                                        // Delete from appropriate file based on scope
+                                        if let Err(e) =
+                                            crate::config::Config::delete_single_highlight(
+                                                &name,
+                                                is_global,
+                                                app_core.config.character.as_deref(),
+                                            )
+                                        {
+                                            app_core.add_system_message(&format!(
+                                                "Failed to delete highlight: {}",
+                                                e
+                                            ));
+                                        } else {
+                                            let scope =
+                                                if is_global { "global" } else { "character" };
+                                            app_core.add_system_message(&format!(
+                                                "Highlight deleted from {} config",
+                                                scope
+                                            ));
+                                            // Update in-memory config
+                                            app_core.config.highlights.remove(&name);
+                                            crate::config::Config::compile_highlight_patterns(
+                                                &mut app_core.config.highlights,
+                                            );
+                                            app_core
+                                                .message_processor
+                                                .apply_config(app_core.config.clone());
+                                            // Refresh browser with source tracking
+                                            if let Some(ref mut browser) = self.highlight_browser {
+                                                let global =
+                                                    crate::config::Config::load_common_highlights()
+                                                        .unwrap_or_default();
+                                                let character = crate::config::Config::load_character_highlights_only(
                                             app_core.config.character.as_deref()
                                         ).unwrap_or_default();
-                                        browser.update_items_with_source(&global, &character);
+                                                browser
+                                                    .update_items_with_source(&global, &character);
+                                            }
+                                        }
+                                        tracing::info!(
+                                            "Deleted highlight: {} (global={})",
+                                            name,
+                                            is_global
+                                        );
+                                        self.highlight_form = None;
+                                        app_core.ui_state.input_mode =
+                                            if self.highlight_browser.is_some() {
+                                                InputMode::HighlightBrowser
+                                            } else {
+                                                InputMode::Normal
+                                            };
+                                    }
+                                    crate::frontend::tui::highlight_form::FormResult::Cancel => {
+                                        self.highlight_form = None;
+                                        app_core.ui_state.input_mode =
+                                            if self.highlight_browser.is_some() {
+                                                InputMode::HighlightBrowser
+                                            } else {
+                                                InputMode::Normal
+                                            };
                                     }
                                 }
-                                tracing::info!("Deleted highlight: {} (global={})", name, is_global);
-                                self.highlight_form = None;
-                                app_core.ui_state.input_mode = if self.highlight_browser.is_some() {
-                                    InputMode::HighlightBrowser
-                                } else {
-                                    InputMode::Normal
-                                };
-                            }
-                            crate::frontend::tui::highlight_form::FormResult::Cancel => {
-                                self.highlight_form = None;
-                                app_core.ui_state.input_mode = if self.highlight_browser.is_some() {
-                                    InputMode::HighlightBrowser
-                                } else {
-                                    InputMode::Normal
-                                };
-                            }
-                        }
                             }
                         }
                         _ => {
@@ -2794,10 +3054,12 @@ impl TuiFrontend {
                                     } => {
                                         // Resolve palette color names to hex codes
                                         if let Some(ref fg) = pattern.fg {
-                                            pattern.fg = Some(app_core.config.resolve_palette_color(fg));
+                                            pattern.fg =
+                                                Some(app_core.config.resolve_palette_color(fg));
                                         }
                                         if let Some(ref bg) = pattern.bg {
-                                            pattern.bg = Some(app_core.config.resolve_palette_color(bg));
+                                            pattern.bg =
+                                                Some(app_core.config.resolve_palette_color(bg));
                                         }
 
                                         // Save to appropriate file based on scope
@@ -2812,10 +3074,17 @@ impl TuiFrontend {
                                                 e
                                             ));
                                         } else {
-                                            let scope = if is_global { "global" } else { "character" };
-                                            app_core.add_system_message(&format!("Highlight saved to {} config", scope));
+                                            let scope =
+                                                if is_global { "global" } else { "character" };
+                                            app_core.add_system_message(&format!(
+                                                "Highlight saved to {} config",
+                                                scope
+                                            ));
                                             // Update in-memory config
-                                            app_core.config.highlights.insert(name.clone(), pattern);
+                                            app_core
+                                                .config
+                                                .highlights
+                                                .insert(name.clone(), pattern);
                                             crate::config::Config::compile_highlight_patterns(
                                                 &mut app_core.config.highlights,
                                             );
@@ -2824,35 +3093,52 @@ impl TuiFrontend {
                                                 .apply_config(app_core.config.clone());
                                             // Refresh browser with source tracking
                                             if let Some(ref mut browser) = self.highlight_browser {
-                                                let global = crate::config::Config::load_common_highlights().unwrap_or_default();
+                                                let global =
+                                                    crate::config::Config::load_common_highlights()
+                                                        .unwrap_or_default();
                                                 let character = crate::config::Config::load_character_highlights_only(
                                                     app_core.config.character.as_deref()
                                                 ).unwrap_or_default();
-                                                browser.update_items_with_source(&global, &character);
+                                                browser
+                                                    .update_items_with_source(&global, &character);
                                             }
                                         }
-                                        tracing::info!("Saved highlight: {} (global={})", name, is_global);
+                                        tracing::info!(
+                                            "Saved highlight: {} (global={})",
+                                            name,
+                                            is_global
+                                        );
                                         self.highlight_form = None;
-                                        app_core.ui_state.input_mode = if self.highlight_browser.is_some() {
-                                            InputMode::HighlightBrowser
-                                        } else {
-                                            InputMode::Normal
-                                        };
+                                        app_core.ui_state.input_mode =
+                                            if self.highlight_browser.is_some() {
+                                                InputMode::HighlightBrowser
+                                            } else {
+                                                InputMode::Normal
+                                            };
                                     }
-                                    crate::frontend::tui::highlight_form::FormResult::Delete { name, is_global } => {
+                                    crate::frontend::tui::highlight_form::FormResult::Delete {
+                                        name,
+                                        is_global,
+                                    } => {
                                         // Delete from appropriate file based on scope
-                                        if let Err(e) = crate::config::Config::delete_single_highlight(
-                                            &name,
-                                            is_global,
-                                            app_core.config.character.as_deref(),
-                                        ) {
+                                        if let Err(e) =
+                                            crate::config::Config::delete_single_highlight(
+                                                &name,
+                                                is_global,
+                                                app_core.config.character.as_deref(),
+                                            )
+                                        {
                                             app_core.add_system_message(&format!(
                                                 "Failed to delete highlight: {}",
                                                 e
                                             ));
                                         } else {
-                                            let scope = if is_global { "global" } else { "character" };
-                                            app_core.add_system_message(&format!("Highlight deleted from {} config", scope));
+                                            let scope =
+                                                if is_global { "global" } else { "character" };
+                                            app_core.add_system_message(&format!(
+                                                "Highlight deleted from {} config",
+                                                scope
+                                            ));
                                             // Update in-memory config
                                             app_core.config.highlights.remove(&name);
                                             crate::config::Config::compile_highlight_patterns(
@@ -2863,28 +3149,37 @@ impl TuiFrontend {
                                                 .apply_config(app_core.config.clone());
                                             // Refresh browser with source tracking
                                             if let Some(ref mut browser) = self.highlight_browser {
-                                                let global = crate::config::Config::load_common_highlights().unwrap_or_default();
+                                                let global =
+                                                    crate::config::Config::load_common_highlights()
+                                                        .unwrap_or_default();
                                                 let character = crate::config::Config::load_character_highlights_only(
                                                     app_core.config.character.as_deref()
                                                 ).unwrap_or_default();
-                                                browser.update_items_with_source(&global, &character);
+                                                browser
+                                                    .update_items_with_source(&global, &character);
                                             }
                                         }
-                                        tracing::info!("Deleted highlight: {} (global={})", name, is_global);
+                                        tracing::info!(
+                                            "Deleted highlight: {} (global={})",
+                                            name,
+                                            is_global
+                                        );
                                         self.highlight_form = None;
-                                        app_core.ui_state.input_mode = if self.highlight_browser.is_some() {
-                                            InputMode::HighlightBrowser
-                                        } else {
-                                            InputMode::Normal
-                                        };
+                                        app_core.ui_state.input_mode =
+                                            if self.highlight_browser.is_some() {
+                                                InputMode::HighlightBrowser
+                                            } else {
+                                                InputMode::Normal
+                                            };
                                     }
                                     crate::frontend::tui::highlight_form::FormResult::Cancel => {
                                         self.highlight_form = None;
-                                        app_core.ui_state.input_mode = if self.highlight_browser.is_some() {
-                                            InputMode::HighlightBrowser
-                                        } else {
-                                            InputMode::Normal
-                                        };
+                                        app_core.ui_state.input_mode =
+                                            if self.highlight_browser.is_some() {
+                                                InputMode::HighlightBrowser
+                                            } else {
+                                                InputMode::Normal
+                                            };
                                     }
                                 }
                             }
@@ -2896,12 +3191,19 @@ impl TuiFrontend {
             }
             InputMode::KeybindForm => {
                 if let Some(ref mut form) = self.keybind_form {
+                    use crate::frontend::tui::keybind_form::ActionSection;
                     use crate::frontend::tui::widget_traits::{
                         FieldNavigable, TextEditable, Toggleable,
                     };
-                    use crate::frontend::tui::keybind_form::ActionSection;
 
-                    let ctrl_only = matches!(modifiers, KeyModifiers { ctrl: true, shift: false, alt: false });
+                    let ctrl_only = matches!(
+                        modifiers,
+                        KeyModifiers {
+                            ctrl: true,
+                            shift: false,
+                            alt: false
+                        }
+                    );
 
                     if ctrl_only {
                         match code {
@@ -3160,8 +3462,8 @@ impl TuiFrontend {
                             self.color_form = None;
                             app_core.ui_state.input_mode = InputMode::Normal;
                         }
-                        crate::core::menu_actions::MenuAction::Select |
-                        crate::core::menu_actions::MenuAction::Save => {
+                        crate::core::menu_actions::MenuAction::Select
+                        | crate::core::menu_actions::MenuAction::Save => {
                             // Handle Select (Enter) and Save (Ctrl+S) via handle_action
                             if let Some(result) = form.handle_action(action.clone()) {
                                 match result {
@@ -3171,12 +3473,17 @@ impl TuiFrontend {
                                         is_global,
                                     } => {
                                         // Save to appropriate file based on scope
-                                        let color_with_slot = auto_assign_slot(color.clone(), &app_core.config.colors.color_palette);
-                                        if let Err(e) = crate::config::ColorConfig::save_single_palette_color(
-                                            &color_with_slot,
-                                            is_global,
-                                            app_core.config.character.as_deref(),
-                                        ) {
+                                        let color_with_slot = auto_assign_slot(
+                                            color.clone(),
+                                            &app_core.config.colors.color_palette,
+                                        );
+                                        if let Err(e) =
+                                            crate::config::ColorConfig::save_single_palette_color(
+                                                &color_with_slot,
+                                                is_global,
+                                                app_core.config.character.as_deref(),
+                                            )
+                                        {
                                             tracing::error!("Failed to save color: {}", e);
                                         }
 
@@ -3192,28 +3499,38 @@ impl TuiFrontend {
                                         }
 
                                         // Reload colors to update in-memory state
-                                        if let Ok(colors) = crate::config::ColorConfig::load_with_merge(
-                                            app_core.config.character.as_deref()
-                                        ) {
+                                        if let Ok(colors) =
+                                            crate::config::ColorConfig::load_with_merge(
+                                                app_core.config.character.as_deref(),
+                                            )
+                                        {
                                             app_core.config.colors = colors;
                                         }
 
                                         // Refresh browser if open
                                         if let Some(ref mut browser) = self.color_palette_browser {
-                                            let global_colors = crate::config::ColorConfig::load_common_colors()
-                                                .map(|c| c.color_palette)
-                                                .unwrap_or_default();
+                                            let global_colors =
+                                                crate::config::ColorConfig::load_common_colors()
+                                                    .map(|c| c.color_palette)
+                                                    .unwrap_or_default();
                                             let char_colors = crate::config::ColorConfig::load_character_colors_only(
                                                 app_core.config.character.as_deref()
                                             )
                                                 .map(|c| c.color_palette)
                                                 .unwrap_or_default();
-                                            browser.update_items_with_source(&global_colors, &char_colors);
+                                            browser.update_items_with_source(
+                                                &global_colors,
+                                                &char_colors,
+                                            );
                                         }
 
                                         self.color_form = None;
                                         app_core.ui_state.input_mode = InputMode::Normal;
-                                        tracing::info!("Saved color: {} ({})", color.name, if is_global { "global" } else { "character" });
+                                        tracing::info!(
+                                            "Saved color: {} ({})",
+                                            color.name,
+                                            if is_global { "global" } else { "character" }
+                                        );
                                     }
                                     crate::frontend::tui::color_form::FormAction::Delete => {
                                         self.color_form = None;
@@ -3240,12 +3557,17 @@ impl TuiFrontend {
                                         is_global,
                                     } => {
                                         // Save to appropriate file based on scope
-                                        let color_with_slot = auto_assign_slot(color.clone(), &app_core.config.colors.color_palette);
-                                        if let Err(e) = crate::config::ColorConfig::save_single_palette_color(
-                                            &color_with_slot,
-                                            is_global,
-                                            app_core.config.character.as_deref(),
-                                        ) {
+                                        let color_with_slot = auto_assign_slot(
+                                            color.clone(),
+                                            &app_core.config.colors.color_palette,
+                                        );
+                                        if let Err(e) =
+                                            crate::config::ColorConfig::save_single_palette_color(
+                                                &color_with_slot,
+                                                is_global,
+                                                app_core.config.character.as_deref(),
+                                            )
+                                        {
                                             tracing::error!("Failed to save color: {}", e);
                                         }
 
@@ -3261,28 +3583,38 @@ impl TuiFrontend {
                                         }
 
                                         // Reload colors to update in-memory state
-                                        if let Ok(colors) = crate::config::ColorConfig::load_with_merge(
-                                            app_core.config.character.as_deref()
-                                        ) {
+                                        if let Ok(colors) =
+                                            crate::config::ColorConfig::load_with_merge(
+                                                app_core.config.character.as_deref(),
+                                            )
+                                        {
                                             app_core.config.colors = colors;
                                         }
 
                                         // Refresh browser if open
                                         if let Some(ref mut browser) = self.color_palette_browser {
-                                            let global_colors = crate::config::ColorConfig::load_common_colors()
-                                                .map(|c| c.color_palette)
-                                                .unwrap_or_default();
+                                            let global_colors =
+                                                crate::config::ColorConfig::load_common_colors()
+                                                    .map(|c| c.color_palette)
+                                                    .unwrap_or_default();
                                             let char_colors = crate::config::ColorConfig::load_character_colors_only(
                                                 app_core.config.character.as_deref()
                                             )
                                                 .map(|c| c.color_palette)
                                                 .unwrap_or_default();
-                                            browser.update_items_with_source(&global_colors, &char_colors);
+                                            browser.update_items_with_source(
+                                                &global_colors,
+                                                &char_colors,
+                                            );
                                         }
 
                                         self.color_form = None;
                                         app_core.ui_state.input_mode = InputMode::Normal;
-                                        tracing::info!("Saved color: {} ({})", color.name, if is_global { "global" } else { "character" });
+                                        tracing::info!(
+                                            "Saved color: {} ({})",
+                                            color.name,
+                                            if is_global { "global" } else { "character" }
+                                        );
                                     }
                                     crate::frontend::tui::color_form::FormAction::Delete => {
                                         self.color_form = None;
@@ -3432,7 +3764,9 @@ impl TuiFrontend {
                     if modifiers.ctrl {
                         match code {
                             crate::frontend::KeyCode::Char(c @ '1'..='6') => {
-                                let section = c.to_digit(10).expect("char '1'..='6' is always a digit") as usize;
+                                let section =
+                                    c.to_digit(10).expect("char '1'..='6' is always a digit")
+                                        as usize;
                                 editor.jump_to_section(section);
                                 app_core.needs_render = true;
                                 return Ok(None);
@@ -3821,10 +4155,8 @@ impl TuiFrontend {
         app_core: &mut crate::core::AppCore,
         handle_menu_action_fn: impl Fn(&mut crate::core::AppCore, &mut Self, &str) -> Result<()>,
     ) -> Result<Option<String>> {
-        
-        
-        use crate::frontend::KeyCode;
         use crate::data::ui_state::InputMode;
+        use crate::frontend::KeyCode;
 
         tracing::debug!("Menu mode active - handling key: {:?}", code);
 
@@ -3906,7 +4238,6 @@ impl TuiFrontend {
         app_core: &mut crate::core::AppCore,
         handle_menu_action_fn: impl Fn(&mut crate::core::AppCore, &mut Self, &str) -> Result<()>,
     ) -> Result<Option<String>> {
-        
         use crate::data::ui_state::{InputMode, PopupMenu};
 
         if let Some(submenu_name) = command.strip_prefix("menu:") {
@@ -3933,7 +4264,8 @@ impl TuiFrontend {
                     .as_ref()
                     .map(|m| m.get_position())
                     .unwrap_or((40, 12));
-                app_core.ui_state.nested_submenu = Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
+                app_core.ui_state.nested_submenu =
+                    Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
             } else if app_core.ui_state.popup_menu.is_some() {
                 // Have popup_menu, create submenu
                 let parent_pos = app_core
@@ -3942,7 +4274,8 @@ impl TuiFrontend {
                     .as_ref()
                     .map(|m| m.get_position())
                     .unwrap_or((40, 12));
-                app_core.ui_state.submenu = Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
+                app_core.ui_state.submenu =
+                    Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
             } else {
                 // No existing menu, create popup_menu
                 app_core.ui_state.popup_menu = Some(PopupMenu::new(items, (40, 12)));
@@ -3986,7 +4319,13 @@ impl TuiFrontend {
                     .as_ref()
                     .map(|m| m.get_position())
                     .or_else(|| app_core.ui_state.submenu.as_ref().map(|m| m.get_position()))
-                    .or_else(|| app_core.ui_state.popup_menu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .popup_menu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .unwrap_or((40, 12));
                 app_core.ui_state.deep_submenu =
                     Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
@@ -3994,10 +4333,13 @@ impl TuiFrontend {
             app_core.needs_render = true;
         } else if command == "__SUBMENU_INDICATORS" {
             // Indicator submenu under Status (replaces deep_submenu since we're at level 4)
-            let templates = crate::config::Config::get_addable_templates_by_category(&app_core.layout, app_core.game_type())
-                .get(&crate::config::WidgetCategory::Status)
-                .cloned()
-                .unwrap_or_default();
+            let templates = crate::config::Config::get_addable_templates_by_category(
+                &app_core.layout,
+                app_core.game_type(),
+            )
+            .get(&crate::config::WidgetCategory::Status)
+            .cloned()
+            .unwrap_or_default();
             let items = app_core.build_indicator_add_menu(&templates);
             if items.is_empty() {
                 app_core.ui_state.deep_submenu = None;
@@ -4007,9 +4349,21 @@ impl TuiFrontend {
                     .deep_submenu
                     .as_ref()
                     .map(|m| m.get_position())
-                    .or_else(|| app_core.ui_state.nested_submenu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .nested_submenu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .or_else(|| app_core.ui_state.submenu.as_ref().map(|m| m.get_position()))
-                    .or_else(|| app_core.ui_state.popup_menu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .popup_menu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .unwrap_or((40, 12));
                 app_core.ui_state.deep_submenu =
                     Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
@@ -4028,7 +4382,13 @@ impl TuiFrontend {
                     .as_ref()
                     .map(|m| m.get_position())
                     .or_else(|| app_core.ui_state.submenu.as_ref().map(|m| m.get_position()))
-                    .or_else(|| app_core.ui_state.popup_menu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .popup_menu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .unwrap_or((40, 12));
                 app_core.ui_state.deep_submenu =
                     Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
@@ -4047,7 +4407,13 @@ impl TuiFrontend {
                     .as_ref()
                     .map(|m| m.get_position())
                     .or_else(|| app_core.ui_state.submenu.as_ref().map(|m| m.get_position()))
-                    .or_else(|| app_core.ui_state.popup_menu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .popup_menu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .unwrap_or((40, 12));
                 app_core.ui_state.deep_submenu =
                     Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
@@ -4071,9 +4437,21 @@ impl TuiFrontend {
                     .deep_submenu
                     .as_ref()
                     .map(|m| m.get_position())
-                    .or_else(|| app_core.ui_state.nested_submenu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .nested_submenu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .or_else(|| app_core.ui_state.submenu.as_ref().map(|m| m.get_position()))
-                    .or_else(|| app_core.ui_state.popup_menu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .popup_menu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .unwrap_or((40, 12));
                 app_core.ui_state.deep_submenu =
                     Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
@@ -4097,22 +4475,36 @@ impl TuiFrontend {
                     .deep_submenu
                     .as_ref()
                     .map(|m| m.get_position())
-                    .or_else(|| app_core.ui_state.nested_submenu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .nested_submenu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .or_else(|| app_core.ui_state.submenu.as_ref().map(|m| m.get_position()))
-                    .or_else(|| app_core.ui_state.popup_menu.as_ref().map(|m| m.get_position()))
+                    .or_else(|| {
+                        app_core
+                            .ui_state
+                            .popup_menu
+                            .as_ref()
+                            .map(|m| m.get_position())
+                    })
                     .unwrap_or((40, 12));
                 app_core.ui_state.deep_submenu =
                     Some(PopupMenu::new(items, (parent_pos.0 + 2, parent_pos.1)));
             }
             app_core.needs_render = true;
         } else if command == "__INDICATOR_EDITOR" {
-            self.indicator_template_editor =
-                Some(crate::frontend::tui::indicator_template_editor::IndicatorTemplateEditor::new());
+            self.indicator_template_editor = Some(
+                crate::frontend::tui::indicator_template_editor::IndicatorTemplateEditor::new(),
+            );
             app_core.ui_state.popup_menu = None;
             app_core.ui_state.submenu = None;
             app_core.ui_state.nested_submenu = None;
             app_core.ui_state.deep_submenu = None;
-            app_core.ui_state.input_mode = crate::data::ui_state::InputMode::IndicatorTemplateEditor;
+            app_core.ui_state.input_mode =
+                crate::data::ui_state::InputMode::IndicatorTemplateEditor;
             app_core.needs_render = true;
         } else if let Some(widget_type) = command.strip_prefix("__ADD_CUSTOM__") {
             // Start a new blank/custom window editor for this widget type
@@ -4150,7 +4542,10 @@ impl TuiFrontend {
                     // we need to get the last window in the layout since the template name
                     // differs from the actual window name (e.g., "tabbedtext_custom" → "custom-tabbedtext-1")
                     // First try direct lookup, then fallback to last window if template doesn't match
-                    let window_def = app_core.layout.get_window(window_name).cloned()
+                    let window_def = app_core
+                        .layout
+                        .get_window(window_name)
+                        .cloned()
                         .or_else(|| app_core.layout.windows.last().cloned());
 
                     if let Some(window_def) = window_def {
@@ -4162,12 +4557,15 @@ impl TuiFrontend {
 
                         // Immediately open editor for the newly added window
                         self.window_editor = Some(
-                            crate::frontend::tui::window_editor::WindowEditor::new(window_def)
+                            crate::frontend::tui::window_editor::WindowEditor::new(window_def),
                         );
                         app_core.ui_state.input_mode = InputMode::WindowEditor;
                     } else {
                         // Fallback to normal mode if something goes wrong
-                        app_core.add_system_message(&format!("Window '{}' added but couldn't retrieve definition", window_name));
+                        app_core.add_system_message(&format!(
+                            "Window '{}' added but couldn't retrieve definition",
+                            window_name
+                        ));
                         app_core.ui_state.input_mode = InputMode::Normal;
                     }
                 }
@@ -4202,7 +4600,10 @@ impl TuiFrontend {
         } else if let Some(window_name) = command.strip_prefix("__EDIT__") {
             // Safeguard: prevent opening if a window editor is already open
             if self.window_editor.is_some() {
-                tracing::debug!("Window editor already open, ignoring edit request for: {}", window_name);
+                tracing::debug!(
+                    "Window editor already open, ignoring edit request for: {}",
+                    window_name
+                );
             } else if let Some(window_def) = app_core.layout.get_window(window_name) {
                 self.window_editor = Some(crate::frontend::tui::window_editor::WindowEditor::new(
                     window_def.clone(),
@@ -4245,20 +4646,47 @@ impl TuiFrontend {
             // Handle performance overlay metric toggle from right-click menu
             match metric {
                 "fps" => app_core.config.ui.perf_show_fps = !app_core.config.ui.perf_show_fps,
-                "frame_times" => app_core.config.ui.perf_show_frame_times = !app_core.config.ui.perf_show_frame_times,
-                "render_times" => app_core.config.ui.perf_show_render_times = !app_core.config.ui.perf_show_render_times,
-                "ui_times" => app_core.config.ui.perf_show_ui_times = !app_core.config.ui.perf_show_ui_times,
-                "wrap_times" => app_core.config.ui.perf_show_wrap_times = !app_core.config.ui.perf_show_wrap_times,
+                "frame_times" => {
+                    app_core.config.ui.perf_show_frame_times =
+                        !app_core.config.ui.perf_show_frame_times
+                }
+                "render_times" => {
+                    app_core.config.ui.perf_show_render_times =
+                        !app_core.config.ui.perf_show_render_times
+                }
+                "ui_times" => {
+                    app_core.config.ui.perf_show_ui_times = !app_core.config.ui.perf_show_ui_times
+                }
+                "wrap_times" => {
+                    app_core.config.ui.perf_show_wrap_times =
+                        !app_core.config.ui.perf_show_wrap_times
+                }
                 "net" => app_core.config.ui.perf_show_net = !app_core.config.ui.perf_show_net,
                 "parse" => app_core.config.ui.perf_show_parse = !app_core.config.ui.perf_show_parse,
-                "events" => app_core.config.ui.perf_show_events = !app_core.config.ui.perf_show_events,
-                "memory" => app_core.config.ui.perf_show_memory = !app_core.config.ui.perf_show_memory,
+                "events" => {
+                    app_core.config.ui.perf_show_events = !app_core.config.ui.perf_show_events
+                }
+                "memory" => {
+                    app_core.config.ui.perf_show_memory = !app_core.config.ui.perf_show_memory
+                }
                 "lines" => app_core.config.ui.perf_show_lines = !app_core.config.ui.perf_show_lines,
-                "uptime" => app_core.config.ui.perf_show_uptime = !app_core.config.ui.perf_show_uptime,
-                "jitter" => app_core.config.ui.perf_show_jitter = !app_core.config.ui.perf_show_jitter,
-                "frame_spikes" => app_core.config.ui.perf_show_frame_spikes = !app_core.config.ui.perf_show_frame_spikes,
-                "event_lag" => app_core.config.ui.perf_show_event_lag = !app_core.config.ui.perf_show_event_lag,
-                "memory_delta" => app_core.config.ui.perf_show_memory_delta = !app_core.config.ui.perf_show_memory_delta,
+                "uptime" => {
+                    app_core.config.ui.perf_show_uptime = !app_core.config.ui.perf_show_uptime
+                }
+                "jitter" => {
+                    app_core.config.ui.perf_show_jitter = !app_core.config.ui.perf_show_jitter
+                }
+                "frame_spikes" => {
+                    app_core.config.ui.perf_show_frame_spikes =
+                        !app_core.config.ui.perf_show_frame_spikes
+                }
+                "event_lag" => {
+                    app_core.config.ui.perf_show_event_lag = !app_core.config.ui.perf_show_event_lag
+                }
+                "memory_delta" => {
+                    app_core.config.ui.perf_show_memory_delta =
+                        !app_core.config.ui.perf_show_memory_delta
+                }
                 _ => {}
             }
             // Re-apply enabled flags to perf_stats collector
@@ -4359,7 +4787,9 @@ impl TuiFrontend {
     }
 
     /// Build performance overlay metrics context menu with checkmarks for enabled metrics
-    fn build_perf_metrics_context_menu(ui: &crate::config::UiConfig) -> Vec<crate::data::ui_state::PopupMenuItem> {
+    fn build_perf_metrics_context_menu(
+        ui: &crate::config::UiConfig,
+    ) -> Vec<crate::data::ui_state::PopupMenuItem> {
         let check = |on: bool| if on { "✓" } else { " " };
         vec![
             crate::data::ui_state::PopupMenuItem {
@@ -4605,7 +5035,11 @@ impl TuiFrontend {
                         let is_performance = original_template.eq_ignore_ascii_case("performance");
                         if orig_is_custom || exists_in_store || is_performance {
                             if let Err(e) = Config::upsert_window_template(&window_def) {
-                                tracing::warn!("Failed to save window template {}: {}", window_def.name(), e);
+                                tracing::warn!(
+                                    "Failed to save window template {}: {}",
+                                    window_def.name(),
+                                    e
+                                );
                             }
                         }
 
@@ -4629,7 +5063,8 @@ impl TuiFrontend {
                                 app_core.update_window_position(&window_def, width, height);
 
                                 // For TabbedText windows, sync tabs and reset widget cache if structure changed
-                                if matches!(window_def, crate::config::WindowDef::TabbedText { .. }) {
+                                if matches!(window_def, crate::config::WindowDef::TabbedText { .. })
+                                {
                                     if app_core.sync_tabbed_window_tabs(&window_name) {
                                         app_core.ui_state.needs_widget_reset = true;
                                     }
@@ -4674,7 +5109,8 @@ impl TuiFrontend {
                     let ct_code = crossterm_bridge::to_crossterm_keycode(code);
                     let ct_mods = crossterm_bridge::to_crossterm_modifiers(modifiers);
                     let key_event = crossterm::event::KeyEvent::new(ct_code, ct_mods);
-                    let rt_key = crate::frontend::tui::textarea_bridge::to_textarea_event(key_event);
+                    let rt_key =
+                        crate::frontend::tui::textarea_bridge::to_textarea_event(key_event);
                     if let Some(ref mut editor) = self.window_editor {
                         if editor.is_sub_editor_active() {
                             if editor.handle_sub_editor_key(tf_key) {
