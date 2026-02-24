@@ -15,9 +15,22 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 15 — commit `fd2f440`)
+## Current State (Session 17 — commit `8c1ec53`)
 
-`cargo check` clean. `cargo test` passes. **v0.2.0-beta.15 released** — all platform binaries on GitHub Releases.
+`cargo check` clean. **v0.2.0-beta.17 released** — all platform binaries on GitHub Releases.
+
+Session 17 completed:
+- Fixed Windows double-click crash: `event::poll()` and `event::read()` errors are now non-fatal
+  (treated as no-event instead of propagating up and killing the app)
+- Added panic hook in `main()` that writes panic info to `vellum-fe.log` before exit
+- On Windows: fatal errors write `crash.txt` next to the `.exe` so users can find the error
+- Log file path logged at INFO level on startup: `VellumFE starting — log: C:\Users\...\vellum-fe.log`
+- Tagged `v0.2.0-beta.17`
+
+Session 16 completed:
+- CI performance: `beta-release.yml` and `ci.yml` rewritten with choco cache, thin LTO, path filters, concurrency cancel
+- Clippy debt: 4 batches committed (`8840e3f`, `6dac600`, `8df2dd2`, batch 3)
+- Tagged `v0.2.0-beta.16`
 
 Session 15 completed:
 - Fixed first-run blank screen bug: `needs_render` was never set after picker/wizard assigned post-startup
@@ -28,20 +41,7 @@ Session 15 completed:
 - Added key hint footer to credentials step: `[Tab] Next field  [Enter] Continue  [Esc] Cancel`
 - Committed as `fd2f440`
 
-Session 14 completed:
-- Added `.githooks/pre-commit` hook: runs `cargo check`, `cargo clippy`, `cargo fmt --check`
-- Hook does NOT use `-D warnings` — codebase has ~283 pre-existing clippy warnings (style debt, not errors)
-- Added `scripts/install-hooks.sh` installer
-- Fixed hook PATH issue: added `export PATH="$HOME/.cargo/bin:$PATH"` so cargo is found in git hook env
-- Ran `cargo fmt` across entire codebase — 104 files reformatted (pure style, no logic changes)
-- All committed and pushed as `3833a26`
-
 **Tech debt note**: 283 clippy warnings exist (dead_code, too_many_arguments, get_first, etc.). These are pre-existing style issues, not regressions. Tracked as future cleanup work.
-
-Previous session fixes (Session 13):
-1. `vellum_fe` → `vellum_fe_tabbed` in `tests/ui_integration.rs`, `tests/parser_integration.rs`, `src/theme.rs` doctests
-2. `beta-release.yml` macOS package steps were copying `target/release/vellum-fe` (old binary name)
-3. `beta-release.yml` and `release.yml` release jobs missing `permissions: contents: write`
 
 ---
 
