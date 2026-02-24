@@ -782,6 +782,7 @@ mod eaccess {
         read_response(&mut stream)?;
         send_line(&mut stream, "C")?;
         let chars_response = read_response(&mut stream)?;
+        tracing::debug!("fetch_characters raw response: {:?}", chars_response);
         Ok(parse_character_list(&chars_response))
     }
 
