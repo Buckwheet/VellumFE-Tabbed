@@ -15,31 +15,46 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 17 — commit `8c1ec53`)
+## Current State (Session 21 — commit `6efaaa0`, tag `v0.2.0-beta.23`)
 
-`cargo check` clean. **v0.2.0-beta.17 released** — all platform binaries on GitHub Releases.
+`cargo check` clean. **v0.2.0-beta.23 released** — actively debugging eAccess authenticate failure.
 
-Session 17 completed:
+### Session 21 — eAccess authenticate debug (current, in-progress)
+
+Status: character list now populates correctly. `authenticate` fails after character selection.
+
+- beta.21: Fixed game code `GS3` → `GS4` in `login_wizard.rs` GAMES array and `network.rs`
+- beta.22: Fixed `fetch_characters` missing `G\t{game_code}` and `P\t{game_code}` before `C`
+  - `fetch_characters` was sending `F` → `C` but needed `F` → `G` → `P` → `C` (same as `authenticate`)
+  - Log confirmed: `G response: "X\tPROBLEM"`, `P response: "P\tNONE"`, but `C` returned characters
+  - Characters confirmed: `C\t2\t16\t1\t1\tW_HOGGD_000\tBrashka\tW_HOGGZ_W000\tMejora`
+- beta.23: Added debug logging to `authenticate` F/G/P/C/L responses to find exact failure point
+  - Error is `"Failed to authenticate with eAccess"` wrapping `eaccess::authenticate` result
+  - Need new log from user to see which step fails
+
+**NEXT**: User tests beta.23, shares log. Look for `authenticate F/G/P/C/L response` and `authenticate char_code` lines.
+
+### Session 20 — Empty character list root cause found
+
+- Raw eAccess response was `C\t0\t0\t0\t0` — wrong game code `GS3` sent
+- Root cause confirmed via log: `fetch_characters raw response: "C\t0\t0\t0\t0"`
+- Fix: `GS3` → `GS4` everywhere
+
+### Session 19 — Blank character select screen fix (beta.19)
+
+- Root cause: `app_core.needs_render` never set after `handle_wizard_command` fetched characters
+- Fix: added `app_core.needs_render = true;` after wizard handler in `runtime.rs`
+
+### Session 18 — `Invalid app type` crash fix (beta.18)
+
+- Root cause: `frontend.render(&mut app_core)` double-ref broke `downcast_mut::<AppCore>()`
+- Fix: changed to `frontend.render(app_core)` in `src/frontend/tui/runtime.rs`
+
+### Session 17 — Windows double-click crash fix (beta.17)
+
 - Fixed Windows double-click crash: `event::poll()` and `event::read()` errors are now non-fatal
-  (treated as no-event instead of propagating up and killing the app)
-- Added panic hook in `main()` that writes panic info to `vellum-fe.log` before exit
-- On Windows: fatal errors write `crash.txt` next to the `.exe` so users can find the error
-- Log file path logged at INFO level on startup: `VellumFE starting — log: C:\Users\...\vellum-fe.log`
-- Tagged `v0.2.0-beta.17`
-
-Session 16 completed:
-- CI performance: `beta-release.yml` and `ci.yml` rewritten with choco cache, thin LTO, path filters, concurrency cancel
-- Clippy debt: 4 batches committed (`8840e3f`, `6dac600`, `8df2dd2`, batch 3)
-- Tagged `v0.2.0-beta.16`
-
-Session 15 completed:
-- Fixed first-run blank screen bug: `needs_render` was never set after picker/wizard assigned post-startup
-- On first run (no sessions.toml), login wizard opens immediately instead of empty session picker
-- Session picker only shown when saved sessions exist but none have `auto_connect = true`
-- Initial Lich network task no longer spawned on first run (no more failed localhost:8000 attempt)
-- Wizard title updated to "VellumFE — Connect to GemStone IV" on all steps
-- Added key hint footer to credentials step: `[Tab] Next field  [Enter] Continue  [Esc] Cancel`
-- Committed as `fd2f440`
+- Added panic hook → `vellum-fe.log`; fatal errors write `crash.txt` next to `.exe`
+- Log file path logged at INFO level on startup
 
 **Tech debt note**: 283 clippy warnings exist (dead_code, too_many_arguments, get_first, etc.). These are pre-existing style issues, not regressions. Tracked as future cleanup work.
 
@@ -212,16 +227,21 @@ Priority order:
 
 1. ~~**Session switch UI state save/restore**~~ — DONE (Session 10)
 2. ~~**TTS state in tab bar**~~ — DONE (Session 11)
-3. ~~**CI test failures**~~ — DONE (Session 12) — `vellum_fe` → `vellum_fe_tabbed` in tests + doctests
+3. ~~**CI test failures**~~ — DONE (Session 12)
 4. ~~**macOS package step binary name**~~ — DONE (Session 13)
 5. ~~**Release job permissions**~~ — DONE (Session 13)
-6. ~~**Pre-commit hooks**~~ — DONE (Session 14) — `.githooks/pre-commit` + `scripts/install-hooks.sh`; `cargo fmt` applied codebase-wide
-7. ~~**First-run blank screen**~~ — DONE (Session 15) — wizard opens immediately on fresh install; no ghost Lich connection
-8. **Test the binary** — download latest beta from GitHub Releases, run against a real GemStone account, verify Direct login wizard works end-to-end
-8. **Promote to v0.2.0 stable** once binary is confirmed working
-9. **Bak file cleanup** — deferred until first working release binary is confirmed by user
-10. **Clippy tech debt** — 283 pre-existing warnings; address incrementally in future sessions
-11. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
+6. ~~**Pre-commit hooks**~~ — DONE (Session 14)
+7. ~~**First-run blank screen**~~ — DONE (Session 15)
+8. ~~**Windows double-click crash**~~ — DONE (Session 17)
+9. ~~**Invalid app type crash**~~ — DONE (Session 18)
+10. ~~**Blank character select screen**~~ — DONE (Session 19)
+11. ~~**Empty character list (GS3→GS4)**~~ — DONE (Session 20/21)
+12. ~~**fetch_characters missing G+P commands**~~ — DONE (beta.22)
+13. **authenticate failure after character select** — IN PROGRESS (beta.23 debug logging added)
+14. **Promote to v0.2.0 stable** once binary confirmed working end-to-end
+15. **Remove debug log lines** from `network.rs` before stable release
+16. **Bak file cleanup** — deferred until first working release binary confirmed
+17. **Clippy tech debt** — 283 pre-existing warnings; address incrementally
 
 ---
 
