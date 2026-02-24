@@ -779,7 +779,14 @@ mod eaccess {
             bail!("Authentication failed: {}", auth_response.trim());
         }
         send_line(&mut stream, &format!("F\t{}", game_code))?;
-        read_response(&mut stream)?;
+        let f_response = read_response(&mut stream)?;
+        tracing::debug!("fetch_characters F response: {:?}", f_response);
+        send_line(&mut stream, &format!("G\t{}", game_code))?;
+        let g_response = read_response(&mut stream)?;
+        tracing::debug!("fetch_characters G response: {:?}", g_response);
+        send_line(&mut stream, &format!("P\t{}", game_code))?;
+        let p_response = read_response(&mut stream)?;
+        tracing::debug!("fetch_characters P response: {:?}", p_response);
         send_line(&mut stream, "C")?;
         let chars_response = read_response(&mut stream)?;
         tracing::debug!("fetch_characters raw response: {:?}", chars_response);
