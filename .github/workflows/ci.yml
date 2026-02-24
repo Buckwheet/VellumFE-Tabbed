@@ -1,10 +1,23 @@
 name: CI
 
+# Cancel superseded runs on the same branch/PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "scripts/**"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "scripts/**"
 
 jobs:
   test:
@@ -16,11 +29,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+
+      - name: Cache Chocolatey tools (Windows)
+        if: runner.os == 'Windows'
+        id: cache-choco
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\Strawberry
+            C:\Program Files\NASM
+          key: choco-perl-nasm-v1
+
+      - name: Install Windows build deps
+        if: runner.os == 'Windows' && steps.cache-choco.outputs.cache-hit != 'true'
+        run: choco install strawberryperl nasm -y
+
+      - name: Add cached tools to PATH (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "C:\Strawberry\perl\bin" >> $env:GITHUB_PATH
+          echo "C:\Program Files\NASM" >> $env:GITHUB_PATH
+
       - name: Install Linux build deps
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev libspeechd-dev libclang-dev
-      - name: Install Windows build deps
-        if: runner.os == 'Windows'
-        run: choco install strawberryperl nasm -y
-      - run: cargo test --release
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: "ci-${{ runner.os }}"
+
+      - name: Test
+        env:
+          CARGO_PROFILE_RELEASE_LTO: "thin"
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "4"
+        run: cargo test --release
