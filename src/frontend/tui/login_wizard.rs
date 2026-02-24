@@ -15,7 +15,7 @@ use ratatui::{
 
 /// Known GemStone IV game codes.
 pub const GAMES: &[(&str, &str)] = &[
-    ("GS3", "GemStone IV (Prime)"),
+    ("GS4", "GemStone IV (Prime)"),
     ("GSX", "GemStone IV (Platinum)"),
     ("GSF", "GemStone IV (Shattered)"),
 ];

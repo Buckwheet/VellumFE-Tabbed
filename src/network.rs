@@ -190,7 +190,7 @@ impl DirectConnectConfig {
     fn game_name_to_code(name: &str) -> &'static str {
         match name.to_lowercase().as_str() {
             // GemStone IV
-            "prime" | "gs3" => "GS3",
+            "prime" | "gs4" | "gs3" => "GS4",
             "platinum" | "gsx" => "GSX",
             "shattered" | "gsf" => "GSF",
             "test" | "gst" => "GST",
@@ -199,7 +199,7 @@ impl DirectConnectConfig {
             "drplatinum" | "drx" => "DRX",
             "drfallen" | "drf" => "DRF",
             "drtest" | "drt" => "DRT",
-            _ => "GS3", // Default to GemStone IV prime
+            _ => "GS4", // Default to GemStone IV prime
         }
     }
 
@@ -253,7 +253,7 @@ impl DirectConnectConfig {
         } else if let Some(ref game_name) = config.connection.game {
             Self::game_name_to_code(game_name).to_string()
         } else {
-            "GS3".to_string() // Default to prime
+            "GS4".to_string() // Default to prime
         };
 
         let data_dir = crate::config::Config::base_dir()?;
