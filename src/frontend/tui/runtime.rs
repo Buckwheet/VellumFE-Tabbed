@@ -759,7 +759,7 @@ async fn async_run(
 
         // Render if needed
         if app_core.needs_render {
-            frontend.render(&mut app_core)?;
+            frontend.render(app_core)?;
             app_core.needs_render = false;
         }
 
