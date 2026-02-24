@@ -15,9 +15,18 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 14 — commit `3833a26`)
+## Current State (Session 15 — commit `fd2f440`)
 
 `cargo check` clean. `cargo test` passes. **v0.2.0-beta.15 released** — all platform binaries on GitHub Releases.
+
+Session 15 completed:
+- Fixed first-run blank screen bug: `needs_render` was never set after picker/wizard assigned post-startup
+- On first run (no sessions.toml), login wizard opens immediately instead of empty session picker
+- Session picker only shown when saved sessions exist but none have `auto_connect = true`
+- Initial Lich network task no longer spawned on first run (no more failed localhost:8000 attempt)
+- Wizard title updated to "VellumFE — Connect to GemStone IV" on all steps
+- Added key hint footer to credentials step: `[Tab] Next field  [Enter] Continue  [Esc] Cancel`
+- Committed as `fd2f440`
 
 Session 14 completed:
 - Added `.githooks/pre-commit` hook: runs `cargo check`, `cargo clippy`, `cargo fmt --check`
@@ -207,7 +216,8 @@ Priority order:
 4. ~~**macOS package step binary name**~~ — DONE (Session 13)
 5. ~~**Release job permissions**~~ — DONE (Session 13)
 6. ~~**Pre-commit hooks**~~ — DONE (Session 14) — `.githooks/pre-commit` + `scripts/install-hooks.sh`; `cargo fmt` applied codebase-wide
-7. **Test the binary** — download v0.2.0-beta.15 from GitHub Releases, run against a real GemStone account, verify Lich proxy and Direct login
+7. ~~**First-run blank screen**~~ — DONE (Session 15) — wizard opens immediately on fresh install; no ghost Lich connection
+8. **Test the binary** — download latest beta from GitHub Releases, run against a real GemStone account, verify Direct login wizard works end-to-end
 8. **Promote to v0.2.0 stable** once binary is confirmed working
 9. **Bak file cleanup** — deferred until first working release binary is confirmed by user
 10. **Clippy tech debt** — 283 pre-existing warnings; address incrementally in future sessions
