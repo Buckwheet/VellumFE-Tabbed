@@ -430,7 +430,6 @@ impl AppCore {
 
     /// Build runtime keybind map from config for fast O(1) lookups
     /// Converts string-based keybinds (e.g., "num_0", "Ctrl+s") to KeyEvent structs
-
     /// Rebuild the keybind map (call after config changes)
 
     // ===========================================================================================
@@ -725,7 +724,6 @@ impl AppCore {
 
     /// Execute a keybind action (called when a bound key is pressed)
     /// Returns a list of commands to send to the server (for macros)
-
     /// Execute a KeyAction (dispatch to the appropriate method)
 
     /// Poll TTS events from callback channel and handle them
@@ -1612,7 +1610,6 @@ impl AppCore {
     /// Send command to server
 
     /// Handle dot commands (local client commands)
-
     /// Get list of available dot commands for tab completion
     pub fn get_available_commands(&self) -> Vec<String> {
         vec![
@@ -2087,7 +2084,6 @@ impl AppCore {
     ///
     /// Loads layout at exact positions specified in file.
     /// Use .resize command for delta-based proportional scaling after loading.
-
     /// Resize all windows proportionally based on current terminal size (VellumFE algorithm)
     ///
     /// This command resets to the baseline layout and applies delta-based proportional distribution.
@@ -2126,14 +2122,8 @@ impl AppCore {
             let pos = &window.position;
             let visible = if window.visible { "visible" } else { "hidden" };
             window_info.push(format!(
-                "  {} - {}x{} at ({},{}) - {} - {}",
-                name,
-                pos.width,
-                pos.height,
-                pos.x,
-                pos.y,
-                visible,
-                format!("{:?}", window.widget_type)
+                "  {} - {}x{} at ({},{}) - {} - {:?}",
+                name, pos.width, pos.height, pos.x, pos.y, visible, window.widget_type
             ));
         }
 
@@ -3029,8 +3019,7 @@ impl AppCore {
                 layouts.sort();
                 let page_size = 10;
                 let mut page = 0;
-                let mut count = 0;
-                for layout_name in layouts {
+                for (count, layout_name) in layouts.iter().enumerate() {
                     if count > 0 && count % page_size == 0 {
                         page += 1;
                     }
@@ -3043,7 +3032,6 @@ impl AppCore {
                         command: format!("action:loadlayout:{}", layout_name),
                         disabled: false,
                     });
-                    count += 1;
                 }
                 if items.is_empty() {
                     items.push(crate::data::ui_state::PopupMenuItem {
@@ -3963,8 +3951,8 @@ impl AppCore {
             }
         }
         // Append remaining indicators not in desired order
-        let mut remaining: Vec<String> = indicator_names.iter().cloned().collect();
-        remaining.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+        let mut remaining: Vec<String> = indicator_names.to_vec();
+        remaining.sort_by_key(|a| a.to_lowercase());
         for name in remaining {
             let key = name.to_lowercase();
             if used.insert(key.clone()) {
@@ -4016,8 +4004,8 @@ impl AppCore {
                 }
             }
         }
-        let mut remaining: Vec<String> = indicator_names.iter().cloned().collect();
-        remaining.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+        let mut remaining: Vec<String> = indicator_names.to_vec();
+        remaining.sort_by_key(|a| a.to_lowercase());
         for name in remaining {
             let key = name.to_lowercase();
             if used.insert(key.clone()) {

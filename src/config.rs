@@ -1621,19 +1621,14 @@ pub fn apply_compiled_text_replacements(
 }
 
 /// Sort direction for perception entries
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum SortDirection {
     #[serde(rename = "ascending")]
     Ascending, // Lowest weight first (Fading → Roisaen → Other → Indefinite → OM → Percentage)
 
     #[serde(rename = "descending")]
+    #[default]
     Descending, // Highest weight first (Percentage → OM → Indefinite → Other → Roisaen → Fading)
-}
-
-impl Default for SortDirection {
-    fn default() -> Self {
-        Self::Descending
-    }
 }
 
 fn default_perception_stream() -> String {
@@ -4881,7 +4876,7 @@ impl Config {
             }
         }
 
-        templates.sort_by(|a, b| a.id.to_lowercase().cmp(&b.id.to_lowercase()));
+        templates.sort_by_key(|a| a.id.to_lowercase());
         templates
     }
 
@@ -5209,19 +5204,19 @@ impl Config {
     /// Creates shared directories and profile-specific files
     ///
     /// Global resources (shared by all characters):
-    /// - ~/.vellum-fe/global/cmdlist1.xml
-    /// - ~/.vellum-fe/global/keybinds.toml (default keybinds, char overrides in profile)
-    /// - ~/.vellum-fe/global/sounds/wizard_music.mp3
-    /// - ~/.vellum-fe/global/sounds/README.md
+    ///   - ~/.vellum-fe/global/cmdlist1.xml
+    ///   - ~/.vellum-fe/global/keybinds.toml (default keybinds, char overrides in profile)
+    ///   - ~/.vellum-fe/global/sounds/wizard_music.mp3
+    ///   - ~/.vellum-fe/global/sounds/README.md
     ///
     /// Shared layouts:
-    /// - ~/.vellum-fe/layouts/layout.toml
-    /// - ~/.vellum-fe/layouts/none.toml
-    /// - ~/.vellum-fe/layouts/sidebar.toml
+    ///   - ~/.vellum-fe/layouts/layout.toml
+    ///   - ~/.vellum-fe/layouts/none.toml
+    ///   - ~/.vellum-fe/layouts/sidebar.toml
     ///
     /// Profile-specific (default or character):
-    /// - ~/.vellum-fe/profiles/{profile}/config.toml
-    /// - ~/.vellum-fe/profiles/{profile}/history.txt (empty)
+    ///   - ~/.vellum-fe/profiles/{profile}/config.toml
+    ///   - ~/.vellum-fe/profiles/{profile}/history.txt (empty)
     /// Note: keybinds.toml in profile is optional (for character-specific overrides)
     fn extract_defaults(character: Option<&str>) -> Result<()> {
         // Create shared layouts directory and extract all embedded layouts

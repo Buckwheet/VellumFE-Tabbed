@@ -632,18 +632,15 @@ impl ContainerCache {
     pub fn find_by_title(&self, title: &str) -> Option<&ContainerData> {
         let title_lower = title.to_lowercase();
         // First try exact match (case-insensitive)
-        for container in self.containers.values() {
-            if container.title.to_lowercase() == title_lower {
-                return Some(container);
-            }
-        }
-        // Then try partial match
-        for container in self.containers.values() {
-            if container.title.to_lowercase().contains(&title_lower) {
-                return Some(container);
-            }
-        }
-        None
+        self.containers
+            .values()
+            .find(|container| container.title.to_lowercase() == title_lower)
+            .or_else(|| {
+                // Then try partial match
+                self.containers
+                    .values()
+                    .find(|container| container.title.to_lowercase().contains(&title_lower))
+            })
     }
 
     /// Get all known containers sorted by title

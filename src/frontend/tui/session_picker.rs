@@ -22,7 +22,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Widget},
+    widgets::{Block, Borders, Clear, Widget},
 };
 
 /// Which element has keyboard focus in the picker.

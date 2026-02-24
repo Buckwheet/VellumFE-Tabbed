@@ -7,39 +7,19 @@
 //! while each frontend has its own renderer that consumes this data.
 
 /// Border configuration for widgets
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct BorderConfig {
     pub show_border: bool,
     pub border_style: Option<String>,
     pub border_color: Option<String>,
 }
 
-impl Default for BorderConfig {
-    fn default() -> Self {
-        Self {
-            show_border: false,
-            border_style: None,
-            border_color: None,
-        }
-    }
-}
-
 /// Color configuration (hex strings like "#FF0000")
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct ColorConfig {
     pub foreground: Option<String>,
     pub background: Option<String>,
     pub transparent_background: bool,
-}
-
-impl Default for ColorConfig {
-    fn default() -> Self {
-        Self {
-            foreground: None,
-            background: None,
-            transparent_background: false,
-        }
-    }
 }
 
 /// Data for a progress bar widget

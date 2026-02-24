@@ -1,21 +1,16 @@
 use super::*;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum RedirectMode {
     /// Only send to redirect window (remove from original window)
     #[serde(rename = "redirect_only")]
+    #[default]
     RedirectOnly,
     /// Send to both original window and redirect window (duplicate)
     #[serde(rename = "redirect_copy")]
     RedirectCopy,
-}
-
-impl Default for RedirectMode {
-    fn default() -> Self {
-        RedirectMode::RedirectOnly
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

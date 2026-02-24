@@ -8,7 +8,7 @@
 ///
 /// Used for layout calculations, bounds checking, and coordinate transformations
 /// across different frontend implementations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Rect {
     /// X coordinate (column) of the top-left corner
     pub x: u16,
@@ -44,17 +44,6 @@ impl Rect {
     /// Get the bottom edge coordinate (exclusive)
     pub fn bottom(&self) -> u16 {
         self.y + self.height
-    }
-}
-
-impl Default for Rect {
-    fn default() -> Self {
-        Self {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-        }
     }
 }
 

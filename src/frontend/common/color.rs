@@ -139,14 +139,14 @@ impl NamedColor {
                     16..=231 => {
                         // 216-color cube (6x6x6)
                         let idx = idx - 16;
-                        let r = ((idx / 36) * 51) as u8;
-                        let g = (((idx % 36) / 6) * 51) as u8;
-                        let b = ((idx % 6) * 51) as u8;
+                        let r = (idx / 36) * 51;
+                        let g = ((idx % 36) / 6) * 51;
+                        let b = (idx % 6) * 51;
                         Color::rgb(r, g, b)
                     }
                     232..=255 => {
                         // Grayscale ramp
-                        let gray = ((idx - 232) * 10 + 8) as u8;
+                        let gray = (idx - 232) * 10 + 8;
                         Color::rgb(gray, gray, gray)
                     }
                 }

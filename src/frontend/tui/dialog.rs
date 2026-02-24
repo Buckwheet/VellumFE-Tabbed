@@ -1125,7 +1125,7 @@ fn render_progress_bar_line(
                 // Collect consecutive filled chars
                 let count = (text_start.saturating_sub(pos)).min(filled_width.saturating_sub(pos));
                 if count > 0 {
-                    let s: String = std::iter::repeat(filled_char).take(count).collect();
+                    let s = filled_char.to_string().repeat(count);
                     spans.push(Span::styled(s, filled_style));
                     pos += count;
                 } else {
@@ -1139,7 +1139,7 @@ fn render_progress_bar_line(
                     .max(1)
                     .min(bar_width.saturating_sub(pos));
                 if count > 0 && pos < text_start {
-                    let s: String = std::iter::repeat(unfilled_char).take(count).collect();
+                    let s = unfilled_char.to_string().repeat(count);
                     spans.push(Span::styled(s, unfilled_style));
                     pos += count;
                 } else {

@@ -10,7 +10,6 @@ use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Line, Span},
     widgets::{Block, Borders, Clear, Widget},
 };
 

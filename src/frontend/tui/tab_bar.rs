@@ -113,7 +113,10 @@ impl<'a> Widget for TabBar<'a> {
                 } else {
                     active_style
                 };
-                buf.get_mut(cx, y).set_char(ch).set_style(char_style);
+                buf.cell_mut((cx, y))
+                    .unwrap()
+                    .set_char(ch)
+                    .set_style(char_style);
             }
 
             x += label.chars().count() as u16;
@@ -122,7 +125,8 @@ impl<'a> Widget for TabBar<'a> {
             }
 
             if x < area.x + area.width {
-                buf.get_mut(x, y)
+                buf.cell_mut((x, y))
+                    .unwrap()
                     .set_char('│')
                     .set_style(Style::default().fg(Color::DarkGray));
                 x += 1;
@@ -131,7 +135,8 @@ impl<'a> Widget for TabBar<'a> {
 
         // Fill remaining space
         while x < area.x + area.width {
-            buf.get_mut(x, y)
+            buf.cell_mut((x, y))
+                .unwrap()
                 .set_char(' ')
                 .set_style(Style::default().bg(Color::Reset));
             x += 1;

@@ -130,6 +130,12 @@ pub struct InjuryDollData {
                                                          // Injury levels: 0=none, 1-3=injury levels, 4-6=scar levels
 }
 
+impl Default for InjuryDollData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InjuryDollData {
     pub fn new() -> Self {
         Self {
@@ -270,20 +276,12 @@ impl TabbedTextContent {
         let start = self.active_tab_index + 1;
 
         // Search from active+1 to end
-        for i in start..self.tabs.len() {
-            if self.tabs[i].has_unread {
-                return Some(i);
-            }
-        }
-
-        // Wrap around and search from beginning to active
-        for i in 0..self.active_tab_index {
-            if self.tabs[i].has_unread {
-                return Some(i);
-            }
-        }
-
-        None
+        (start..self.tabs.len())
+            .find(|&i| self.tabs[i].has_unread)
+            .or_else(|| {
+                // Wrap around and search from beginning to active
+                (0..self.active_tab_index).find(|&i| self.tabs[i].has_unread)
+            })
     }
 
     /// Update tabs from new layout definition while preserving content for existing tabs.

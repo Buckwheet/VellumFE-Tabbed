@@ -269,7 +269,7 @@ pub fn rgb_to_nearest_slot(r: u8, g: u8, b: u8) -> u8 {
         // Grayscale ramp: slots 232-255 represent grays from 8 to 238
         // Formula: gray = 8 + (index - 232) * 10
         // Inverse: index = 232 + (gray - 8) / 10
-        return (232 + (r - 8) / 10).min(255);
+        return 232 + (r - 8) / 10;
     }
 
     // Map to 6x6x6 color cube (slots 16-231)
@@ -325,7 +325,7 @@ pub(crate) fn normalize_color(opt: &Option<String>) -> Option<String> {
 
 /// Parse a color string that can be:
 /// - A hex code: "#RRGGBB" or "RRGGBB"
-/// - A standard color name: "red", "blue", "green", etc.
+///   - A standard color name: "red", "blue", "green", etc.
 /// Returns the color as a hex string if successful
 pub fn parse_color_flexible(input: &str) -> Option<String> {
     let trimmed = input.trim();
