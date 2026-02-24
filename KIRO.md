@@ -15,13 +15,14 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 13 — commit `ce90515`)
+## Current State (Session 13 — commit `977e5a8`)
 
-`cargo check` clean. `cargo test` passes. beta.14 build in progress on GitHub Actions.
+`cargo check` clean. `cargo test` passes. **v0.2.0-beta.15 released** — all platform binaries on GitHub Releases.
 
-Two bugs fixed this session:
+Three bugs fixed this session:
 1. `vellum_fe` → `vellum_fe_tabbed` in `tests/ui_integration.rs`, `tests/parser_integration.rs`, `src/theme.rs` doctests (CI was failing with E0433)
 2. `beta-release.yml` macOS package steps were copying `target/release/vellum-fe` (old binary name) instead of `target/release/vellum-fe-tabbed`
+3. `beta-release.yml` and `release.yml` release jobs missing `permissions: contents: write` — GitHub token couldn't create releases
 
 ---
 
@@ -194,7 +195,11 @@ Priority order:
 2. ~~**TTS state in tab bar**~~ — DONE (Session 11)
 3. ~~**CI test failures**~~ — DONE (Session 12) — `vellum_fe` → `vellum_fe_tabbed` in tests + doctests
 4. ~~**macOS package step binary name**~~ — DONE (Session 13) — `beta-release.yml` was copying `vellum-fe` not `vellum-fe-tabbed`
-5. **Verify beta.14 build passes** on all platforms (Linux, Windows, macOS arm64/x64/universal)
+5. ~~**Release job permissions**~~ — DONE (Session 13) — added `permissions: contents: write` to both workflow release jobs
+6. **Test the binary** — download v0.2.0-beta.15 from GitHub Releases, run against a real GemStone account, verify Lich proxy and Direct login
+7. **Promote to v0.2.0 stable** once binary is confirmed working
+8. **Bak file cleanup** — deferred until first working release binary is confirmed by user
+9. **Phase 5.3 — Session grouping UI** — deferred, complex, low priority
 5. **Test the binary** — run against a real GemStone account, verify Lich proxy and Direct login
 6. **Promote to v0.2.0 stable** once binary is confirmed working
 7. **Bak file cleanup** — deferred until first working release binary is shipped on GitHub. Bak files are safety nets until then.
