@@ -190,7 +190,7 @@ impl DirectConnectConfig {
     fn game_name_to_code(name: &str) -> &'static str {
         match name.to_lowercase().as_str() {
             // GemStone IV
-            "prime" | "gs4" | "gs3" => "GS4",
+            "prime" | "gs4" | "gs3" => "GS3",
             "platinum" | "gsx" => "GSX",
             "shattered" | "gsf" => "GSF",
             "test" | "gst" => "GST",
@@ -787,6 +787,58 @@ mod eaccess {
         Ok(parse_character_list(&chars_response))
     }
 
+    /// Full K→A→G→C→L in one connection, printing every raw response.
+    pub fn raw_debug(
+        account: &str,
+        password: &str,
+        game_code: &str,
+        character: &str,
+        data_dir: &std::path::Path,
+    ) -> Result<()> {
+        let cert_path = data_dir.join(CERT_FILENAME);
+        ensure_certificate(&cert_path)?;
+        let mut stream = connect_with_cert(&cert_path).or_else(|_| {
+            download_certificate(&cert_path)?;
+            connect_with_cert(&cert_path)
+        })?;
+
+        println!("  send: K");
+        send_line(&mut stream, "K")?;
+        let hash_key = read_response(&mut stream)?;
+        println!("  recv: {:?}", hash_key.trim());
+
+        let encoded_password = obfuscate_password(password, hash_key.trim());
+        println!("  send: A\\t{}\\t<encoded>", account);
+        send_login_payload(&mut stream, account, &encoded_password)?;
+        let auth_response = read_response(&mut stream)?;
+        println!("  recv: {:?}", auth_response.trim());
+
+        println!("  send: G\\t{}", game_code);
+        send_line(&mut stream, &format!("G\t{}", game_code))?;
+        let g_resp = read_response(&mut stream)?;
+        println!("  recv: {:?}", g_resp.trim());
+
+        println!("  send: C");
+        send_line(&mut stream, "C")?;
+        let c_resp = read_response(&mut stream)?;
+        println!("  recv: {:?}", c_resp.trim());
+
+        let char_code = parse_character_code(&c_resp, character)
+            .ok_or_else(|| anyhow::anyhow!("Character '{}' not found in C response", character))?;
+        println!("  char_code for '{}': {}", character, char_code);
+
+        let l_cmd = format!("L\t{}\tSTORM", char_code);
+        println!("  send: {:?}", l_cmd);
+        send_line(&mut stream, &l_cmd)?;
+        let l_resp = read_response(&mut stream)?;
+        println!("  recv: {:?}", l_resp.trim());
+
+        if l_resp.trim() == "L\tPROBLEM" || l_resp.contains("PROBLEM") {
+            anyhow::bail!("Launch failed: PROBLEM");
+        }
+        Ok(())
+    }
+
     fn parse_launch_response(response: &str) -> Result<LaunchTicket> {
         // Expected format: L\tOK\tGAMEHOST=...\tGAMEPORT=...\tKEY=...\t...
         let tokens: Vec<&str> = response.trim().split('\t').collect();
@@ -1062,6 +1114,17 @@ pub fn fetch_characters_for_account(
     data_dir: &std::path::Path,
 ) -> anyhow::Result<Vec<String>> {
     eaccess::fetch_characters(account, password, game_code, data_dir)
+}
+
+/// Raw debug: full K→A→G→C→L flow in one connection, printing every response.
+pub fn eaccess_raw_debug(
+    account: &str,
+    password: &str,
+    game_code: &str,
+    character: &str,
+    data_dir: &std::path::Path,
+) -> anyhow::Result<()> {
+    eaccess::raw_debug(account, password, game_code, character, data_dir)
 }
 
 /// Public wrapper: full auth + launch flow. Returns (game_host, game_port, key).
