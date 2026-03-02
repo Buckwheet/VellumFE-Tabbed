@@ -911,6 +911,27 @@ fn handle_picker_command(
                 let new_sid = session_manager.active().map(|s| s.id);
                 if let Some(nid) = new_sid {
                     do_session_switch(prev_sid, nid, frontend, widget_managers);
+                    // If this is a Direct session that was never connected, spawn it now
+                    if let Some(s) = session_manager.get_mut(nid) {
+                        if s.command_tx.is_none() {
+                            if let ConnectionMode::Direct {
+                                ref account,
+                                ref mut password,
+                                ..
+                            } = s.mode
+                            {
+                                // Retrieve password from keychain if not already set
+                                if password.is_empty() {
+                                    if let Some(pw) = crate::credentials::get_password(account) {
+                                        *password = pw;
+                                    }
+                                }
+                            }
+                            if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                                s.command_tx = Some(tx);
+                            }
+                        }
+                    }
                 }
                 frontend.session_picker = None;
             }
