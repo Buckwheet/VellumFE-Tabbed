@@ -546,19 +546,11 @@ mod eaccess {
             );
         }
 
-        send_line(&mut stream, &format!("F\t{}", game_code))?;
-        let f_resp = read_response(&mut stream)?;
-        tracing::debug!("authenticate F response: {:?}", f_resp);
         send_line(&mut stream, &format!("G\t{}", game_code))?;
-        let g_resp = read_response(&mut stream)?;
-        tracing::debug!("authenticate G response: {:?}", g_resp);
-        send_line(&mut stream, &format!("P\t{}", game_code))?;
-        let p_resp = read_response(&mut stream)?;
-        tracing::debug!("authenticate P response: {:?}", p_resp);
+        let _g_resp = read_response(&mut stream)?;
 
         send_line(&mut stream, "C")?;
         let characters_response = read_response(&mut stream)?;
-        tracing::debug!("authenticate C response: {:?}", characters_response);
         let char_code = parse_character_code(&characters_response, character).ok_or_else(|| {
             anyhow!(
                 "Character '{}' not found in account '{}'",
@@ -566,11 +558,9 @@ mod eaccess {
                 account
             )
         })?;
-        tracing::debug!("authenticate char_code: {:?}", char_code);
 
         send_line(&mut stream, &format!("L\t{}\tSTORM", char_code))?;
         let launch_response = read_response(&mut stream)?;
-        tracing::debug!("authenticate L response: {:?}", launch_response);
         parse_launch_response(&launch_response)
     }
 
@@ -784,15 +774,8 @@ mod eaccess {
         if !auth_response.contains("KEY") {
             bail!("Authentication failed: {}", auth_response.trim());
         }
-        send_line(&mut stream, &format!("F\t{}", game_code))?;
-        let f_response = read_response(&mut stream)?;
-        tracing::debug!("fetch_characters F response: {:?}", f_response);
         send_line(&mut stream, &format!("G\t{}", game_code))?;
-        let g_response = read_response(&mut stream)?;
-        tracing::debug!("fetch_characters G response: {:?}", g_response);
-        send_line(&mut stream, &format!("P\t{}", game_code))?;
-        let p_response = read_response(&mut stream)?;
-        tracing::debug!("fetch_characters P response: {:?}", p_response);
+        let _g_response = read_response(&mut stream)?;
         send_line(&mut stream, "C")?;
         let chars_response = read_response(&mut stream)?;
         tracing::debug!("fetch_characters raw response: {:?}", chars_response);
@@ -800,20 +783,21 @@ mod eaccess {
     }
 
     fn parse_launch_response(response: &str) -> Result<LaunchTicket> {
-        let trimmed = response.trim();
-        if !trimmed.starts_with('L') {
-            bail!("Unexpected response to launch command: {}", trimmed);
+        // Expected format: L\tOK\tGAMEHOST=...\tGAMEPORT=...\tKEY=...\t...
+        let tokens: Vec<&str> = response.trim().split('\t').collect();
+        if tokens.first().copied() != Some("L") {
+            bail!("Unexpected response to launch command: {}", response.trim());
+        }
+        if tokens.get(1).copied() != Some("OK") {
+            bail!(
+                "Launch failed: {}",
+                tokens.get(1).copied().unwrap_or("unknown")
+            );
         }
 
-        let payload = trimmed
-            .strip_prefix("L\t")
-            .unwrap_or(trimmed)
-            .strip_prefix("OK\t")
-            .unwrap_or(trimmed);
-
         let mut values = HashMap::new();
-        for pair in payload.split('\t') {
-            if let Some((key, value)) = pair.split_once('=') {
+        for token in tokens.iter().skip(2) {
+            if let Some((key, value)) = token.split_once('=') {
                 values.insert(key.to_uppercase(), value.to_string());
             }
         }
