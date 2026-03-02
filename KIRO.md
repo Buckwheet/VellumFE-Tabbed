@@ -15,37 +15,45 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 22 — commit `146e629`, tag `v0.2.0-beta.25`)
+## Current State (Session 22 — commit `afdbfc6`, tag `v0.2.0-beta.27`)
 
-`cargo check` clean. **v0.2.0-beta.25 released** — awaiting user test of full login flow.
+`cargo check` clean. **v0.2.0-beta.27 released** — awaiting user test of full login flow.
 
-### Session 22 — Deep dive on Warlock SGE flow + fixes (current)
+### Session 22 — Deep dive on Warlock SGE flow + fixes
 
-Compared Warlock's `SgeClientImpl.kt` against our `network.rs`. Found and fixed three bugs:
+Compared Warlock's `SgeClientImpl.kt` against our `network.rs`. Found and fixed five bugs:
 
 **beta.24** — `fix(wizard): switch active session to new Direct session after connect`
 - Root cause: `session_manager.add()` only auto-activates if no sessions exist. Since a Lich
   session (session 0) always exists, the new Direct session was added but never switched to.
-  User saw the game screen UI but it was still showing the disconnected Lich session.
 - Fix: added `session_manager.set_active(id)` + `do_session_switch(...)` in `//wizard:connect:` handler.
 
 **beta.25** — `fix(eaccess): match Warlock SGE flow — remove F/P commands, fix parse_launch_response`
 - Warlock's authenticate flow: `K → A → G\t{game_code} → C → L\t{char_code}\tSTORM`
 - Our code was sending `F\t{game_code}` and `P\t{game_code}` which Warlock does NOT send.
-  The `F` command returned `X\tPROBLEM` which may have broken eAccess state machine.
-- `parse_launch_response` had a broken double-`strip_prefix` — second call fell back to
-  the original string (with `L\t` prefix), causing all `key=value` parsing to fail silently.
-- Fixed both `authenticate()` and `fetch_characters()`. Removed all beta.23 debug log lines.
+- `parse_launch_response` had a broken double-`strip_prefix` causing all key=value parsing to fail.
+- Fixed both `authenticate()` and `fetch_characters()`.
 
-**NEXT**: User tests beta.25 — go through wizard, select character, confirm game feed appears.
-If it works → update KIRO.md, tag `v0.2.0` stable.
+**beta.26** — `fix(eaccess): correct auth response check`
+- `auth_response.contains("KEY")` was always false — `KEY` only appears in the `L` (launch) response.
+- Now correctly checks `tokens[1].eq_ignore_ascii_case(account)` and `tokens[2] != PASSWORD/REJECT/NORECORD`.
+- Matches Warlock's `SgeClientImpl.kt` exactly.
+
+**beta.27** — `fix: local timestamps in log; remove placeholder Lich tab after wizard connect`
+- Log timestamps now use `chrono::Local` instead of UTC (was 6 hours off for Central time).
+- After wizard creates a Direct session, any unconnected placeholder Lich session (created at
+  startup with `command_tx: None`) is removed from the tab bar.
+
+**NEXT**: User tests beta.27 — go through wizard, select Brashka or Mejora, confirm game feed
+appears and no dead Lich tab. If it works → remove `fetch_characters raw response` debug log
+line, tag `v0.2.0` stable.
 
 ### Session 21 — eAccess authenticate debug
 
 - beta.21: Fixed game code `GS3` → `GS4` in `login_wizard.rs` GAMES array and `network.rs`
-- beta.22: Fixed `fetch_characters` missing `G\t{game_code}` and `P\t{game_code}` before `C`
+- beta.22: Fixed `fetch_characters` missing `G\t{game_code}` before `C`
   - Characters confirmed: `C\t2\t16\t1\t1\tW_HOGGD_000\tBrashka\tW_HOGGZ_W000\tMejora`
-- beta.23: Added debug logging to `authenticate` F/G/P/C/L responses (removed in beta.25)
+- beta.23: Added debug logging to `authenticate` responses (removed in beta.25)
 
 ---
 
@@ -226,10 +234,14 @@ Priority order:
 10. ~~**Blank character select screen**~~ — DONE (Session 19)
 11. ~~**Empty character list (GS3→GS4)**~~ — DONE (Session 20/21)
 12. ~~**fetch_characters missing G+P commands**~~ — DONE (beta.22)
-13. ~~**authenticate failure after character select**~~ — DONE (beta.24 + beta.25)
+13. ~~**authenticate failure after character select**~~ — DONE (beta.24–26)
 14. ~~**Session not switched after wizard connect**~~ — DONE (beta.24)
-15. **Confirm end-to-end working** — awaiting user test of beta.25
+15. ~~**Auth response check wrong (KEY vs username)**~~ — DONE (beta.26)
+16. ~~**Dead Lich placeholder tab after wizard connect**~~ — DONE (beta.27)
+17. ~~**Log timestamps in UTC instead of local time**~~ — DONE (beta.27)
+18. **Confirm end-to-end working** — awaiting user test of beta.27
 16. **Promote to v0.2.0 stable** once binary confirmed working end-to-end
+    - First: remove `fetch_characters raw response` debug log line from `network.rs`
 17. **Bak file cleanup** — deferred until first working release binary confirmed
 18. **Clippy tech debt** — 283 pre-existing warnings; address incrementally
 
