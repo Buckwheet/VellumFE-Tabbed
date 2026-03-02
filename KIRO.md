@@ -15,63 +15,46 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 23 — commit `ef1e34f`, tag `v0.2.0-beta.29`)
+## Current State (Session 24 — commit `4b47994`, tag `v0.2.0-beta.31`)
 
-`cargo check` clean. **v0.2.0-beta.29 released** — awaiting user test of full login flow.
+`cargo check` clean. **v0.2.0-beta.31 released** — eAccess game code bug fixed. Ready for user test.
+
+### Session 24 — Root cause found: wrong eAccess game code
+
+**beta.30** — `fix: single eAccess call; {:#} error logging`
+- Extracted shared `login_and_select_game` helper (K→A→G) in `network.rs`
+- Changed error logging from `{}` to `{:#}` in `runtime.rs` Direct connection error handler
+- This revealed the real error: `Launch failed: PROBLEM`
+
+**beta.31** — `fix: deduplicate sessions on wizard connect; add eaccess-test binary; fix GS3 game code`
+- Fixed duplicate sessions bug: `//wizard:connect:` handler now checks for existing session
+  with same character name before calling `session_manager.add()` — reuses existing session
+- Added `eaccess-test` binary (`src/bin/eaccess_test.rs`) — standalone Windows exe for
+  testing full eAccess flow (K→A→G→C→L) without running the full app
+- Added `eaccess_raw_debug` public function in `network.rs` that prints every raw send/recv
+- **Root cause confirmed via raw debug**: `G\tGS4` → `X\tPROBLEM` (eAccess rejects `GS4`)
+  - Correct game code for GemStone IV Prime is `GS3` (confirmed by Lich log and `.sal` file)
+  - Fixed `GAMES` array in `login_wizard.rs`: `"GS4"` → `"GS3"`
+  - Fixed `game_name_to_code()` in `network.rs`: `"prime" | "gs4" | "gs3" => "GS3"`
+
+**NEXT**:
+1. User edits `C:\Users\rpgfi\.vellum-fe\sessions.toml` — change `game_code = "GS4"` to
+   `game_code = "GS3"` on Brashka entry, delete duplicate Brashka entries (leave only one)
+2. `cargo build` in WSL, launch app, connect Brashka — confirm game text flows
+3. Once confirmed: remove `fetch_characters raw response` debug log from `network.rs`,
+   remove `eaccess_raw_debug` / `raw_debug` functions (debug scaffolding), tag `v0.2.0`
 
 ### Session 23 — Fix: Direct session from picker never connected
 
-**Root cause**: `//picker:connect:` only switched to the saved session — it never called
-`spawn_session_network`. Sessions loaded from `sessions.toml` at startup have no `command_tx`
-(no network task) and no password (passwords aren't stored). Selecting Brashka from the picker
-just switched to a dead session.
-
-**beta.28** — `fix: Ctrl+N opens login wizard from any state`
-- Added `KeyCode::Char('n')` → `"//picker:open_wizard"` in CTRL block of `input_handlers.rs`
-
-**beta.29** — `fix: spawn Direct network on picker connect for saved sessions`
-- In `//picker:connect:` handler, after switching to the session, if it's a Direct session
-  with no `command_tx`, retrieve password from OS keychain and call `spawn_session_network`.
-- This is the actual fix for "no game feed" — the network task was never running.
-
-**NEXT**: User tests beta.29 — launch → picker shows Brashka → Enter → confirm game text flows.
-If it works → remove `fetch_characters raw response` debug log line from `network.rs`, tag `v0.2.0`.
+**beta.28** — Ctrl+N opens login wizard (`input_handlers.rs`)
+**beta.29** — spawn Direct network on picker connect for saved sessions (`runtime.rs`)
 
 ### Session 22 — Deep dive on Warlock SGE flow + fixes
 
-Compared Warlock's `SgeClientImpl.kt` against our `network.rs`. Found and fixed five bugs:
-
-**beta.24** — `fix(wizard): switch active session to new Direct session after connect`
-- Root cause: `session_manager.add()` only auto-activates if no sessions exist. Since a Lich
-  session (session 0) always exists, the new Direct session was added but never switched to.
-- Fix: added `session_manager.set_active(id)` + `do_session_switch(...)` in `//wizard:connect:` handler.
-
-**beta.25** — `fix(eaccess): match Warlock SGE flow — remove F/P commands, fix parse_launch_response`
-- Warlock's authenticate flow: `K → A → G\t{game_code} → C → L\t{char_code}\tSTORM`
-- Our code was sending `F\t{game_code}` and `P\t{game_code}` which Warlock does NOT send.
-- `parse_launch_response` had a broken double-`strip_prefix` causing all key=value parsing to fail.
-- Fixed both `authenticate()` and `fetch_characters()`.
-
-**beta.26** — `fix(eaccess): correct auth response check`
-- `auth_response.contains("KEY")` was always false — `KEY` only appears in the `L` (launch) response.
-- Now correctly checks `tokens[1].eq_ignore_ascii_case(account)` and `tokens[2] != PASSWORD/REJECT/NORECORD`.
-- Matches Warlock's `SgeClientImpl.kt` exactly.
-
-**beta.27** — `fix: local timestamps in log; remove placeholder Lich tab after wizard connect`
-- Log timestamps now use `chrono::Local` instead of UTC (was 6 hours off for Central time).
-- After wizard creates a Direct session, any unconnected placeholder Lich session (created at
-  startup with `command_tx: None`) is removed from the tab bar.
-
-**NEXT**: User tests beta.27 — go through wizard, select Brashka or Mejora, confirm game feed
-appears and no dead Lich tab. If it works → remove `fetch_characters raw response` debug log
-line, tag `v0.2.0` stable.
-
-### Session 21 — eAccess authenticate debug
-
-- beta.21: Fixed game code `GS3` → `GS4` in `login_wizard.rs` GAMES array and `network.rs`
-- beta.22: Fixed `fetch_characters` missing `G\t{game_code}` before `C`
-  - Characters confirmed: `C\t2\t16\t1\t1\tW_HOGGD_000\tBrashka\tW_HOGGZ_W000\tMejora`
-- beta.23: Added debug logging to `authenticate` responses (removed in beta.25)
+**beta.24** — session not switched after wizard connect (set_active + do_session_switch)
+**beta.25** — removed bogus F/P commands; fixed parse_launch_response double-strip_prefix
+**beta.26** — fixed auth response check (KEY vs username)
+**beta.27** — local timestamps in log; remove dead Lich placeholder tab after wizard connect
 
 ---
 
@@ -257,11 +240,12 @@ Priority order:
 15. ~~**Auth response check wrong (KEY vs username)**~~ — DONE (beta.26)
 16. ~~**Dead Lich placeholder tab after wizard connect**~~ — DONE (beta.27)
 17. ~~**Log timestamps in UTC instead of local time**~~ — DONE (beta.27)
-18. **Confirm end-to-end working** — awaiting user test of beta.29
-16. **Promote to v0.2.0 stable** once binary confirmed working end-to-end
-    - First: remove `fetch_characters raw response` debug log line from `network.rs`
-17. **Bak file cleanup** — deferred until first working release binary confirmed
-18. **Clippy tech debt** — 283 pre-existing warnings; address incrementally
+18. **Confirm end-to-end working** — user must edit sessions.toml (GS4→GS3), build, test
+19. **Promote to v0.2.0 stable** once game text confirmed flowing
+    - Remove `fetch_characters raw response` debug log from `network.rs`
+    - Remove `eaccess_raw_debug` and `raw_debug` functions from `network.rs`
+20. **Bak file cleanup** — deferred until first working release binary confirmed
+21. **Clippy tech debt** — 283 pre-existing warnings; address incrementally
 
 ---
 
