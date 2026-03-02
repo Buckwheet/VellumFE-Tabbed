@@ -89,7 +89,7 @@ impl<'a> Widget for TabBar<'a> {
             let (bg, fg) = if tab.is_active {
                 (Color::Blue, Color::White)
             } else {
-                (Color::DarkGray, Color::Gray)
+                (Color::Rgb(60, 60, 60), Color::Rgb(180, 180, 180))
             };
 
             let base_style = Style::default().bg(bg).fg(fg);
@@ -138,7 +138,7 @@ impl<'a> Widget for TabBar<'a> {
             buf.cell_mut((x, y))
                 .unwrap()
                 .set_char(' ')
-                .set_style(Style::default().bg(Color::Reset));
+                .set_style(Style::default().bg(Color::Rgb(30, 30, 30)));
             x += 1;
         }
     }

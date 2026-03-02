@@ -577,7 +577,6 @@ impl AppCore {
         let next_name = focus_order[next_idx].clone();
 
         self.ui_state.set_focus(Some(next_name.clone()));
-        self.add_system_message(&format!("Focused window: {}", next_name));
         self.needs_render = true;
         tracing::debug!("Cycled focused window to '{}'", next_name);
     }
