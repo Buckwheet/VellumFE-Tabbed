@@ -398,25 +398,40 @@ async fn async_run(
             login_key: login_key.clone(),
         }
     };
-    let initial_label = character
-        .clone()
-        .unwrap_or_else(|| format!("{}:{}", host, port));
-    let initial_id = session_manager.add(initial_label.clone(), initial_mode);
-    if let Some(s) = session_manager.get_mut(initial_id) {
-        if let Some(rx) = s.server_rx.take() {
-            session_rxs.insert(initial_id, rx);
-        }
-        // Only connect if we have explicit CLI args or saved sessions (not first run)
-        let should_connect =
-            _direct_cfg.is_some() || character.is_some() || !sessions_config.sessions.is_empty();
-        if should_connect {
-            if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
-                s.command_tx = Some(tx);
+    // Only create the initial session if we have CLI args (direct or lich) — otherwise
+    // saved sessions will be connected via the picker and we don't want a phantom Lich tab.
+    let has_cli_session = _direct_cfg.is_some() || character.is_some();
+    let initial_id = if has_cli_session || sessions_config.sessions.is_empty() {
+        let initial_label = character
+            .clone()
+            .unwrap_or_else(|| format!("{}:{}", host, port));
+        let id = session_manager.add(initial_label.clone(), initial_mode);
+        if let Some(s) = session_manager.get_mut(id) {
+            if let Some(rx) = s.server_rx.take() {
+                session_rxs.insert(id, rx);
+            }
+            if has_cli_session {
+                if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                    s.command_tx = Some(tx);
+                }
             }
         }
-    }
-    // Move the initial AppCore into the map
-    app_cores.insert(initial_id, initial_app_core);
+        app_cores.insert(id, initial_app_core);
+        id
+    } else {
+        // No CLI args and saved sessions exist — use a dummy id; initial_app_core is dropped.
+        // The picker will create real sessions. We still need *some* AppCore for the first render,
+        // so add a placeholder Direct session that won't auto-connect.
+        let placeholder_mode = ConnectionMode::Direct {
+            account: String::new(),
+            password: String::new(),
+            character: String::new(),
+            game_code: String::new(),
+        };
+        let id = session_manager.add(String::new(), placeholder_mode);
+        app_cores.insert(id, initial_app_core);
+        id
+    };
     // Initial session gets the current frontend widget_manager (already populated by startup sync)
     // We don't pre-insert here — it will be saved on first switch away from this session.
 
@@ -931,6 +946,19 @@ fn handle_picker_command(
                                 s.command_tx = Some(tx);
                             }
                         }
+                    }
+                    // Remove empty placeholder session created at startup (if any)
+                    let placeholder_ids: Vec<_> = session_manager
+                        .all()
+                        .iter()
+                        .filter(|s| s.id != nid && s.label.is_empty() && s.command_tx.is_none())
+                        .map(|s| s.id)
+                        .collect();
+                    for pid in placeholder_ids {
+                        session_manager.remove(pid);
+                        app_cores.remove(&pid);
+                        widget_managers.remove(&pid);
+                        session_rxs.remove(&pid);
                     }
                 }
                 frontend.session_picker = None;
