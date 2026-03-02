@@ -531,31 +531,7 @@ mod eaccess {
             }
         };
 
-        send_line(&mut stream, "K")?;
-        let hash_key = read_response(&mut stream)?;
-        let encoded_password = obfuscate_password(password, hash_key.trim());
-
-        send_login_payload(&mut stream, account, &encoded_password)?;
-        let auth_response = read_response(&mut stream)?;
-
-        // A response: "A\t{username}\t{...}" on success, "A\t...\tPASSWORD" etc. on failure
-        {
-            let tokens: Vec<&str> = auth_response.trim().split('\t').collect();
-            let status = tokens.get(2).copied().unwrap_or("");
-            if matches!(status, "PASSWORD" | "REJECT" | "NORECORD") {
-                bail!("Authentication failed for account {}: {}", account, status);
-            }
-            if tokens.get(1).map(|u| u.eq_ignore_ascii_case(account)) != Some(true) {
-                bail!(
-                    "Authentication failed for account {}: {}",
-                    account,
-                    auth_response.trim()
-                );
-            }
-        }
-
-        send_line(&mut stream, &format!("G\t{}", game_code))?;
-        let _g_resp = read_response(&mut stream)?;
+        login_and_select_game(&mut stream, account, password, game_code)?;
 
         send_line(&mut stream, "C")?;
         let characters_response = read_response(&mut stream)?;
@@ -759,6 +735,35 @@ mod eaccess {
         names
     }
 
+    /// Send K→A→G on an open stream. Shared by authenticate() and fetch_characters().
+    fn login_and_select_game(
+        stream: &mut SslStream<TcpStream>,
+        account: &str,
+        password: &str,
+        game_code: &str,
+    ) -> Result<()> {
+        send_line(stream, "K")?;
+        let hash_key = read_response(stream)?;
+        let encoded_password = obfuscate_password(password, hash_key.trim());
+        send_login_payload(stream, account, &encoded_password)?;
+        let auth_response = read_response(stream)?;
+        let tokens: Vec<&str> = auth_response.trim().split('\t').collect();
+        let status = tokens.get(2).copied().unwrap_or("");
+        if matches!(status, "PASSWORD" | "REJECT" | "NORECORD") {
+            bail!("Authentication failed for account {}: {}", account, status);
+        }
+        if tokens.get(1).map(|u| u.eq_ignore_ascii_case(account)) != Some(true) {
+            bail!(
+                "Authentication failed for account {}: {}",
+                account,
+                auth_response.trim()
+            );
+        }
+        send_line(stream, &format!("G\t{}", game_code))?;
+        let _g_resp = read_response(stream)?;
+        Ok(())
+    }
+
     /// Authenticate with eAccess and return the list of characters on the account.
     /// Does NOT launch the game — just fetches the character list.
     pub fn fetch_characters(
@@ -774,22 +779,8 @@ mod eaccess {
             connect_with_cert(&cert_path)
         })?;
 
-        send_line(&mut stream, "K")?;
-        let hash_key = read_response(&mut stream)?;
-        let encoded_password = obfuscate_password(password, hash_key.trim());
-        send_login_payload(&mut stream, account, &encoded_password)?;
-        let auth_response = read_response(&mut stream)?;
-        {
-            let tokens: Vec<&str> = auth_response.trim().split('\t').collect();
-            let status = tokens.get(2).copied().unwrap_or("");
-            if matches!(status, "PASSWORD" | "REJECT" | "NORECORD")
-                || tokens.get(1).map(|u| u.eq_ignore_ascii_case(account)) != Some(true)
-            {
-                bail!("Authentication failed: {}", auth_response.trim());
-            }
-        }
-        send_line(&mut stream, &format!("G\t{}", game_code))?;
-        let _g_response = read_response(&mut stream)?;
+        login_and_select_game(&mut stream, account, password, game_code)?;
+
         send_line(&mut stream, "C")?;
         let chars_response = read_response(&mut stream)?;
         tracing::debug!("fetch_characters raw response: {:?}", chars_response);

@@ -136,7 +136,7 @@ fn spawn_session_network(
                     crate::network::DirectConnection::start(cfg, server_tx, command_rx, raw_logger)
                         .await
                 {
-                    tracing::error!("Direct connection error: {}", e);
+                    tracing::error!("Direct connection error: {:#}", e);
                 }
             });
         }
