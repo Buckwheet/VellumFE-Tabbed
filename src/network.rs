@@ -538,12 +538,20 @@ mod eaccess {
         send_login_payload(&mut stream, account, &encoded_password)?;
         let auth_response = read_response(&mut stream)?;
 
-        if !auth_response.contains("KEY") {
-            bail!(
-                "Authentication failed for account {}: {}",
-                account,
-                auth_response.trim()
-            );
+        // A response: "A\t{username}\t{...}" on success, "A\t...\tPASSWORD" etc. on failure
+        {
+            let tokens: Vec<&str> = auth_response.trim().split('\t').collect();
+            let status = tokens.get(2).copied().unwrap_or("");
+            if matches!(status, "PASSWORD" | "REJECT" | "NORECORD") {
+                bail!("Authentication failed for account {}: {}", account, status);
+            }
+            if tokens.get(1).map(|u| u.eq_ignore_ascii_case(account)) != Some(true) {
+                bail!(
+                    "Authentication failed for account {}: {}",
+                    account,
+                    auth_response.trim()
+                );
+            }
         }
 
         send_line(&mut stream, &format!("G\t{}", game_code))?;
@@ -771,8 +779,14 @@ mod eaccess {
         let encoded_password = obfuscate_password(password, hash_key.trim());
         send_login_payload(&mut stream, account, &encoded_password)?;
         let auth_response = read_response(&mut stream)?;
-        if !auth_response.contains("KEY") {
-            bail!("Authentication failed: {}", auth_response.trim());
+        {
+            let tokens: Vec<&str> = auth_response.trim().split('\t').collect();
+            let status = tokens.get(2).copied().unwrap_or("");
+            if matches!(status, "PASSWORD" | "REJECT" | "NORECORD")
+                || tokens.get(1).map(|u| u.eq_ignore_ascii_case(account)) != Some(true)
+            {
+                bail!("Authentication failed: {}", auth_response.trim());
+            }
         }
         send_line(&mut stream, &format!("G\t{}", game_code))?;
         let _g_response = read_response(&mut stream)?;
