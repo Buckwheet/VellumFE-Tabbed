@@ -1033,6 +1033,24 @@ fn handle_wizard_command(
                 let _ = sessions_config.save();
                 // Store password in OS keychain (keyed by account name)
                 crate::credentials::store_password(account, password);
+                // Remove any placeholder Lich session that was never connected
+                // (the initial session created at startup when no CLI args given)
+                let placeholder_ids: Vec<_> = session_manager
+                    .all()
+                    .iter()
+                    .filter(|s| {
+                        s.id != id
+                            && s.command_tx.is_none()
+                            && matches!(s.mode, crate::session::ConnectionMode::LichProxy { .. })
+                    })
+                    .map(|s| s.id)
+                    .collect();
+                for pid in placeholder_ids {
+                    session_manager.remove(pid);
+                    app_cores.remove(&pid);
+                    widget_managers.remove(&pid);
+                    session_rxs.remove(&pid);
+                }
                 // Switch to the new session
                 let prev_sid = session_manager.active().map(|s| s.id);
                 session_manager.set_active(id);

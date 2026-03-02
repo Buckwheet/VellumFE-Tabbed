@@ -28,6 +28,17 @@ use anyhow::{bail, Result};
 use clap::{Parser as ClapParser, Subcommand};
 use std::path::PathBuf;
 
+struct LocalTimer;
+impl tracing_subscriber::fmt::time::FormatTime for LocalTimer {
+    fn format_time(&self, w: &mut tracing_subscriber::fmt::format::Writer<'_>) -> std::fmt::Result {
+        write!(
+            w,
+            "{}",
+            chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.6f%z")
+        )
+    }
+}
+
 #[derive(ClapParser)]
 #[command(name = "vellum-fe")]
 #[command(about = "Multi-frontend GemStone IV client", long_about = None)]
@@ -188,6 +199,7 @@ fn main() -> Result<()> {
         )
         .with_writer(std::sync::Mutex::new(log_file))
         .with_ansi(false) // No color codes in log file
+        .with_timer(LocalTimer)
         .init();
 
     tracing::info!("VellumFE starting — log: {}", log_path.display());
