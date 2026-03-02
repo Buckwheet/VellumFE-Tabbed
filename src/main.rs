@@ -10,7 +10,7 @@ mod credentials;
 mod data;
 mod frontend;
 mod migrate;
-mod network;
+pub mod network;
 mod parser;
 mod performance;
 mod selection;

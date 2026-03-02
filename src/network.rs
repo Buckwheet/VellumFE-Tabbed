@@ -1064,6 +1064,18 @@ pub fn fetch_characters_for_account(
     eaccess::fetch_characters(account, password, game_code, data_dir)
 }
 
+/// Public wrapper: full auth + launch flow. Returns (game_host, game_port, key).
+pub fn authenticate_and_launch(
+    account: &str,
+    password: &str,
+    character: &str,
+    game_code: &str,
+    data_dir: &std::path::Path,
+) -> anyhow::Result<(String, u16, String)> {
+    let ticket = eaccess::authenticate(account, password, character, game_code, data_dir)?;
+    Ok((ticket.game_host, ticket.game_port, ticket.key))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

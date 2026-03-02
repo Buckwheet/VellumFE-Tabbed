@@ -9,6 +9,10 @@ description = "Modern, high-performance multi-frontend (TUI/GUI) client for GemS
 name = "vellum-fe-tabbed"
 path = "src/main.rs"
 
+[[bin]]
+name = "eaccess-test"
+path = "src/bin/eaccess_test.rs"
+
 [dependencies]
 # Core async runtime
 tokio = { version = "1", features = ["full"] }
