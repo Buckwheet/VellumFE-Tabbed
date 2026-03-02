@@ -419,18 +419,76 @@ async fn async_run(
         app_cores.insert(id, initial_app_core);
         id
     } else {
-        // No CLI args and saved sessions exist — use a dummy id; initial_app_core is dropped.
-        // The picker will create real sessions. We still need *some* AppCore for the first render,
-        // so add a placeholder Direct session that won't auto-connect.
-        let placeholder_mode = ConnectionMode::Direct {
-            account: String::new(),
-            password: String::new(),
-            character: String::new(),
-            game_code: String::new(),
-        };
-        let id = session_manager.add(String::new(), placeholder_mode);
-        app_cores.insert(id, initial_app_core);
-        id
+        // No CLI args and saved sessions exist — pre-populate session_manager from config
+        // so picker indices match session_manager indices. None are connected yet.
+        let mut first_id = None;
+        let mut initial_app_core_opt = Some(initial_app_core);
+        for entry in &sessions_config.sessions {
+            let mode = match &entry.mode {
+                crate::sessions_config::SessionModeConfig::Direct => {
+                    if let (Some(acct), Some(ch), Some(gc)) =
+                        (&entry.account, &entry.character, &entry.game_code)
+                    {
+                        ConnectionMode::Direct {
+                            account: acct.clone(),
+                            password: String::new(), // loaded from keychain on connect
+                            character: ch.clone(),
+                            game_code: gc.clone(),
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                crate::sessions_config::SessionModeConfig::Lich => {
+                    if let (Some(h), Some(p)) = (&entry.host, entry.port) {
+                        ConnectionMode::LichProxy {
+                            host: h.clone(),
+                            port: p,
+                            login_key: None,
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+            };
+            let id = session_manager.add(entry.label.clone(), mode);
+            if let Some(s) = session_manager.get_mut(id) {
+                if let Some(rx) = s.server_rx.take() {
+                    session_rxs.insert(id, rx);
+                }
+            }
+            if first_id.is_none() {
+                first_id = Some(id);
+                app_cores.insert(id, initial_app_core_opt.take().unwrap());
+            } else {
+                if let Ok(ac) =
+                    create_app_core_for_session(&session_manager.get(id).unwrap().mode, &config)
+                {
+                    app_cores.insert(id, ac);
+                }
+            }
+            widget_managers.insert(
+                id,
+                crate::frontend::tui::widget_manager::WidgetManager::new(),
+            );
+        }
+        first_id.unwrap_or_else(|| {
+            // Fallback: shouldn't happen, but add a dummy if sessions list was empty after filtering
+            let id = session_manager.add(
+                String::new(),
+                ConnectionMode::Direct {
+                    account: String::new(),
+                    password: String::new(),
+                    character: String::new(),
+                    game_code: String::new(),
+                },
+            );
+            let ac = initial_app_core_opt
+                .take()
+                .unwrap_or_else(|| AppCore::new(config.clone()).unwrap());
+            app_cores.insert(id, ac);
+            id
+        })
     };
     // Initial session gets the current frontend widget_manager (already populated by startup sync)
     // We don't pre-insert here — it will be saved on first switch away from this session.
@@ -926,7 +984,7 @@ fn handle_picker_command(
                 let new_sid = session_manager.active().map(|s| s.id);
                 if let Some(nid) = new_sid {
                     do_session_switch(prev_sid, nid, frontend, widget_managers);
-                    // If this is a Direct session that was never connected, spawn it now
+                    // If this session was never connected, spawn it now
                     if let Some(s) = session_manager.get_mut(nid) {
                         if s.command_tx.is_none() {
                             if let ConnectionMode::Direct {
@@ -935,7 +993,6 @@ fn handle_picker_command(
                                 ..
                             } = s.mode
                             {
-                                // Retrieve password from keychain if not already set
                                 if password.is_empty() {
                                     if let Some(pw) = crate::credentials::get_password(account) {
                                         *password = pw;
@@ -946,19 +1003,6 @@ fn handle_picker_command(
                                 s.command_tx = Some(tx);
                             }
                         }
-                    }
-                    // Remove empty placeholder session created at startup (if any)
-                    let placeholder_ids: Vec<_> = session_manager
-                        .all()
-                        .iter()
-                        .filter(|s| s.id != nid && s.label.is_empty() && s.command_tx.is_none())
-                        .map(|s| s.id)
-                        .collect();
-                    for pid in placeholder_ids {
-                        session_manager.remove(pid);
-                        app_cores.remove(&pid);
-                        widget_managers.remove(&pid);
-                        session_rxs.remove(&pid);
                     }
                 }
                 frontend.session_picker = None;
