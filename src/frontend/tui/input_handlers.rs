@@ -147,6 +147,7 @@ impl super::TuiFrontend {
                 KeyCode::Char('9') => return Ok(Some(session_keys::SessionCmd::switch(9))),
                 KeyCode::Tab => return Ok(Some(session_keys::SessionCmd::next().to_string())),
                 KeyCode::Right => return Ok(Some(session_keys::SessionCmd::next().to_string())),
+                KeyCode::Char('n') => return Ok(Some("//picker:open_wizard".to_string())),
                 KeyCode::Char('b') => return Ok(Some("//session:broadcast".to_string())),
                 KeyCode::Char('c') if modifiers.shift => {
                     return Ok(Some(session_keys::SessionCmd::compact().to_string()))
