@@ -15,9 +15,27 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 22 — commit `afdbfc6`, tag `v0.2.0-beta.27`)
+## Current State (Session 23 — commit `ef1e34f`, tag `v0.2.0-beta.29`)
 
-`cargo check` clean. **v0.2.0-beta.27 released** — awaiting user test of full login flow.
+`cargo check` clean. **v0.2.0-beta.29 released** — awaiting user test of full login flow.
+
+### Session 23 — Fix: Direct session from picker never connected
+
+**Root cause**: `//picker:connect:` only switched to the saved session — it never called
+`spawn_session_network`. Sessions loaded from `sessions.toml` at startup have no `command_tx`
+(no network task) and no password (passwords aren't stored). Selecting Brashka from the picker
+just switched to a dead session.
+
+**beta.28** — `fix: Ctrl+N opens login wizard from any state`
+- Added `KeyCode::Char('n')` → `"//picker:open_wizard"` in CTRL block of `input_handlers.rs`
+
+**beta.29** — `fix: spawn Direct network on picker connect for saved sessions`
+- In `//picker:connect:` handler, after switching to the session, if it's a Direct session
+  with no `command_tx`, retrieve password from OS keychain and call `spawn_session_network`.
+- This is the actual fix for "no game feed" — the network task was never running.
+
+**NEXT**: User tests beta.29 — launch → picker shows Brashka → Enter → confirm game text flows.
+If it works → remove `fetch_characters raw response` debug log line from `network.rs`, tag `v0.2.0`.
 
 ### Session 22 — Deep dive on Warlock SGE flow + fixes
 
@@ -239,7 +257,7 @@ Priority order:
 15. ~~**Auth response check wrong (KEY vs username)**~~ — DONE (beta.26)
 16. ~~**Dead Lich placeholder tab after wizard connect**~~ — DONE (beta.27)
 17. ~~**Log timestamps in UTC instead of local time**~~ — DONE (beta.27)
-18. **Confirm end-to-end working** — awaiting user test of beta.27
+18. **Confirm end-to-end working** — awaiting user test of beta.29
 16. **Promote to v0.2.0 stable** once binary confirmed working end-to-end
     - First: remove `fetch_characters raw response` debug log line from `network.rs`
 17. **Bak file cleanup** — deferred until first working release binary confirmed
