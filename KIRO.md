@@ -15,7 +15,36 @@ Local: `~/VellumFE-Tabbed/`
 
 ---
 
-## Current State (Session 24 — commit `4b47994`, tag `v0.2.0-beta.31`)
+## Current State (Session 26 — commit `ebf22e1`, tag `v0.2.0-beta.33`)
+
+`cargo build` clean. **v0.2.0-beta.33 released** — picker now pre-populates sessions from config at startup; no phantom sessions; tab bar should show real labels.
+
+### Session 26 — Fix picker index mismatch (beta.33)
+
+**Root cause of beta.32 bug**: The empty-placeholder Direct session created at startup was
+session_manager index 0. When user selected Brashka (picker index 0), `set_active_by_index(0)`
+activated the placeholder → auth with empty credentials → `Authentication failed for account : ?`
+
+**Fix**: Instead of creating a placeholder, pre-populate `session_manager` from `sessions_config`
+at startup (without connecting). Picker index N now maps directly to session_manager index N.
+When user selects from picker, the session already exists with correct credentials — just spawn
+the network connection.
+
+**Also removed**: The placeholder cleanup block from `//picker:connect:` handler (no longer needed).
+
+**Dedup still works**: `//wizard:connect:` handler finds existing session by character name and
+reuses it (updating password), so Ctrl+N wizard connecting Brashka reuses the pre-populated entry.
+
+**NEXT**:
+1. User rebuilds on Windows and tests: should see "Brashka" and "Makerol" tabs in tab bar on startup
+2. Open picker, select Brashka → should connect with correct credentials
+3. If tab bar still invisible, investigate `frontend_impl.rs` layout (tab bar height allocation)
+4. Once two sessions confirmed working: remove debug scaffolding from `network.rs`
+   (`eaccess_raw_debug`, `raw_debug`, `fetch_characters` debug log line), tag `v0.2.0`
+
+---
+
+## Previous State (Session 24 — commit `4b47994`, tag `v0.2.0-beta.31`)
 
 `cargo check` clean. **v0.2.0-beta.31 released** — eAccess game code bug fixed. Ready for user test.
 
