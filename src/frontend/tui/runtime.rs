@@ -1033,6 +1033,10 @@ fn handle_wizard_command(
                 let _ = sessions_config.save();
                 // Store password in OS keychain (keyed by account name)
                 crate::credentials::store_password(account, password);
+                // Switch to the new session
+                let prev_sid = session_manager.active().map(|s| s.id);
+                session_manager.set_active(id);
+                do_session_switch(prev_sid, id, frontend, widget_managers);
                 // Close wizard and picker
                 frontend.login_wizard = None;
                 frontend.session_picker = None;
