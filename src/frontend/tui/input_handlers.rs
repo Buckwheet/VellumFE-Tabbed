@@ -639,6 +639,9 @@ impl super::TuiFrontend {
                 super::session_picker::PickerAction::Connect(i) => {
                     format!("//picker:connect:{}", i)
                 }
+                super::session_picker::PickerAction::ConnectWithPassword(i, pw) => {
+                    format!("//picker:connect_pw:{}\x00{}", i, pw)
+                }
                 super::session_picker::PickerAction::Remove(i) => format!("//picker:remove:{}", i),
                 super::session_picker::PickerAction::AddSession(_) => "//picker:add".to_string(),
                 super::session_picker::PickerAction::OpenWizard => {

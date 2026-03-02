@@ -32,6 +32,8 @@ pub enum PickerFocus {
     List,
     /// Filling in the add-session form
     Form,
+    /// Typing a password for a saved Direct session
+    PasswordPrompt,
 }
 
 /// Which field in the add-session form is focused.
@@ -142,6 +144,10 @@ pub struct SessionPicker {
     pub form: Option<AddForm>,
     /// Action requested by the picker (consumed by runtime)
     pub action: Option<PickerAction>,
+    /// Password being typed in PasswordPrompt focus
+    pub password_input: String,
+    /// Session index that the password prompt is for
+    pub password_for_idx: usize,
 }
 
 /// Actions the picker can request from the runtime.
@@ -149,6 +155,8 @@ pub struct SessionPicker {
 pub enum PickerAction {
     /// Connect to the session at this index in the list
     Connect(usize),
+    /// Connect to the session at this index with the given password
+    ConnectWithPassword(usize, String),
     /// Remove the session at this index
     Remove(usize),
     /// Save a new Lich session entry
@@ -167,6 +175,8 @@ impl SessionPicker {
             focus: PickerFocus::List,
             form: None,
             action: None,
+            password_input: String::new(),
+            password_for_idx: 0,
         }
     }
 
@@ -200,6 +210,13 @@ impl SessionPicker {
     }
 
     pub fn confirm(&mut self) {
+        if self.focus == PickerFocus::PasswordPrompt {
+            let pw = self.password_input.clone();
+            let idx = self.password_for_idx;
+            self.action = Some(PickerAction::ConnectWithPassword(idx, pw));
+            return;
+        }
+
         if self.focus == PickerFocus::Form {
             // Save form
             if let Some(form) = &self.form {
@@ -220,9 +237,15 @@ impl SessionPicker {
             // Open add form
             self.focus = PickerFocus::Form;
             self.form = Some(AddForm::new());
-        } else {
-            // Connect to selected session
-            self.action = Some(PickerAction::Connect(self.selected));
+        } else if let Some(entry) = self.sessions.get(self.selected) {
+            if entry.mode == SessionModeConfig::Direct {
+                // Always prompt for password for Direct sessions
+                self.password_for_idx = self.selected;
+                self.password_input.clear();
+                self.focus = PickerFocus::PasswordPrompt;
+            } else {
+                self.action = Some(PickerAction::Connect(self.selected));
+            }
         }
     }
 
@@ -233,7 +256,10 @@ impl SessionPicker {
     }
 
     pub fn cancel_form(&mut self) {
-        if self.focus == PickerFocus::Form {
+        if self.focus == PickerFocus::PasswordPrompt {
+            self.focus = PickerFocus::List;
+            self.password_input.clear();
+        } else if self.focus == PickerFocus::Form {
             self.focus = PickerFocus::List;
             self.form = None;
         } else if self.sessions.is_empty() {
@@ -242,13 +268,17 @@ impl SessionPicker {
     }
 
     pub fn type_char(&mut self, c: char) {
-        if let Some(form) = &mut self.form {
+        if self.focus == PickerFocus::PasswordPrompt {
+            self.password_input.push(c);
+        } else if let Some(form) = &mut self.form {
             form.type_char(c);
         }
     }
 
     pub fn backspace(&mut self) {
-        if let Some(form) = &mut self.form {
+        if self.focus == PickerFocus::PasswordPrompt {
+            self.password_input.pop();
+        } else if let Some(form) = &mut self.form {
             form.backspace();
         }
     }
@@ -297,6 +327,11 @@ pub fn render_picker(picker: &SessionPicker, area: Rect, buf: &mut Buffer) {
 
     let inner = block.inner(popup);
     block.render(popup, buf);
+
+    if picker.focus == PickerFocus::PasswordPrompt {
+        render_password_prompt(picker, inner, buf);
+        return;
+    }
 
     if picker.focus == PickerFocus::Form {
         if let Some(form) = &picker.form {
@@ -384,6 +419,45 @@ fn render_list(picker: &SessionPicker, area: Rect, buf: &mut Buffer) {
     if help_y > y {
         let help = " Enter=Connect  Del=Remove  Esc=Quit";
         buf.set_string(area.x, help_y, help, Style::default().fg(Color::DarkGray));
+    }
+}
+
+fn render_password_prompt(picker: &SessionPicker, area: Rect, buf: &mut Buffer) {
+    let mut y = area.y;
+    let label = picker
+        .sessions
+        .get(picker.password_for_idx)
+        .map(|e| e.label.as_str())
+        .unwrap_or("?");
+
+    if y < area.bottom() {
+        buf.set_string(
+            area.x,
+            y,
+            &format!("  Password for {}:", label),
+            Style::default().add_modifier(Modifier::BOLD),
+        );
+        y += 2;
+    }
+    if y < area.bottom() {
+        let masked = "*".repeat(picker.password_input.len());
+        buf.set_string(
+            area.x,
+            y,
+            &format!("  [{}█]", masked),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
+        y += 2;
+    }
+    if y < area.bottom() {
+        buf.set_string(
+            area.x,
+            y,
+            "  Enter=Connect  Esc=Cancel",
+            Style::default().fg(Color::DarkGray),
+        );
     }
 }
 

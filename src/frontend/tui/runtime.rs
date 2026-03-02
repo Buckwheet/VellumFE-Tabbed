@@ -1008,6 +1008,39 @@ fn handle_picker_command(
                 frontend.session_picker = None;
             }
         }
+        cmd if cmd.starts_with("//picker:connect_pw:") => {
+            let rest = &cmd["//picker:connect_pw:".len()..];
+            if let Some(null_pos) = rest.find('\x00') {
+                let idx_str = &rest[..null_pos];
+                let pw = &rest[null_pos + 1..];
+                if let Ok(idx) = idx_str.parse::<usize>() {
+                    let prev_sid = session_manager.active().map(|s| s.id);
+                    session_manager.set_active_by_index(idx);
+                    let new_sid = session_manager.active().map(|s| s.id);
+                    if let Some(nid) = new_sid {
+                        do_session_switch(prev_sid, nid, frontend, widget_managers);
+                        if let Some(s) = session_manager.get_mut(nid) {
+                            if s.command_tx.is_none() {
+                                // Store password in keychain and set on session
+                                if let ConnectionMode::Direct {
+                                    ref account,
+                                    ref mut password,
+                                    ..
+                                } = s.mode
+                                {
+                                    crate::credentials::store_password(account, pw);
+                                    *password = pw.to_string();
+                                }
+                                if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                                    s.command_tx = Some(tx);
+                                }
+                            }
+                        }
+                    }
+                    frontend.session_picker = None;
+                }
+            }
+        }
         cmd if cmd.starts_with("//picker:remove:") => {
             if let Ok(idx) = cmd["//picker:remove:".len()..].parse::<usize>() {
                 if let Some(entry) = sessions_config.sessions.get(idx) {
