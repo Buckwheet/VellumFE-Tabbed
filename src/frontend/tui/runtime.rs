@@ -1014,14 +1014,30 @@ fn handle_wizard_command(
             if parts.len() == 4 {
                 let (account, password, game_code, character) =
                     (parts[0], parts[1], parts[2], parts[3]);
-                // Add as Direct session
+                // Add as Direct session (deduplicate by character name)
                 let mode = crate::session::ConnectionMode::Direct {
                     account: account.to_string(),
                     password: password.to_string(),
                     character: character.to_string(),
                     game_code: game_code.to_string(),
                 };
-                let id = session_manager.add(character.to_string(), mode.clone());
+                // Reuse existing session for this character if one exists
+                let existing_id = session_manager.all().iter().find(|s| {
+                    matches!(&s.mode, crate::session::ConnectionMode::Direct { character: c, .. } if c == character)
+                }).map(|s| s.id);
+                let id = if let Some(eid) = existing_id {
+                    if let Some(s) = session_manager.get_mut(eid) {
+                        if let crate::session::ConnectionMode::Direct {
+                            ref mut password, ..
+                        } = s.mode
+                        {
+                            *password = password.to_string();
+                        }
+                    }
+                    eid
+                } else {
+                    session_manager.add(character.to_string(), mode.clone())
+                };
                 if let Some(s) = session_manager.get_mut(id) {
                     if let Some(rx) = s.server_rx.take() {
                         session_rxs.insert(id, rx);
