@@ -13,6 +13,12 @@ Local: `~/VellumFE-Tabbed/`
 
 **Rule**: Before modifying any file, create a `.bak` backup first.
 
+**IMPORTANT — Testing machine**: User builds and tests on a **separate Windows machine**.
+Kiro cannot access that machine's filesystem directly. Always ask the user to paste files,
+logs, or screenshots rather than trying to read them. Log files and screenshots go to
+`C:\Users\rpgfi\Documents\GSIV Development\VellumFE-Tabbed\`. Config files are under
+`C:\Users\rpgfi\.vellum-fe\`.
+
 ---
 
 ## Current State (Session 26 — commit `ebf22e1`, tag `v0.2.0-beta.33`)
@@ -41,6 +47,8 @@ reuses it (updating password), so Ctrl+N wizard connecting Brashka reuses the pr
 3. If tab bar still invisible, investigate `frontend_impl.rs` layout (tab bar height allocation)
 4. Once two sessions confirmed working: remove debug scaffolding from `network.rs`
    (`eaccess_raw_debug`, `raw_debug`, `fetch_characters` debug log line), tag `v0.2.0`
+
+---
 
 ---
 
@@ -306,3 +314,18 @@ Tell Kiro: **"Read KIRO.md from VellumFE-Tabbed and continue"**
 
 Kiro reads this file, checks `cargo check`, reads only the specific files needed for the
 next task, and starts coding immediately.
+
+---
+
+## TODO
+
+- **sidebar.toml migration**: Fixed TOML is at `~/VellumFE-Tabbed/sidebar_fixed.toml`.
+  User needs to copy it to `C:\Users\rpgfi\.vellum-fe\layouts\sidebar.toml` on Windows.
+  Changes made: `widget_type = "entity"` → `"players"` / `"targets"`;
+  `widget_type = "tabbed"` → `"tabbedtext"`; `lefthand/righthand/spellhand` → `"hand"`.
+  Serde aliases added in `src/config.rs` (beta.35 commit `0e397b4`) handle the old names
+  automatically going forward — but the `entity` type still needs manual TOML fix since
+  it maps to two different variants.
+
+- **After user confirms login + layout working**: Remove debug scaffolding from `network.rs`
+  (`eaccess_raw_debug`, `raw_debug`, `fetch_characters` debug log line), then tag `v0.2.0`.
