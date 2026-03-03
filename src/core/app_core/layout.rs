@@ -150,7 +150,7 @@ impl AppCore {
                 return theme_update;
             }
             Err(e) => {
-                tracing::error!("Failed to load layout file '{}': {}", name, e);
+                tracing::error!("Failed to load layout file '{}': {:?}", name, e);
                 tracing::info!("========== LOAD LAYOUT: '{}' FAILED ==========", name);
                 self.add_system_message(&format!("Failed to load layout: {}", e));
             }
