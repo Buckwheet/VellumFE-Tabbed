@@ -1392,6 +1392,7 @@ pub struct HandWidgetData {
 /// Active effects widget specific data
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ActiveEffectsWidgetData {
+    #[serde(alias = "effect_category", default)]
     pub category: String, // "Buffs", "Debuffs", "Cooldowns", "ActiveSpells"
 }
 

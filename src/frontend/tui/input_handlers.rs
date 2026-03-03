@@ -123,6 +123,12 @@ impl super::TuiFrontend {
         use crate::data::window::WidgetType;
         use crate::frontend::KeyCode;
 
+        // Ctrl+C always quits, regardless of state (picker, wizard, connecting, etc.)
+        if modifiers.ctrl && matches!(code, KeyCode::Char('c') | KeyCode::Char('C')) {
+            app_core.quit();
+            return Ok(None);
+        }
+
         // If login wizard is active, route all keys to it
         if self.login_wizard.is_some() {
             return self.handle_wizard_keys(code, modifiers, app_core);

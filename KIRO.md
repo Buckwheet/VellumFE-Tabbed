@@ -14,42 +14,39 @@ Local: `~/VellumFE-Tabbed/`
 **Rule**: Before modifying any file, create a `.bak` backup first.
 
 **IMPORTANT — Testing machine**: User builds and tests on a **separate Windows machine**.
-Kiro cannot access that machine's filesystem directly. Always ask the user to paste files,
-logs, or screenshots rather than trying to read them. Log files and screenshots go to
-`C:\Users\rpgfi\Documents\GSIV Development\VellumFE-Tabbed\`. Config files are under
-`C:\Users\rpgfi\.vellum-fe\`.
+Kiro CAN read files from it via WSL mount at `/mnt/c/`. Always check there first before
+asking the user to paste files.
+- Log file: `/mnt/c/Users/rpgfi/Documents/GSIV Development/VellumFE-Tabbed/vellum-fe.log`
+- Config dir: `C:\Users\rpgfi\.vellum-fe\` (NOT accessible via /mnt/c — different machine)
+- Project dir on Windows: `C:\Users\rpgfi\Documents\GSIV Development\VellumFE-Tabbed\`
+  accessible as: `/mnt/c/Users/rpgfi/Documents/GSIV Development/VellumFE-Tabbed/`
+- sidebar.toml source of truth: `/mnt/c/Users/rpgfi/Documents/GSIV Development/VellumFE-Tabbed/sidebar.toml`
 
 ---
 
-## Current State (Session 28 — commit `aa29c1d`)
+## Current State (Session 29)
 
-`cargo build` clean. HEAD is `aa29c1d` — improved layout parse error logging (full error chain via `{:?}`).
+`cargo build` clean. Two fixes made this session:
 
-### What was done this session
+### Fix 1: sidebar.toml parse failure (`missing field 'category'`)
+- Root cause: `ActiveEffectsWidgetData.category` had no `#[serde(default)]` and no alias
+  for `effect_category` (the field name used in the user's saved TOML)
+- Fix: added `#[serde(alias = "effect_category", default)]` to `category` in `ActiveEffectsWidgetData`
+- File: `src/config.rs`
+- User must copy `sidebar_fixed.toml` (repo root) to `C:\Users\rpgfi\.vellum-fe\layouts\sidebar.toml`
 
-- **beta.34** (`f765494`): Password prompt in picker for Direct sessions. Full flow:
-  picker → PasswordPrompt focus → masked input → ConnectWithPassword action →
-  `//picker:connect_pw:{idx}\x00{password}` → keychain store + spawn network.
-- **beta.33** (`ebf22e1`): Pre-populate session_manager from config at startup.
-  Picker index N maps directly to session_manager index N.
-- **Layout serde aliases** (`0e397b4`): Added `alias = "tabbed"` to `TabbedText`,
-  `alias = "lefthand"/"righthand"/"spellhand"` to `Hand` in `src/config.rs`.
-- **sidebar_fixed.toml** (`865c516`): Full corrected sidebar layout committed to repo root.
-  `entity` → `players`/`targets`; all other old names handled by serde aliases.
-- **Layout error logging** (`aa29c1d`): Changed `{}` → `{:?}` in layout load error log
-  so full TOML parse error chain is visible in log file.
+### Fix 2: Ctrl+C force-quit
+- User couldn't exit app during/after failed auth — no obvious escape path
+- Fix: added Ctrl+C as universal force-quit at top of `handle_normal_mode_keys`,
+  fires before picker/wizard routing
+- File: `src/frontend/tui/input_handlers.rs`
 
 ### Current blocker
-
-`.layout sidebar` fails to parse `sidebar.toml` on Windows. The error detail was being
-swallowed — now fixed in `aa29c1d`. User needs to:
-1. Pull latest / rebuild on Windows
-2. Try `.layout sidebar` again
-3. Paste the ERROR line from the log — it will now show the actual TOML parse error
-
-The fixed TOML (`sidebar_fixed.toml`) is in the repo root. User has already copied it to
-`C:\Users\rpgfi\.vellum-fe\layouts\sidebar.toml`. If the parse error reveals another
-unknown field/variant, fix it in that file.
+User needs to:
+1. Pull latest / rebuild on Windows (beta.36 tag)
+2. Copy `sidebar_fixed.toml` → `C:\Users\rpgfi\.vellum-fe\layouts\sidebar.toml`
+3. Try `.layout sidebar` — should load now
+4. Confirm Brashka/Makerol tabs visible and game text flows
 
 ---
 
