@@ -137,6 +137,25 @@ pub struct TuiFrontend {
 
 impl TuiFrontend {
     pub fn new(mouse_capture: bool) -> Result<Self> {
+        // On Windows, disable QuickEdit mode so clicking the console window
+        // doesn't freeze the process (QuickEdit pauses output on mouse click).
+        #[cfg(windows)]
+        {
+            use windows::Win32::System::Console::{
+                GetConsoleMode, GetStdHandle, SetConsoleMode, CONSOLE_MODE, ENABLE_EXTENDED_FLAGS,
+                ENABLE_QUICK_EDIT_MODE, STD_INPUT_HANDLE,
+            };
+            unsafe {
+                let handle = GetStdHandle(STD_INPUT_HANDLE).unwrap_or_default();
+                let mut mode = CONSOLE_MODE(0);
+                if GetConsoleMode(handle, &mut mode).is_ok() {
+                    let new_mode = CONSOLE_MODE(
+                        (mode.0 & !ENABLE_QUICK_EDIT_MODE.0) | ENABLE_EXTENDED_FLAGS.0,
+                    );
+                    let _ = SetConsoleMode(handle, new_mode);
+                }
+            }
+        }
         // Setup terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
