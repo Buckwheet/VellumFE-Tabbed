@@ -24,29 +24,39 @@ asking the user to paste files.
 
 ---
 
-## Current State (Session 29)
+## Current State (Session 30)
 
-`cargo build` clean. Two fixes made this session:
+`cargo build` clean. Three fixes shipped across sessions 29–30:
 
-### Fix 1: sidebar.toml parse failure (`missing field 'category'`)
+### Fix 1: sidebar.toml parse failure — `v0.1.0-beta.36` (`aba4a8c`)
 - Root cause: `ActiveEffectsWidgetData.category` had no `#[serde(default)]` and no alias
   for `effect_category` (the field name used in the user's saved TOML)
 - Fix: added `#[serde(alias = "effect_category", default)]` to `category` in `ActiveEffectsWidgetData`
 - File: `src/config.rs`
 - User must copy `sidebar_fixed.toml` (repo root) to `C:\Users\rpgfi\.vellum-fe\layouts\sidebar.toml`
 
-### Fix 2: Ctrl+C force-quit
+### Fix 2: Ctrl+C force-quit — `v0.1.0-beta.36` (`aba4a8c`)
 - User couldn't exit app during/after failed auth — no obvious escape path
 - Fix: added Ctrl+C as universal force-quit at top of `handle_normal_mode_keys`,
   fires before picker/wizard routing
 - File: `src/frontend/tui/input_handlers.rs`
 
-### Current blocker
+### Fix 3: Mouse capture disabled by default — `v0.1.0-beta.37` (`58a37b1`)
+- Root cause: `EnableMouseCapture` in `TuiFrontend::new()` caused Windows terminal to steal
+  mouse focus from all other windows on startup
+- Fix: added `mouse_capture: bool` field to `UiConfig` (default `false`); `TuiFrontend::new()`
+  now takes `mouse_capture: bool` and conditionally calls `EnableMouseCapture`/`DisableMouseCapture`
+- Files: `src/config.rs`, `src/frontend/tui/mod.rs`, `src/frontend/tui/frontend_impl.rs`,
+  `src/frontend/tui/runtime.rs`
+- To re-enable: add `mouse_capture = true` under `[ui]` in config
+
+### Current next steps
 User needs to:
-1. Pull latest / rebuild on Windows (beta.36 tag)
+1. Pull latest / rebuild on Windows (beta.37 tag)
 2. Copy `sidebar_fixed.toml` → `C:\Users\rpgfi\.vellum-fe\layouts\sidebar.toml`
-3. Try `.layout sidebar` — should load now
-4. Confirm Brashka/Makerol tabs visible and game text flows
+3. Confirm app opens without freezing other windows (beta.37 fix)
+4. Try `.layout sidebar` — should load now (beta.36 fix)
+5. Confirm Brashka/Makerol tabs visible and game text flows
 
 ---
 
