@@ -1789,7 +1789,7 @@ pub enum WindowDef {
         data: TextWidgetData,
     },
 
-    #[serde(rename = "tabbedtext")]
+    #[serde(rename = "tabbedtext", alias = "tabbed")]
     TabbedText {
         #[serde(flatten)]
         base: WindowBase,
@@ -1869,7 +1869,12 @@ pub enum WindowDef {
         data: DashboardWidgetData,
     },
 
-    #[serde(rename = "hand")]
+    #[serde(
+        rename = "hand",
+        alias = "lefthand",
+        alias = "righthand",
+        alias = "spellhand"
+    )]
     Hand {
         #[serde(flatten)]
         base: WindowBase,
