@@ -232,7 +232,7 @@ async fn async_run(
     }
 
     // Create TUI frontend
-    let mut frontend = TuiFrontend::new()?;
+    let mut frontend = TuiFrontend::new(initial_app_core.config.ui.mouse_capture)?;
 
     // Restore window position for this character (if saved)
     if let Some(positioner) = crate::window_position::create_positioner() {

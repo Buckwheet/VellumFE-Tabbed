@@ -2257,6 +2257,10 @@ pub struct UiConfig {
     // Color rendering mode
     #[serde(default)]
     pub color_mode: ColorMode, // "direct" (true color) or "slot" (256-color palette)
+    /// Enable mouse capture (allows window dragging/resizing/clicking).
+    /// Disabled by default because it prevents interacting with other windows on Windows.
+    #[serde(default)]
+    pub mouse_capture: bool,
     // Timestamp position (start or end of line)
     #[serde(default)]
     pub timestamp_position: TimestampPosition, // "start" or "end" (default: end)
@@ -2306,6 +2310,7 @@ impl Default for UiConfig {
             betrayer_active_color: default_betrayer_active_color(),
             open_dialog_blocklist: default_open_dialog_blocklist(),
             focus: FocusConfig::default(),
+            mouse_capture: false,
         }
     }
 }
@@ -5944,6 +5949,7 @@ impl Default for Config {
                 betrayer_active_color: default_betrayer_active_color(),
                 open_dialog_blocklist: default_open_dialog_blocklist(),
                 focus: FocusConfig::default(),
+                mouse_capture: false,
             },
             highlights: HashMap::new(), // Loaded from highlights.toml
             keybinds: HashMap::new(),   // Loaded from keybinds.toml

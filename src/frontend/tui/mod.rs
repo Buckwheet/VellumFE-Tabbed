@@ -88,6 +88,8 @@ use widget_manager::WidgetManager;
 
 pub struct TuiFrontend {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
+    /// Whether mouse capture was enabled at startup
+    mouse_capture: bool,
     /// Widget manager - handles all widget caches and synchronization
     widget_manager: WidgetManager,
     /// Active window editor (if any)
@@ -134,20 +136,25 @@ pub struct TuiFrontend {
 }
 
 impl TuiFrontend {
-    pub fn new() -> Result<Self> {
+    pub fn new(mouse_capture: bool) -> Result<Self> {
         // Setup terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            EnterAlternateScreen,
-            crossterm::event::EnableMouseCapture
-        )?;
+        if mouse_capture {
+            execute!(
+                stdout,
+                EnterAlternateScreen,
+                crossterm::event::EnableMouseCapture
+            )?;
+        } else {
+            execute!(stdout, EnterAlternateScreen)?;
+        }
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
 
         Ok(Self {
             terminal,
+            mouse_capture,
             widget_manager: WidgetManager::new(),
             window_editor: None,
             indicator_template_editor: None,

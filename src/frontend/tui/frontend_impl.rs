@@ -722,11 +722,15 @@ impl Frontend for TuiFrontend {
 
     fn cleanup(&mut self) -> Result<()> {
         disable_raw_mode()?;
-        execute!(
-            self.terminal.backend_mut(),
-            LeaveAlternateScreen,
-            crossterm::event::DisableMouseCapture
-        )?;
+        if self.mouse_capture {
+            execute!(
+                self.terminal.backend_mut(),
+                LeaveAlternateScreen,
+                crossterm::event::DisableMouseCapture
+            )?;
+        } else {
+            execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
+        }
         Ok(())
     }
 
