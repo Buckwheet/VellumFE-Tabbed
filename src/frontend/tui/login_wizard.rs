@@ -28,6 +28,7 @@ pub struct Profile {
     pub use_lich: bool,
     pub lich_host: Option<String>,
     pub lich_port: Option<u16>,
+    pub lich_command: Option<String>,
 }
 
 impl Profile {
@@ -36,6 +37,9 @@ impl Profile {
     }
     pub fn lich_port(&self) -> u16 {
         self.lich_port.unwrap_or(8000)
+    }
+    pub fn lich_command(&self) -> Option<&str> {
+        self.lich_command.as_deref()
     }
 }
 
@@ -61,6 +65,7 @@ enum EditField {
     UseLich,
     LichHost,
     LichPort,
+    LichCommand,
 }
 
 const EDIT_FIELDS_NO_LICH: &[EditField] = &[
@@ -81,6 +86,7 @@ const EDIT_FIELDS_LICH: &[EditField] = &[
     EditField::UseLich,
     EditField::LichHost,
     EditField::LichPort,
+    EditField::LichCommand,
 ];
 
 pub struct ProfilePicker {
@@ -99,6 +105,7 @@ pub struct ProfilePicker {
     f_use_lich: bool,
     f_lich_host: String,
     f_lich_port: String,
+    f_lich_command: String,
     pub characters: Vec<String>,
     pub needs_fetch: bool,
     char_list_open: bool,
@@ -123,6 +130,7 @@ impl ProfilePicker {
             f_use_lich: false,
             f_lich_host: "127.0.0.1".to_string(),
             f_lich_port: "8000".to_string(),
+            f_lich_command: String::new(),
             characters: Vec::new(),
             needs_fetch: false,
             char_list_open: false,
@@ -163,6 +171,7 @@ impl ProfilePicker {
                     self.f_lich_port.push(c);
                 }
             }
+            EditField::LichCommand => self.f_lich_command.push(c),
             EditField::Game | EditField::UseLich => {}
         }
     }
@@ -189,6 +198,9 @@ impl ProfilePicker {
             }
             EditField::LichPort => {
                 self.f_lich_port.pop();
+            }
+            EditField::LichCommand => {
+                self.f_lich_command.pop();
             }
             EditField::Game | EditField::UseLich => {}
         }
@@ -338,6 +350,11 @@ impl ProfilePicker {
             } else {
                 None
             },
+            lich_command: if self.f_use_lich && !self.f_lich_command.is_empty() {
+                Some(self.f_lich_command.clone())
+            } else {
+                None
+            },
         };
         if let Some(idx) = self.edit_idx {
             self.profiles[idx] = profile;
@@ -376,6 +393,7 @@ impl ProfilePicker {
         self.f_use_lich = false;
         self.f_lich_host = "127.0.0.1".to_string();
         self.f_lich_port = "8000".to_string();
+        self.f_lich_command.clear();
         self.characters.clear();
         self.char_list_open = false;
         self.char_list_idx = 0;
@@ -401,6 +419,7 @@ impl ProfilePicker {
         self.f_use_lich = p.use_lich;
         self.f_lich_host = p.lich_host.unwrap_or_else(|| "127.0.0.1".to_string());
         self.f_lich_port = p.lich_port.unwrap_or(8000).to_string();
+        self.f_lich_command = p.lich_command.unwrap_or_default();
         self.characters.clear();
         self.char_list_open = false;
         self.char_list_idx = 0;
@@ -464,7 +483,7 @@ pub fn render_picker(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
         return;
     }
     let width: u16 = 64.min(area.width.saturating_sub(4));
-    let height: u16 = if picker.mode == Mode::Edit { 18 } else { 14 };
+    let height: u16 = if picker.mode == Mode::Edit { 20 } else { 14 };
     let x = area.x + (area.width.saturating_sub(width)) / 2;
     let y = area.y + (area.height.saturating_sub(height)) / 2;
     let popup = Rect {
@@ -616,6 +635,14 @@ fn render_edit(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
     let lich_rows: &[(&str, String)] = &[
         ("Lich Host", picker.f_lich_host.clone()),
         ("Lich Port", picker.f_lich_port.clone()),
+        (
+            "Lich Command",
+            if picker.f_lich_command.is_empty() {
+                "ruby C:\\Lich5\\lich.rbw -g {host}:{port}".to_string()
+            } else {
+                picker.f_lich_command.clone()
+            },
+        ),
     ];
 
     let all_rows: Vec<(&str, String, &EditField)> = rows
@@ -625,7 +652,14 @@ fn render_edit(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
         .chain(if picker.f_use_lich {
             lich_rows
                 .iter()
-                .zip([EditField::LichHost, EditField::LichPort].iter())
+                .zip(
+                    [
+                        EditField::LichHost,
+                        EditField::LichPort,
+                        EditField::LichCommand,
+                    ]
+                    .iter(),
+                )
                 .map(|((label, val), field)| (*label, val.clone(), field))
                 .collect::<Vec<_>>()
         } else {

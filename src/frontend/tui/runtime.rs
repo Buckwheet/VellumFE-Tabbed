@@ -218,6 +218,7 @@ async fn async_run(
                         use_lich: p.use_lich,
                         lich_host: p.lich_host,
                         lich_port: p.lich_port,
+                        lich_command: p.lich_command,
                     })
                     .collect();
             frontend.login_wizard = Some(super::login_wizard::ProfilePicker::new(profiles));
@@ -315,13 +316,13 @@ async fn async_run(
                             });
                         }
                     } else if command.starts_with("//setup:connect:lich:") {
-                        // Parse: //setup:connect:lich:<host>:<port>
-                        let parts: Vec<&str> = command["//setup:connect:lich:".len()..]
-                            .splitn(2, ':')
-                            .collect();
-                        if parts.len() == 2 {
+                        // Parse: //setup:connect:lich:<host>\x1F<port>\x1F<launch_command>
+                        let payload = &command["//setup:connect:lich:".len()..];
+                        let parts: Vec<&str> = payload.splitn(3, '\x1F').collect();
+                        if parts.len() >= 2 {
                             let host = parts[0].to_string();
                             let port = parts[1].parse::<u16>().unwrap_or(8000);
+                            let launch_cmd = parts.get(2).copied().unwrap_or("").to_string();
                             let rx = pending_command_rx.take().unwrap_or_else(|| {
                                 let (new_tx, new_rx) =
                                     tokio::sync::mpsc::unbounded_channel::<String>();
@@ -329,6 +330,22 @@ async fn async_run(
                                 new_rx
                             });
                             let rl = pending_raw_logger.take();
+                            // Launch Lich subprocess if a command was provided
+                            if !launch_cmd.is_empty() {
+                                tracing::info!("Launching Lich: {}", launch_cmd);
+                                #[cfg(target_os = "windows")]
+                                let child = std::process::Command::new("cmd")
+                                    .args(["/C", &launch_cmd])
+                                    .spawn();
+                                #[cfg(not(target_os = "windows"))]
+                                let child = std::process::Command::new("sh")
+                                    .args(["-c", &launch_cmd])
+                                    .spawn();
+                                match child {
+                                    Ok(_) => tracing::info!("Lich process launched"),
+                                    Err(e) => tracing::warn!("Failed to launch Lich: {}", e),
+                                }
+                            }
                             spawn_lich_reconnect(host, port, None, server_tx.clone(), rx, rl, 5);
                         }
                     } else {

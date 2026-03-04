@@ -24,6 +24,9 @@ pub struct Profile {
     pub use_lich: bool,
     pub lich_host: Option<String>,
     pub lich_port: Option<u16>,
+    /// Command to launch Lich. {host} and {port} are substituted with the game server values.
+    /// e.g. "ruby C:\Lich5\lich.rbw -g {host}:{port}"
+    pub lich_command: Option<String>,
 }
 
 fn default_game_code() -> String {

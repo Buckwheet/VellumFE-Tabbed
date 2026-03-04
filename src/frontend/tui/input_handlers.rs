@@ -586,6 +586,7 @@ impl super::TuiFrontend {
                             use_lich: p.use_lich,
                             lich_host: p.lich_host.clone(),
                             lich_port: p.lich_port,
+                            lich_command: p.lich_command.clone(),
                         })
                         .collect();
                     let store = crate::connection::ProfileStore { profiles };
@@ -649,6 +650,7 @@ impl super::TuiFrontend {
                     use_lich: profile.use_lich,
                     lich_host: profile.lich_host.clone(),
                     lich_port: profile.lich_port,
+                    lich_command: profile.lich_command.clone(),
                 };
                 // Save all profiles (picker may have been edited)
                 let profiles: Vec<crate::connection::Profile> = self
@@ -665,6 +667,7 @@ impl super::TuiFrontend {
                                 use_lich: pr.use_lich,
                                 lich_host: pr.lich_host.clone(),
                                 lich_port: pr.lich_port,
+                                lich_command: pr.lich_command.clone(),
                             })
                             .collect()
                     })
@@ -683,10 +686,13 @@ impl super::TuiFrontend {
                 self.login_wizard = None;
                 // Signal runtime to connect
                 if profile.use_lich {
+                    // Encode command with \x1F (unit separator) as delimiter to avoid path conflicts
+                    let cmd = profile.lich_command().unwrap_or("").to_string();
                     return Ok(Some(format!(
-                        "//setup:connect:lich:{}:{}",
+                        "//setup:connect:lich:{}\x1F{}\x1F{}",
                         profile.lich_host(),
-                        profile.lich_port()
+                        profile.lich_port(),
+                        cmd,
                     )));
                 } else {
                     return Ok(Some(format!(
