@@ -31,11 +31,21 @@ Mimic Warlock's login service for VellumFE:
 - Passwords stored in OS keychain, never on disk
 - On launch with no profiles: show profile picker TUI
 - Per-profile toggle: Direct (eAccess) vs Lich proxy
-- Lich is optional — users who don't want it just use Direct
 
 ---
 
-## Current State (beta.41)
+## Current State — beta.42 (HEAD: edd4873)
+
+### What's working
+
+- Multi-profile `profiles.toml` replaces single `connection.toml`
+- `ProfilePicker` TUI widget (Warlock-style list + edit form)
+- N/E/D hotkeys now correctly gated on list mode — **fixed in beta.42**
+  - In edit mode, N/E/D type as characters into the active field
+  - `pub fn is_list_mode(&self) -> bool` added to `ProfilePicker`
+- Password stored in OS keychain via `credentials.rs`
+- Character fetch from eAccess on Enter in Character field
+- Direct and Lich connection paths both wired up
 
 ### Architecture
 
@@ -45,10 +55,10 @@ src/credentials.rs         — OS keychain (store/get/delete password)
 src/network.rs             — eaccess module (authenticate, fetch_characters),
                              DirectConnection, LichConnection
 src/frontend/tui/
-  login_wizard.rs          — ProfilePicker TUI widget (Warlock-style)
+  login_wizard.rs          — ProfilePicker TUI widget; is_list_mode() added
   runtime.rs               — startup: load profiles, show picker if needed;
                              event loop: handle //setup:connect:* commands
-  input_handlers.rs        — handle_wizard_keys() routes to ProfilePicker
+  input_handlers.rs        — handle_wizard_keys(); N/E/D gated on is_list_mode()
   frontend_impl.rs         — renders ProfilePicker overlay
   mod.rs                   — TuiFrontend.login_wizard: Option<ProfilePicker>
 ```
@@ -62,99 +72,39 @@ account = "myaccount"
 character = "Brashka"
 game_code = "GS3"
 use_lich = false
-
-[[profiles]]
-name = "Brashka via Lich"
-account = "myaccount"
-character = "Brashka"
-game_code = "GS3"
-use_lich = true
-lich_host = "127.0.0.1"
-lich_port = 8000
 ```
-
-### ProfilePicker flow
-
-1. Launch with no profiles → picker shows "No profiles saved. Press N to add one."
-2. Launch with profiles → list of saved characters, arrow keys to select, Enter to connect
-3. N = new profile form, E = edit selected, D = delete selected
-4. Edit form: Name → Account → Password → Game (cycle) → Character (Enter fetches from eAccess) → Use Lich → (if Lich) Host/Port
-5. On Connect: saves profiles.toml, stores password in keychain, emits `//setup:connect:direct:` or `//setup:connect:lich:` command
-6. Runtime handles those commands and spawns the appropriate connection
 
 ### Connection commands (internal)
 
 - `//setup:connect:direct:<account>:<game_code>:<character>` — spawn DirectConnection
-- `//setup:connect:lich:<host>:<port>` — spawn LichConnection (Lich must already be running)
-
-### Key bindings in picker (list mode)
-
-- Up/Down — move selection
-- Enter — connect with selected profile
-- N — new profile
-- E — edit selected
-- D — delete selected
-- Esc — quit app
-
-### Key bindings in picker (edit mode)
-
-- Tab/Enter — advance to next field
-- Up/Down — move field / cycle game selector / toggle Lich
-- Backspace — delete char
-- Esc — back to list
-- Enter on Character field (empty) — fetch characters from eAccess
+- `//setup:connect:lich:<host>:<port>` — spawn LichConnection
 
 ---
 
-## Known Bugs / Next Session Fixes
+## Known Bugs
 
-1. **N/E/D hotkeys fire in edit mode** — CONFIRMED by log.
-   When typing in the password field, `Char('N')` with `shift: true` triggers `new_profile()`
-   instead of typing 'N' into the field. Same will happen with 'E' and 'D'.
-   Fix: in `handle_wizard_keys` in `input_handlers.rs`, the N/E/D match arms must only fire
-   when the picker is in **list mode**. Add a mode check:
-   ```rust
-   // Only in list mode — in edit mode these are just characters
-   KeyCode::Char('n') | KeyCode::Char('N') if !modifiers.ctrl && !modifiers.alt => {
-       if picker.is_list_mode() {
-           picker.new_profile();
-       } else {
-           picker.type_char(if modifiers.shift { 'N' } else { 'n' });
-       }
-   }
-   ```
-   Add `pub fn is_list_mode(&self) -> bool { self.mode == Mode::List }` to `ProfilePicker`.
-   Same pattern for E and D.
-
-2. **Paste in edit form is broken** — pasting into a field (e.g. password) erases previously
-   typed content in earlier fields and scatters the pasted text into the wrong field.
-   Root cause: paste events are delivered as rapid individual `Char` key events, and uppercase
-   chars in the password (like 'N', 'D') get intercepted as hotkeys before reaching the field.
-   Fix: same as bug #1 (mode check) plus a `paste_str(&mut self, s: &str)` method on
-   `ProfilePicker` that appends to the active field only.
+1. **Paste in edit form** — paste events arrive as rapid individual `Char` events.
+   Now that N/E/D are mode-gated, uppercase chars in pasted passwords won't be intercepted,
+   so paste may work better in practice. But a proper fix would be:
+   - Add `pub fn paste_str(&mut self, s: &str)` to `ProfilePicker` (iterates chars → type_char)
+   - Handle `KeyCode::Paste(text)` in `handle_wizard_keys` (crossterm bracketed paste)
+   - May need to enable bracketed paste mode in terminal setup
 
 ---
 
-## What's NOT done yet (next session)
+## Next Steps
 
-1. **Lich subprocess launch** — currently assumes Lich is already running on the configured port.
-   Future: when `use_lich = true`, spawn `lich.rb --login <account> --game <game_code> --char <char>`
-   as a subprocess, wait for it to open its proxy port, then connect.
-
-2. **Profile picker shown on every launch** — currently only shown when no profiles exist.
-   Consider: always show picker on launch (like Warlock), with last-used profile pre-selected.
-   Add a `--character <name>` CLI flag to skip the picker.
-
-3. **Windows testing** — build and test on Windows machine.
-
-4. **Tag v0.1.0-beta.41** after confirmed working.
+1. **User re-tests beta.42 on Windows** — verify N/D/E type correctly in password field
+2. **Fix paste** (bug above) if still broken after beta.42
+3. **Lich subprocess launch** — currently assumes Lich is already running on configured port
+4. **Always-show picker** — show picker on every launch (like Warlock), last-used pre-selected;
+   add `--character <name>` CLI flag to skip
 
 ---
 
-## Files NOT to touch (core game engine — working, don't break)
+## Files NOT to touch (core game engine)
 
-- src/parser.rs (4475 lines)
-- src/theme.rs (4250 lines)
-- src/config.rs (6766 lines)
+- src/parser.rs
+- src/theme.rs
+- src/config.rs
 - src/core/ (all files)
-- src/frontend/tui/ (all files except the 5 listed above)
