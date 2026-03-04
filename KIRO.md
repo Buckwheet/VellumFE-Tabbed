@@ -1,7 +1,4 @@
-# KIRO.md — Steering Document for VellumFE
-
-This file is the first thing Kiro reads each session. It contains everything needed to
-resume work immediately without re-reading source files.
+# KIRO.md — Steering Document for VellumFE-Tabbed
 
 **Resume phrase**: "Read KIRO.md from VellumFE-Tabbed and continue"
 
@@ -14,60 +11,94 @@ Rust + Ratatui. Binary: `vellum-fe-tabbed`.
 Repo: https://github.com/Buckwheet/VellumFE-Tabbed
 Local: `~/VellumFE-Tabbed/`
 
-**Rule**: Before modifying any file, create a `.bak` backup first.
-
-**IMPORTANT — Testing machine**: User builds and tests on a **separate Windows machine**.
-Kiro CAN read files from it via WSL mount at `/mnt/c/`. Always check there first before
-asking the user to paste files.
-- Log file: `/mnt/c/Users/rpgfi/Documents/GSIV Development/VellumFE-Tabbed/vellum-fe.log`
-- Config dir: `C:\Users\rpgfi\.vellum-fe\` (NOT accessible via /mnt/c — different machine)
+**Testing machine**: User tests on a **separate Windows machine**.
+Kiro can read files via WSL mount at `/mnt/c/`.
+- Log: `/mnt/c/Users/rpgfi/Documents/GSIV Development/VellumFE-Tabbed/vellum-fe.log`
+- Config dir: `C:\Users\rpgfi\.vellum-fe\` (WSL path: `/mnt/c/Users/rpgfi/.vellum-fe/`)
 
 ---
 
-## Goal
+## Build / Deploy / Tag
 
-Mimic Warlock's login service for VellumFE:
-- Save named character profiles (account + character + game + optional Lich proxy)
-- Passwords stored in OS keychain, never on disk
-- Profile picker TUI shown on every launch (Warlock-style)
-- Per-profile toggle: Direct (eAccess) vs Lich proxy
+```bash
+# Build
+cd ~/VellumFE-Tabbed && ~/.cargo/bin/cargo build --release --target x86_64-pc-windows-gnu 2>&1 | tail -3
 
-This is a **single-session** frontend. Multi-session/tab-bar features were removed.
+# Copy
+cp ~/VellumFE-Tabbed/target/x86_64-pc-windows-gnu/release/vellum-fe-tabbed.exe \
+   "/mnt/c/Users/rpgfi/Documents/GSIV Development/VellumFE-Tabbed/vellum-fe-tabbed.exe"
+
+# Commit + tag (replace N with next beta number)
+cd ~/VellumFE-Tabbed && ~/.cargo/bin/cargo fmt && git add -A && \
+  git commit -m "<message>" && git push && \
+  git tag v0.1.0-beta.N && git push origin v0.1.0-beta.N
+```
 
 ---
 
-## Current State — beta.43 (HEAD: bdd3bf3, tag: v0.1.0-beta.43)
+## Current State — beta.53 (HEAD: 5914ce0, tag: v0.1.0-beta.53)
 
-### What's working
+Both launch-crash issues are **RESOLVED**.
 
-- Multi-profile `profiles.toml` replaces single `connection.toml`
-- `ProfilePicker` TUI widget (Warlock-style list + edit form)
-- **Picker always shows on launch** — fixed in beta.43
-- N/E/D hotkeys gated on list mode — fixed in beta.42
-  - In edit mode, N/E/D type as characters into the active field
-- **Game selector** — Up/Down navigates fields, Left/Right cycles game
-- **sidebar.toml CRLF fixed** — beta.43
-- Password stored in OS keychain via `credentials.rs`
-- Character fetch from eAccess on Enter in Character field
-- Direct and Lich connection paths both wired up
+### Issue 1: Ratatui buffer panic (FIXED — beta.49–51)
 
-### Architecture
+Windows Terminal briefly resizes new tabs to `47x1`. This caused `terminal.draw()` to panic.
+
+- **beta.49**: Removed initial `frontend.render()` call in `runtime.rs`
+- **beta.50**: Added size guard in `frontend_impl.rs::render()` — skip if `w < 20 || h < 3`
+- **beta.51**: Call `self.terminal.autoresize()` before the size guard so the cached size
+  is fresh before `terminal.draw()` runs internally
+
+Current guard (`src/frontend/tui/frontend_impl.rs`):
+```rust
+let _ = self.terminal.autoresize();
+let (w, h) = self.size();
+if w < 20 || h < 3 {
+    return Ok(());
+}
+```
+
+### Issue 2: Window shrinks / moves on second instance launch (FIXED — beta.52–53)
+
+Root cause: `window.toml` stored `{ x:50, y:50, width:0, height:0 }` as default.
+`SetWindowPos` with `width=0, height=0` collapsed the WT window.
+Position was never saved because closing a WT tab kills the process before exit cleanup runs.
+
+- **beta.52** (`src/window_position/windows.rs`): Use `SWP_NOSIZE` flag when saved dims are zero
+- **beta.53** (`src/frontend/tui/runtime.rs`):
+  - Skip `set_position` entirely when `width == 0 || height == 0`
+  - Save position every 30 seconds in the event loop (survives tab-close kills)
+
+---
+
+## Architecture — Key Files
 
 ```
-src/connection.rs          — ProfileStore, Profile struct, profiles.toml
-src/credentials.rs         — OS keychain (store/get/delete password)
-src/network.rs             — eaccess module, DirectConnection, LichConnection
+src/window_position/
+  windows.rs          — Win32 SetWindowPos; SWP_NOSIZE when dims are zero
+  storage.rs          — load/save window.toml (~/.vellum-fe/profiles/default/window.toml)
+  mod.rs              — WindowRect, WindowPositioner trait, create_positioner()
+
 src/frontend/tui/
-  login_wizard.rs          — ProfilePicker TUI widget
-  runtime.rs               — startup: always shows picker; event loop
-  input_handlers.rs        — handle_wizard_keys(); N/E/D gated; Left/Right → cycle_game
-  frontend_impl.rs         — renders ProfilePicker overlay
-  mod.rs                   — TuiFrontend.login_wizard: Option<ProfilePicker>
-defaults/globals/layouts/
-  sidebar.toml             — CRLF corruption fixed (beta.43)
+  runtime.rs          — startup: skip set_position if dims zero; 30s periodic position save
+  frontend_impl.rs    — autoresize() + size guard before terminal.draw()
+  login_wizard.rs     — ProfilePicker TUI widget
+  input_handlers.rs   — handle_wizard_keys(); N/E/D gated on list mode
+  mod.rs              — TuiFrontend struct
+
+src/connection.rs     — ProfileStore, Profile struct, profiles.toml
+src/credentials.rs    — OS keychain (store/get/delete password)
+src/network.rs        — eaccess module, DirectConnection, LichConnection
+src/config.rs         — Config struct (DO NOT TOUCH)
+src/core/            — App core, game state (DO NOT TOUCH)
+src/parser.rs        — GS XML parser (DO NOT TOUCH)
 ```
 
-### profiles.toml format (~/.vellum-fe/profiles.toml)
+---
+
+## Login / Profile System
+
+### profiles.toml format (`~/.vellum-fe/profiles.toml`)
 
 ```toml
 [[profiles]]
@@ -78,12 +109,7 @@ game_code = "GS3"
 use_lich = false
 ```
 
-### Connection commands (internal)
-
-- `//setup:connect:direct:<account>:<game_code>:<character>` — spawn DirectConnection
-- `//setup:connect:lich:<host>:<port>` — spawn LichConnection
-
-### GAMES list (login_wizard.rs)
+### GAMES list (`login_wizard.rs`)
 
 ```rust
 pub const GAMES: &[(&str, &str)] = &[
@@ -94,51 +120,28 @@ pub const GAMES: &[(&str, &str)] = &[
 ];
 ```
 
+### Internal connection commands
+
+- `//setup:connect:direct:<account>:<game_code>:<character>` — spawn DirectConnection
+- `//setup:connect:lich:<host>:<port>` — spawn LichConnection
+
 ---
 
-## Known Bugs
+## Known Bugs / Next Steps
 
 1. **Paste in edit form** — paste events arrive as rapid individual `Char` events.
-   Proper fix:
-   - Add `pub fn paste_str(&mut self, s: &str)` to `ProfilePicker`
-   - Handle `KeyCode::Paste(text)` in `handle_wizard_keys`
-   - May need to enable bracketed paste mode in terminal setup
+   Fix: add `paste_str()` to `ProfilePicker`, handle `KeyCode::Paste(text)` in `handle_wizard_keys`.
 
----
+2. **Lich subprocess launch** — currently assumes Lich is already running on configured port.
 
-## Next Steps
+3. **`--character <name>` CLI flag** — skip picker and connect directly to named profile.
 
-1. **User re-tests beta.43 on Windows** — verify picker shows on every launch, game selector works
-2. **Purge dead code** — remove orphaned multi-session files (see below)
-3. **Fix paste** if still broken
-4. **Lich subprocess launch** — currently assumes Lich is already running on configured port
-5. **`--character <name>` CLI flag** — skip picker and connect directly to named profile
-
----
-
-## Dead Code to Remove (orphaned multi-session files)
-
-These files are no longer referenced by anything in the active codebase:
-
-```
-src/session/                        — per-session state (old multi-session arch)
-src/session_manager.rs              — SessionManager (old multi-session arch)
-src/sessions_config.rs              — sessions.toml loader (replaced by profiles.toml)
-src/frontend/tui/session_picker.rs  — old session picker TUI
-src/frontend/tui/session_keys.rs    — old session keyboard handling
-src/frontend/tui/input_handlers.rs.bak
-src/frontend/tui/login_wizard.rs.bak
-src/frontend/tui/runtime.rs.bak
-defaults/globals/layouts/sidebar.toml.bak
-```
-
-Verify each with `grep -rn "<symbol>" src/` before deleting.
-
----
-
-## Files NOT to touch (core game engine)
-
-- src/parser.rs
-- src/theme.rs
-- src/config.rs
-- src/core/ (all files)
+4. **Dead code cleanup** — orphaned multi-session files still present:
+   ```
+   src/session/
+   src/session_manager.rs
+   src/sessions_config.rs
+   src/frontend/tui/session_picker.rs
+   src/frontend/tui/session_keys.rs
+   ```
+   Verify with `grep -rn` before deleting.
