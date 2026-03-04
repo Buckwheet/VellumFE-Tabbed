@@ -132,7 +132,7 @@ pub struct TuiFrontend {
     /// Show password prompt (Direct connection with no saved password)
     pub show_password_prompt: bool,
     /// Active login wizard (shown when show_setup_screen is true)
-    pub login_wizard: Option<login_wizard::LoginWizard>,
+    pub login_wizard: Option<login_wizard::ProfilePicker>,
 }
 
 impl TuiFrontend {

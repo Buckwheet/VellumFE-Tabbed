@@ -3,12 +3,14 @@
 This file is the first thing Kiro reads each session. It contains everything needed to
 resume work immediately without re-reading source files.
 
+**Resume phrase**: "Read KIRO.md from VellumFE-Tabbed and continue"
+
 ---
 
 ## Project
 
-Single-session GemStone IV terminal frontend. Rust + Ratatui.
-Binary: `vellum-fe-tabbed` (rename to `vellum-fe` pending).
+VellumFE — GemStone IV terminal frontend with Warlock-style login manager.
+Rust + Ratatui. Binary: `vellum-fe-tabbed`.
 Repo: https://github.com/Buckwheet/VellumFE-Tabbed
 Local: `~/VellumFE-Tabbed/`
 
@@ -22,130 +24,108 @@ asking the user to paste files.
 
 ---
 
-## Current State (beta.39)
+## Goal
 
-### What was done (beta.39 — `59f03da`)
-
-Full single-session rewrite. All multi-session/tabbed infrastructure removed:
-
-**Removed modules:**
-- `src/session_manager.rs` — multi-session manager
-- `src/sessions_config.rs` — sessions.toml
-- `src/session/mod.rs` — Session struct
-- `src/frontend/tui/tab_bar.rs` — tab bar widget (still compiled, now dead code)
-- `src/frontend/tui/session_picker.rs` — session picker TUI (still compiled, dead code)
-- `src/frontend/tui/session_keys.rs` — session key routing (removed from mod.rs)
-- `src/frontend/tui/login_wizard.rs` — eAccess wizard (still compiled, dead code)
-
-**Added:**
-- `src/connection.rs` — `ConnectionConfig` enum (Lich/Direct), backed by `~/.vellum-fe/connection.toml`
-
-**Changed:**
-- `src/main.rs` — stripped all session_manager/sessions_config references
-- `src/frontend/tui/runtime.rs` — single AppCore, single server_rx, no session switching
-- `src/frontend/tui/frontend_impl.rs` — tab bar render removed, full-screen content area
-- `src/frontend/tui/input_handlers.rs` — all `//picker:*` / `//session:*` routing removed
-- `src/frontend/tui/mod.rs` — `session_picker`/`login_wizard` fields replaced with
-  `show_setup_screen: bool` and `show_password_prompt: bool`
-- `src/lib.rs` — removed session/session_manager/sessions_config, added connection
-
-**Password fix:**
-- `runtime.rs` reads `connection.toml` at startup
-- For Direct mode: calls `credentials::get_password(&account)` from OS keychain
-- If password missing → sets `show_password_prompt = true` (currently just dismisses on keypress)
-- User only types password once per machine
-
-**Connection resolution order (runtime.rs):**
-1. CLI `--direct` flags
-2. CLI `--character` / `--key` (Lich proxy)
-3. `~/.vellum-fe/connection.toml`
-4. None → `show_setup_screen = true`
+Mimic Warlock's login service for VellumFE:
+- Save named character profiles (account + character + game + optional Lich proxy)
+- Passwords stored in OS keychain, never on disk
+- On launch with no profiles: show profile picker TUI
+- Per-profile toggle: Direct (eAccess) vs Lich proxy
+- Lich is optional — users who don't want it just use Direct
 
 ---
 
-## connection.toml format
+## Current State (beta.41)
+
+### Architecture
+
+```
+src/connection.rs          — ProfileStore, Profile struct, profiles.toml
+src/credentials.rs         — OS keychain (store/get/delete password)
+src/network.rs             — eaccess module (authenticate, fetch_characters),
+                             DirectConnection, LichConnection
+src/frontend/tui/
+  login_wizard.rs          — ProfilePicker TUI widget (Warlock-style)
+  runtime.rs               — startup: load profiles, show picker if needed;
+                             event loop: handle //setup:connect:* commands
+  input_handlers.rs        — handle_wizard_keys() routes to ProfilePicker
+  frontend_impl.rs         — renders ProfilePicker overlay
+  mod.rs                   — TuiFrontend.login_wizard: Option<ProfilePicker>
+```
+
+### profiles.toml format (~/.vellum-fe/profiles.toml)
 
 ```toml
-# Lich proxy
-[connection]
-mode = "lich"
-host = "127.0.0.1"
-port = 8000
-
-# OR Direct login
-[connection]
-mode = "direct"
+[[profiles]]
+name = "Brashka (Prime)"
 account = "myaccount"
 character = "Brashka"
 game_code = "GS3"
+use_lich = false
+
+[[profiles]]
+name = "Brashka via Lich"
+account = "myaccount"
+character = "Brashka"
+game_code = "GS3"
+use_lich = true
+lich_host = "127.0.0.1"
+lich_port = 8000
 ```
 
-File location: `~/.vellum-fe/connection.toml`
-Password is NOT stored here — it lives in the OS keychain (Windows Credential Manager).
+### ProfilePicker flow
+
+1. Launch with no profiles → picker shows "No profiles saved. Press N to add one."
+2. Launch with profiles → list of saved characters, arrow keys to select, Enter to connect
+3. N = new profile form, E = edit selected, D = delete selected
+4. Edit form: Name → Account → Password → Game (cycle) → Character (Enter fetches from eAccess) → Use Lich → (if Lich) Host/Port
+5. On Connect: saves profiles.toml, stores password in keychain, emits `//setup:connect:direct:` or `//setup:connect:lich:` command
+6. Runtime handles those commands and spawns the appropriate connection
+
+### Connection commands (internal)
+
+- `//setup:connect:direct:<account>:<game_code>:<character>` — spawn DirectConnection
+- `//setup:connect:lich:<host>:<port>` — spawn LichConnection (Lich must already be running)
+
+### Key bindings in picker (list mode)
+
+- Up/Down — move selection
+- Enter — connect with selected profile
+- N — new profile
+- E — edit selected
+- D — delete selected
+- Esc — quit app
+
+### Key bindings in picker (edit mode)
+
+- Tab/Enter — advance to next field
+- Up/Down — move field / cycle game selector / toggle Lich
+- Backspace — delete char
+- Esc — back to list
+- Enter on Character field (empty) — fetch characters from eAccess
 
 ---
 
-## LichProxy Setup
+## What's NOT done yet (next session)
 
-1. Start Lich and log in your character normally.
-2. Find the proxy port: in Lich run `;e puts $frontend_port` (default: 8000).
-3. Create `~/.vellum-fe/connection.toml`:
-   ```toml
-   [connection]
-   mode = "lich"
-   host = "127.0.0.1"
-   port = 8000
-   ```
-4. Launch Vellum — it connects immediately, no login prompt.
+1. **Lich subprocess launch** — currently assumes Lich is already running on the configured port.
+   Future: when `use_lich = true`, spawn `lich.rb --login <account> --game <game_code> --char <char>`
+   as a subprocess, wait for it to open its proxy port, then connect.
 
----
+2. **Profile picker shown on every launch** — currently only shown when no profiles exist.
+   Consider: always show picker on launch (like Warlock), with last-used profile pre-selected.
+   Add a `--character <name>` CLI flag to skip the picker.
 
-## Next Steps
+3. **Windows testing** — build and test on Windows machine.
 
-1. User downloads beta.39, tests that it connects via Lich proxy
-2. Confirm password-from-keychain works for Direct mode (no re-entry prompt)
-3. If setup screen / password prompt UX needs polish, implement proper TUI forms
-4. Rename binary from `vellum-fe-tabbed` → `vellum-fe` in Cargo.toml
-5. Remove debug scaffolding from `network.rs` (eaccess_raw_debug, raw_debug, fetch_characters debug log)
-6. Tag `v0.2.0` after confirmed working
+4. **Tag v0.1.0-beta.41** after confirmed working.
 
 ---
 
-## Key Files
+## Files NOT to touch (core game engine — working, don't break)
 
-```
-src/connection.rs                    ConnectionConfig, load/save connection.toml
-src/frontend/tui/runtime.rs          Main event loop, single-session, connection resolution
-src/frontend/tui/mod.rs              TuiFrontend struct (show_setup_screen, show_password_prompt)
-src/frontend/tui/frontend_impl.rs    render() — full-screen, no tab bar
-src/frontend/tui/input_handlers.rs   handle_normal_mode_keys — no picker/session routing
-src/credentials.rs                   get_password / store_password (OS keychain)
-src/network.rs                       LichConnection, DirectConnection, ServerMessage
-src/config.rs                        Config::load_with_options, layout, highlights, themes
-```
-
----
-
-## Architecture
-
-Single session owns:
-- `server_rx: mpsc::UnboundedReceiver<ServerMessage>` — network → main loop
-- `command_tx: mpsc::UnboundedSender<String>` — main loop → network
-- `app_core: AppCore` — parser, game state, UI, config (single instance, not a HashMap)
-
----
-
-## Config Paths
-
-```
-~/.vellum-fe/connection.toml           connection mode (new)
-~/.vellum-fe/<character>/config.toml   per-character config
-~/.vellum-fe/default/config.toml       global config
-~/.vellum-fe/layouts/<name>.toml       layout files
-```
-
----
-
-## How to Resume
-
-Tell Kiro: **"Read KIRO.md from VellumFE-Tabbed and continue"**
+- src/parser.rs (4475 lines)
+- src/theme.rs (4250 lines)
+- src/config.rs (6766 lines)
+- src/core/ (all files)
+- src/frontend/tui/ (all files except the 5 listed above)

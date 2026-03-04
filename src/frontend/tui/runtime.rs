@@ -151,34 +151,29 @@ async fn async_run(
             login_key: login_key.clone(),
         })
     } else {
-        // Try connection.toml
-        match crate::connection::ConnectionConfig::load() {
-            Ok(Some(cfg)) => match cfg {
-                crate::connection::ConnectionConfig::Lich { host, port } => {
+        // Try profiles.toml — use the first profile as default
+        match crate::connection::ProfileStore::load() {
+            Ok(store) if !store.profiles.is_empty() => {
+                let p = &store.profiles[0];
+                if p.use_lich {
                     Some(ConnectionMode::Lich {
-                        host,
-                        port,
+                        host: p.lich_host().to_string(),
+                        port: p.lich_port(),
                         login_key: None,
                     })
-                }
-                crate::connection::ConnectionConfig::Direct {
-                    account,
-                    character: ch,
-                    game_code,
-                } => {
-                    // Try to get password from keychain
-                    let password = crate::credentials::get_password(&account).unwrap_or_default();
+                } else {
+                    let password = crate::credentials::get_password(&p.account).unwrap_or_default();
                     Some(ConnectionMode::Direct {
-                        account,
+                        account: p.account.clone(),
                         password,
-                        character: ch,
-                        game_code,
+                        character: p.character.clone(),
+                        game_code: p.game_code.clone(),
                     })
                 }
-            },
-            Ok(None) => None,
+            }
+            Ok(_) => None,
             Err(e) => {
-                tracing::warn!("Failed to load connection.toml: {}", e);
+                tracing::warn!("Failed to load profiles.toml: {}", e);
                 None
             }
         }
@@ -228,10 +223,25 @@ async fn async_run(
             true
         }
         None => {
-            // No connection configured — show setup screen with login wizard
-            tracing::info!("No connection configured. Showing setup screen.");
+            // No connection configured — show profile picker
+            tracing::info!("No profiles configured. Showing profile picker.");
             frontend.show_setup_screen = true;
-            frontend.login_wizard = Some(super::login_wizard::LoginWizard::new());
+            let profiles: Vec<super::login_wizard::Profile> =
+                crate::connection::ProfileStore::load()
+                    .unwrap_or_default()
+                    .profiles
+                    .into_iter()
+                    .map(|p| super::login_wizard::Profile {
+                        name: p.name,
+                        account: p.account,
+                        character: p.character,
+                        game_code: p.game_code,
+                        use_lich: p.use_lich,
+                        lich_host: p.lich_host,
+                        lich_port: p.lich_port,
+                    })
+                    .collect();
+            frontend.login_wizard = Some(super::login_wizard::ProfilePicker::new(profiles));
             pending_command_rx = Some(command_rx);
             pending_raw_logger = raw_logger;
             false
@@ -308,7 +318,6 @@ async fn async_run(
                                 game_code,
                                 data_dir: crate::config::Config::base_dir().unwrap_or_default(),
                             };
-                            // Use the pending channel from the None branch (or create a new one)
                             let rx = pending_command_rx.take().unwrap_or_else(|| {
                                 let (new_tx, new_rx) =
                                     tokio::sync::mpsc::unbounded_channel::<String>();
@@ -324,6 +333,23 @@ async fn async_run(
                                     tracing::error!("Direct connection error: {:#}", e);
                                 }
                             });
+                        }
+                    } else if command.starts_with("//setup:connect:lich:") {
+                        // Parse: //setup:connect:lich:<host>:<port>
+                        let parts: Vec<&str> = command["//setup:connect:lich:".len()..]
+                            .splitn(2, ':')
+                            .collect();
+                        if parts.len() == 2 {
+                            let host = parts[0].to_string();
+                            let port = parts[1].parse::<u16>().unwrap_or(8000);
+                            let rx = pending_command_rx.take().unwrap_or_else(|| {
+                                let (new_tx, new_rx) =
+                                    tokio::sync::mpsc::unbounded_channel::<String>();
+                                let _ = std::mem::replace(&mut command_tx, new_tx);
+                                new_rx
+                            });
+                            let rl = pending_raw_logger.take();
+                            spawn_lich_reconnect(host, port, None, server_tx.clone(), rx, rl, 5);
                         }
                     } else {
                         handle_setup_command(&command, &mut frontend, &mut app_core);

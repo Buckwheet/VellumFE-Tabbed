@@ -522,52 +522,87 @@ impl super::TuiFrontend {
         modifiers: crate::frontend::KeyModifiers,
         app_core: &mut crate::core::AppCore,
     ) -> Result<Option<String>> {
-        use super::login_wizard::WizardResult;
+        use super::login_wizard::PickerResult;
         use crate::frontend::KeyCode;
 
-        let wizard = match self.login_wizard.as_mut() {
-            Some(w) => w,
+        let picker = match self.login_wizard.as_mut() {
+            Some(p) => p,
             None => return Ok(None),
         };
 
         match code {
             KeyCode::Esc => {
-                wizard.back();
+                picker.back();
             }
             KeyCode::Tab => {
-                wizard.tab();
+                picker.tab();
             }
             KeyCode::Up => {
-                wizard.move_up();
+                picker.move_up();
             }
             KeyCode::Down => {
-                wizard.move_down();
+                picker.move_down();
             }
             KeyCode::Backspace => {
-                wizard.backspace();
+                picker.backspace();
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') if !modifiers.ctrl && !modifiers.alt => {
+                // Only trigger N/E/D in list mode (type_char handles edit mode)
+                if picker.profiles().is_empty()
+                    || matches!(code, KeyCode::Char('n') | KeyCode::Char('N'))
+                {
+                    // Try new_profile first; if in edit mode, type_char handles it
+                    picker.new_profile();
+                }
+            }
+            KeyCode::Char('e') | KeyCode::Char('E') if !modifiers.ctrl && !modifiers.alt => {
+                picker.edit_selected();
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') if !modifiers.ctrl && !modifiers.alt => {
+                picker.delete_selected();
+                // Save updated profiles
+                let profiles: Vec<crate::connection::Profile> = picker
+                    .profiles()
+                    .iter()
+                    .map(|p| crate::connection::Profile {
+                        name: p.name.clone(),
+                        account: p.account.clone(),
+                        character: p.character.clone(),
+                        game_code: p.game_code.clone(),
+                        use_lich: p.use_lich,
+                        lich_host: p.lich_host.clone(),
+                        lich_port: p.lich_port,
+                    })
+                    .collect();
+                let store = crate::connection::ProfileStore { profiles };
+                if let Err(e) = store.save() {
+                    tracing::warn!("Failed to save profiles: {}", e);
+                }
             }
             KeyCode::Char(c) if !modifiers.ctrl && !modifiers.alt => {
-                wizard.type_char(c);
+                picker.type_char(c);
             }
             KeyCode::Enter => {
-                let needs_fetch = wizard.confirm();
+                let needs_fetch = picker.confirm();
                 if needs_fetch {
-                    // Fetch characters synchronously (blocking is fine here — we're pre-connection)
-                    let account = wizard.account.clone();
-                    let password = wizard.password.clone();
-                    let game_code = wizard.selected_game_code().to_string();
-                    let data_dir = crate::config::Config::base_dir().unwrap_or_default();
-                    match crate::network::fetch_characters_for_account(
-                        &account, &password, &game_code, &data_dir,
-                    ) {
-                        Ok(chars) => {
-                            if let Some(w) = self.login_wizard.as_mut() {
-                                w.set_characters(chars);
+                    if let Some((account, password, game_code)) = self
+                        .login_wizard
+                        .as_ref()
+                        .and_then(|p| p.get_fetch_params())
+                    {
+                        let data_dir = crate::config::Config::base_dir().unwrap_or_default();
+                        match crate::network::fetch_characters_for_account(
+                            &account, &password, &game_code, &data_dir,
+                        ) {
+                            Ok(chars) => {
+                                if let Some(p) = self.login_wizard.as_mut() {
+                                    p.set_characters(chars);
+                                }
                             }
-                        }
-                        Err(e) => {
-                            if let Some(w) = self.login_wizard.as_mut() {
-                                w.set_error(format!("Login failed: {}", e));
+                            Err(e) => {
+                                if let Some(p) = self.login_wizard.as_mut() {
+                                    p.set_error(format!("Login failed: {}", e));
+                                }
                             }
                         }
                     }
@@ -578,39 +613,70 @@ impl super::TuiFrontend {
 
         app_core.needs_render = true;
 
-        // Check if wizard produced a result
-        let result = self.login_wizard.as_ref().and_then(|w| w.result.clone());
+        // Check if picker produced a result
+        let result = self.login_wizard.as_ref().and_then(|p| p.result.clone());
         match result {
-            Some(WizardResult::Cancel) => {
+            Some(PickerResult::Quit) => {
                 self.login_wizard = None;
                 self.show_setup_screen = false;
-                // Quit — no connection configured and user cancelled
                 app_core.quit();
             }
-            Some(WizardResult::Connect {
-                account,
-                password,
-                game_code,
-                character,
-            }) => {
-                self.login_wizard = None;
+            Some(PickerResult::Connect(profile)) => {
                 self.show_setup_screen = false;
-                // Save connection.toml for next launch
-                let cfg = crate::connection::ConnectionConfig::Direct {
-                    account: account.clone(),
-                    character: character.clone(),
-                    game_code: game_code.clone(),
+                // Save profile to profiles.toml
+                let conn_profile = crate::connection::Profile {
+                    name: profile.name.clone(),
+                    account: profile.account.clone(),
+                    character: profile.character.clone(),
+                    game_code: profile.game_code.clone(),
+                    use_lich: profile.use_lich,
+                    lich_host: profile.lich_host.clone(),
+                    lich_port: profile.lich_port,
                 };
-                if let Err(e) = cfg.save() {
-                    tracing::warn!("Failed to save connection.toml: {}", e);
+                // Save all profiles (picker may have been edited)
+                let profiles: Vec<crate::connection::Profile> = self
+                    .login_wizard
+                    .as_ref()
+                    .map(|p| {
+                        p.profiles()
+                            .iter()
+                            .map(|pr| crate::connection::Profile {
+                                name: pr.name.clone(),
+                                account: pr.account.clone(),
+                                character: pr.character.clone(),
+                                game_code: pr.game_code.clone(),
+                                use_lich: pr.use_lich,
+                                lich_host: pr.lich_host.clone(),
+                                lich_port: pr.lich_port,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let mut store = crate::connection::ProfileStore { profiles };
+                store.add_or_update(conn_profile);
+                if let Err(e) = store.save() {
+                    tracing::warn!("Failed to save profiles: {}", e);
                 }
                 // Store password in keychain
-                crate::credentials::store_password(&account, &password);
-                // Signal runtime to start Direct connection
-                return Ok(Some(format!(
-                    "//setup:connect:direct:{}:{}:{}",
-                    account, game_code, character
-                )));
+                if let Some(ref p) = self.login_wizard {
+                    if let Some((account, password, _)) = p.get_fetch_params() {
+                        crate::credentials::store_password(&account, &password);
+                    }
+                }
+                self.login_wizard = None;
+                // Signal runtime to connect
+                if profile.use_lich {
+                    return Ok(Some(format!(
+                        "//setup:connect:lich:{}:{}",
+                        profile.lich_host(),
+                        profile.lich_port()
+                    )));
+                } else {
+                    return Ok(Some(format!(
+                        "//setup:connect:direct:{}:{}:{}",
+                        profile.account, profile.game_code, profile.character
+                    )));
+                }
             }
             None => {}
         }

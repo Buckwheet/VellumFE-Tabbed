@@ -605,7 +605,7 @@ impl Frontend for TuiFrontend {
 
             // Render login wizard overlay (first-run setup / no connection.toml)
             if let Some(ref wizard) = self.login_wizard {
-                login_wizard::render_wizard(wizard, screen_area, f.buffer_mut());
+                login_wizard::render_picker(wizard, screen_area, f.buffer_mut());
             }
             if let Some(ref injuries_popup) = app_core.ui_state.injuries_popup {
                 injury_doll::render_injuries_popup(
