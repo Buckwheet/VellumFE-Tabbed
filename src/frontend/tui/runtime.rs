@@ -316,13 +316,16 @@ async fn async_run(
                             });
                         }
                     } else if command.starts_with("//setup:connect:lich:") {
-                        // Parse: //setup:connect:lich:<host>\x1F<port>\x1F<launch_command>
+                        // Parse: //setup:connect:lich:<account>\x1F<game_code>\x1F<character>\x1F<lich_host>\x1F<lich_port>\x1F<lich_command>
                         let payload = &command["//setup:connect:lich:".len()..];
-                        let parts: Vec<&str> = payload.splitn(3, '\x1F').collect();
-                        if parts.len() >= 2 {
-                            let host = parts[0].to_string();
-                            let port = parts[1].parse::<u16>().unwrap_or(8000);
-                            let launch_cmd = parts.get(2).copied().unwrap_or("").to_string();
+                        let parts: Vec<&str> = payload.splitn(6, '\x1F').collect();
+                        if parts.len() >= 5 {
+                            let account = parts[0].to_string();
+                            let game_code = parts[1].to_string();
+                            let character = parts[2].to_string();
+                            let lich_host = parts[3].to_string();
+                            let lich_port = parts[4].parse::<u16>().unwrap_or(8138);
+                            let launch_cmd = parts.get(5).copied().unwrap_or("").to_string();
                             let rx = pending_command_rx.take().unwrap_or_else(|| {
                                 let (new_tx, new_rx) =
                                     tokio::sync::mpsc::unbounded_channel::<String>();
@@ -330,23 +333,60 @@ async fn async_run(
                                 new_rx
                             });
                             let rl = pending_raw_logger.take();
-                            // Launch Lich subprocess if a command was provided
-                            if !launch_cmd.is_empty() {
-                                tracing::info!("Launching Lich: {}", launch_cmd);
-                                #[cfg(target_os = "windows")]
-                                let child = std::process::Command::new("cmd")
-                                    .args(["/C", &launch_cmd])
-                                    .spawn();
-                                #[cfg(not(target_os = "windows"))]
-                                let child = std::process::Command::new("sh")
-                                    .args(["-c", &launch_cmd])
-                                    .spawn();
-                                match child {
-                                    Ok(_) => tracing::info!("Lich process launched"),
-                                    Err(e) => tracing::warn!("Failed to launch Lich: {}", e),
+                            let st = server_tx.clone();
+                            tokio::spawn(async move {
+                                // Do eAccess auth to get real game host:port:key
+                                let password =
+                                    crate::credentials::get_password(&account).unwrap_or_default();
+                                let data_dir =
+                                    crate::config::Config::base_dir().unwrap_or_default();
+                                let (game_host, game_port, key) =
+                                    match tokio::task::spawn_blocking(move || {
+                                        crate::network::authenticate_and_launch(
+                                            &account, &password, &character, &game_code, &data_dir,
+                                        )
+                                    })
+                                    .await
+                                    {
+                                        Ok(Ok(ticket)) => ticket,
+                                        Ok(Err(e)) => {
+                                            tracing::error!("Lich auth failed: {:#}", e);
+                                            return;
+                                        }
+                                        Err(e) => {
+                                            tracing::error!("Lich auth task failed: {:#}", e);
+                                            return;
+                                        }
+                                    };
+                                // Substitute real host:port into launch command
+                                if !launch_cmd.is_empty() {
+                                    let cmd = launch_cmd
+                                        .replace("{host}", &game_host)
+                                        .replace("{port}", &game_port.to_string());
+                                    tracing::info!("Launching Lich: {}", cmd);
+                                    #[cfg(target_os = "windows")]
+                                    let child = std::process::Command::new("cmd")
+                                        .args(["/C", &cmd])
+                                        .spawn();
+                                    #[cfg(not(target_os = "windows"))]
+                                    let child =
+                                        std::process::Command::new("sh").args(["-c", &cmd]).spawn();
+                                    match child {
+                                        Ok(_) => tracing::info!("Lich process launched"),
+                                        Err(e) => tracing::warn!("Failed to launch Lich: {}", e),
+                                    }
                                 }
-                            }
-                            spawn_lich_reconnect(host, port, None, server_tx.clone(), rx, rl, 5);
+                                // Connect to Lich's local listener, sending the auth key
+                                spawn_lich_reconnect(
+                                    lich_host,
+                                    lich_port,
+                                    Some(key),
+                                    st,
+                                    rx,
+                                    rl,
+                                    5,
+                                );
+                            });
                         }
                     } else {
                         handle_setup_command(&command, &mut frontend, &mut app_core);

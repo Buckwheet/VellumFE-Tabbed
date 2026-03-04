@@ -686,10 +686,13 @@ impl super::TuiFrontend {
                 self.login_wizard = None;
                 // Signal runtime to connect
                 if profile.use_lich {
-                    // Encode command with \x1F (unit separator) as delimiter to avoid path conflicts
+                    // Signal: //setup:connect:lich:<account>\x1F<game_code>\x1F<character>\x1F<lich_host>\x1F<lich_port>\x1F<lich_command>
                     let cmd = profile.lich_command().unwrap_or("").to_string();
                     return Ok(Some(format!(
-                        "//setup:connect:lich:{}\x1F{}\x1F{}",
+                        "//setup:connect:lich:{}\x1F{}\x1F{}\x1F{}\x1F{}\x1F{}",
+                        profile.account,
+                        profile.game_code,
+                        profile.character,
                         profile.lich_host(),
                         profile.lich_port(),
                         cmd,
