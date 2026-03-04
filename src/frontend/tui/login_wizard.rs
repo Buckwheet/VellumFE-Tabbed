@@ -101,6 +101,8 @@ pub struct ProfilePicker {
     f_lich_port: String,
     pub characters: Vec<String>,
     pub needs_fetch: bool,
+    char_list_open: bool,
+    char_list_idx: usize,
     error: Option<String>,
 }
 
@@ -123,6 +125,8 @@ impl ProfilePicker {
             f_lich_port: "8000".to_string(),
             characters: Vec::new(),
             needs_fetch: false,
+            char_list_open: false,
+            char_list_idx: 0,
             error: None,
         }
     }
@@ -198,19 +202,10 @@ impl ProfilePicker {
                 }
             }
             Mode::Edit => {
-                // On Character field, cycle through fetched characters
-                if *self.current_field() == EditField::Character && !self.characters.is_empty() {
-                    let pos = self
-                        .characters
-                        .iter()
-                        .position(|c| c == &self.f_character)
-                        .unwrap_or(0);
-                    let prev = if pos == 0 {
-                        self.characters.len() - 1
-                    } else {
-                        pos - 1
-                    };
-                    self.f_character = self.characters[prev].clone();
+                if self.char_list_open {
+                    if self.char_list_idx > 0 {
+                        self.char_list_idx -= 1;
+                    }
                     return;
                 }
                 if self.field_idx > 0 {
@@ -228,15 +223,10 @@ impl ProfilePicker {
                 }
             }
             Mode::Edit => {
-                // On Character field, cycle through fetched characters
-                if *self.current_field() == EditField::Character && !self.characters.is_empty() {
-                    let pos = self
-                        .characters
-                        .iter()
-                        .position(|c| c == &self.f_character)
-                        .unwrap_or(0);
-                    let next = (pos + 1) % self.characters.len();
-                    self.f_character = self.characters[next].clone();
+                if self.char_list_open {
+                    if self.char_list_idx + 1 < self.characters.len() {
+                        self.char_list_idx += 1;
+                    }
                     return;
                 }
                 let max = self.fields().len() - 1;
@@ -290,14 +280,30 @@ impl ProfilePicker {
                 false
             }
             Mode::Edit => {
-                // On Character field, trigger fetch
-                if *self.current_field() == EditField::Character
-                    && self.f_character.is_empty()
-                    && !self.f_account.is_empty()
-                    && !self.f_password.is_empty()
-                {
-                    self.needs_fetch = true;
-                    return true;
+                // If char list is open, confirm the selection
+                if self.char_list_open {
+                    if let Some(name) = self.characters.get(self.char_list_idx) {
+                        self.f_character = name.clone();
+                    }
+                    self.char_list_open = false;
+                    return false;
+                }
+                // On Character field: open list if available, else trigger fetch
+                if *self.current_field() == EditField::Character {
+                    if !self.characters.is_empty() {
+                        // pre-select current character in list
+                        self.char_list_idx = self
+                            .characters
+                            .iter()
+                            .position(|c| c == &self.f_character)
+                            .unwrap_or(0);
+                        self.char_list_open = true;
+                        return false;
+                    }
+                    if !self.f_account.is_empty() && !self.f_password.is_empty() {
+                        self.needs_fetch = true;
+                        return true;
+                    }
                 }
                 // On last field, save profile
                 let last = self.fields().len() - 1;
@@ -344,6 +350,10 @@ impl ProfilePicker {
     }
 
     pub fn back(&mut self) {
+        if self.char_list_open {
+            self.char_list_open = false;
+            return;
+        }
         match self.mode {
             Mode::Edit => {
                 self.mode = Mode::List;
@@ -367,6 +377,8 @@ impl ProfilePicker {
         self.f_lich_host = "127.0.0.1".to_string();
         self.f_lich_port = "8000".to_string();
         self.characters.clear();
+        self.char_list_open = false;
+        self.char_list_idx = 0;
         self.error = None;
         self.mode = Mode::Edit;
     }
@@ -390,6 +402,8 @@ impl ProfilePicker {
         self.f_lich_host = p.lich_host.unwrap_or_else(|| "127.0.0.1".to_string());
         self.f_lich_port = p.lich_port.unwrap_or(8000).to_string();
         self.characters.clear();
+        self.char_list_open = false;
+        self.char_list_idx = 0;
         self.error = None;
         self.mode = Mode::Edit;
     }
@@ -405,10 +419,14 @@ impl ProfilePicker {
     }
 
     pub fn set_characters(&mut self, chars: Vec<String>) {
-        self.characters = chars.clone();
-        if let Some(first) = chars.into_iter().next() {
-            if self.f_character.is_empty() {
-                self.f_character = first;
+        self.characters = chars;
+        self.char_list_open = false;
+        self.char_list_idx = 0;
+        if self.characters.len() == 1 {
+            self.f_character = self.characters[0].clone();
+        } else if self.f_character.is_empty() {
+            if let Some(first) = self.characters.first() {
+                self.f_character = first.clone();
             }
         }
         self.needs_fetch = false;
@@ -580,19 +598,10 @@ fn render_edit(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
                 } else {
                     picker.f_character.clone()
                 }
+            } else if picker.f_character.is_empty() {
+                "[Enter to pick]".to_string()
             } else {
-                let pos = picker
-                    .characters
-                    .iter()
-                    .position(|c| c == &picker.f_character)
-                    .map(|i| i + 1)
-                    .unwrap_or(1);
-                format!(
-                    "< {} >  ({}/{})",
-                    picker.f_character,
-                    pos,
-                    picker.characters.len()
-                )
+                format!("{}  [Enter to change]", picker.f_character)
             },
         ),
         (
@@ -646,6 +655,40 @@ fn render_edit(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
         buf.set_string(area.x, row_y, prefix, label_style);
         buf.set_string(area.x + 2, row_y, &format!("{:<14}", label), label_style);
         buf.set_string(area.x + 16, row_y, value, value_style);
+    }
+
+    // Inline character dropdown
+    if picker.char_list_open && !picker.characters.is_empty() {
+        // find the row_y of the Character field
+        let char_field_row = all_rows
+            .iter()
+            .position(|(_, _, f)| **f == EditField::Character)
+            .unwrap_or(4) as u16;
+        let drop_y = area.y + 2 + char_field_row + 1;
+        let drop_x = area.x + 16;
+        let drop_w = area.width.saturating_sub(16);
+        for (i, name) in picker.characters.iter().enumerate() {
+            let y = drop_y + i as u16;
+            if y >= area.y + area.height.saturating_sub(3) {
+                break;
+            }
+            let selected = i == picker.char_list_idx;
+            let style = if selected {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White).bg(Color::DarkGray)
+            };
+            let label = format!(
+                "{}{:<width$}",
+                if selected { "▶ " } else { "  " },
+                name,
+                width = drop_w.saturating_sub(2) as usize
+            );
+            buf.set_string(drop_x, y, &label, style);
+        }
     }
 
     // Error or hint
