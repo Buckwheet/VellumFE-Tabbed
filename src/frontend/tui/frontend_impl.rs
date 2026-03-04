@@ -84,8 +84,10 @@ impl Frontend for TuiFrontend {
             .downcast_mut::<AppCore>()
             .ok_or_else(|| anyhow::anyhow!("Invalid app type"))?;
 
-        // Skip render if terminal is too small — Windows Terminal briefly resizes
-        // new tabs to a tiny size (e.g. 47x1) before expanding to the real size.
+        // Force autoresize so self.size() reflects the actual current terminal size.
+        // terminal.draw() also calls autoresize() internally, so we need to check
+        // *after* it runs — otherwise the buffer gets resized to 47x1 mid-draw.
+        let _ = self.terminal.autoresize();
         let (w, h) = self.size();
         if w < 20 || h < 3 {
             return Ok(());
