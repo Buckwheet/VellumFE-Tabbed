@@ -117,13 +117,10 @@ impl AppCore {
                 }
 
                 if terminal_too_small {
-                    tracing::error!("Terminal too small to load layout '{}'", name);
-                    self.add_system_message(&format!(
-                        "Cannot load layout '{}': terminal too small",
+                    tracing::warn!(
+                        "Terminal may be too small for layout '{}', loading anyway",
                         name
-                    ));
-                    self.add_system_message("Increase terminal size or use a different layout");
-                    return None;
+                    );
                 }
 
                 // Store new layout

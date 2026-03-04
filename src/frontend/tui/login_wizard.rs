@@ -198,12 +198,23 @@ impl ProfilePicker {
                 }
             }
             Mode::Edit => {
+                // On Character field, cycle through fetched characters
+                if *self.current_field() == EditField::Character && !self.characters.is_empty() {
+                    let pos = self
+                        .characters
+                        .iter()
+                        .position(|c| c == &self.f_character)
+                        .unwrap_or(0);
+                    let prev = if pos == 0 {
+                        self.characters.len() - 1
+                    } else {
+                        pos - 1
+                    };
+                    self.f_character = self.characters[prev].clone();
+                    return;
+                }
                 if self.field_idx > 0 {
                     self.field_idx -= 1;
-                }
-                // toggle lich
-                if *self.current_field() == EditField::UseLich {
-                    self.f_use_lich = !self.f_use_lich;
                 }
             }
         }
@@ -217,27 +228,43 @@ impl ProfilePicker {
                 }
             }
             Mode::Edit => {
+                // On Character field, cycle through fetched characters
+                if *self.current_field() == EditField::Character && !self.characters.is_empty() {
+                    let pos = self
+                        .characters
+                        .iter()
+                        .position(|c| c == &self.f_character)
+                        .unwrap_or(0);
+                    let next = (pos + 1) % self.characters.len();
+                    self.f_character = self.characters[next].clone();
+                    return;
+                }
                 let max = self.fields().len() - 1;
                 if self.field_idx < max {
                     self.field_idx += 1;
-                }
-                // toggle lich
-                if *self.current_field() == EditField::UseLich {
-                    self.f_use_lich = !self.f_use_lich;
                 }
             }
         }
     }
 
     pub fn cycle_game(&mut self, forward: bool) {
-        if self.mode == Mode::Edit && *self.current_field() == EditField::Game {
-            if forward {
-                self.f_game_idx = (self.f_game_idx + 1) % GAMES.len();
-            } else if self.f_game_idx > 0 {
-                self.f_game_idx -= 1;
-            } else {
-                self.f_game_idx = GAMES.len() - 1;
+        if self.mode != Mode::Edit {
+            return;
+        }
+        match self.current_field() {
+            EditField::Game => {
+                if forward {
+                    self.f_game_idx = (self.f_game_idx + 1) % GAMES.len();
+                } else if self.f_game_idx > 0 {
+                    self.f_game_idx -= 1;
+                } else {
+                    self.f_game_idx = GAMES.len() - 1;
+                }
             }
+            EditField::UseLich => {
+                self.f_use_lich = !self.f_use_lich;
+            }
+            _ => {}
         }
     }
 
@@ -547,10 +574,25 @@ fn render_edit(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
         ),
         (
             "Character",
-            if picker.f_character.is_empty() {
-                "[Enter to fetch]".to_string()
+            if picker.characters.is_empty() {
+                if picker.f_character.is_empty() {
+                    "[Enter to fetch]".to_string()
+                } else {
+                    picker.f_character.clone()
+                }
             } else {
-                picker.f_character.clone()
+                let pos = picker
+                    .characters
+                    .iter()
+                    .position(|c| c == &picker.f_character)
+                    .map(|i| i + 1)
+                    .unwrap_or(1);
+                format!(
+                    "< {} >  ({}/{})",
+                    picker.f_character,
+                    pos,
+                    picker.characters.len()
+                )
             },
         ),
         (
