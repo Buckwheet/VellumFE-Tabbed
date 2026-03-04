@@ -460,6 +460,9 @@ impl ProfilePicker {
 // ─── Rendering ───────────────────────────────────────────────────────────────
 
 pub fn render_picker(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
+    if area.width < 20 || area.height < 6 {
+        return;
+    }
     let width: u16 = 64.min(area.width.saturating_sub(4));
     let height: u16 = if picker.mode == Mode::Edit { 18 } else { 14 };
     let x = area.x + (area.width.saturating_sub(width)) / 2;
@@ -669,7 +672,7 @@ fn render_edit(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
         let drop_w = area.width.saturating_sub(16);
         for (i, name) in picker.characters.iter().enumerate() {
             let y = drop_y + i as u16;
-            if y >= area.y + area.height.saturating_sub(3) {
+            if y >= area.y + area.height {
                 break;
             }
             let selected = i == picker.char_list_idx;
