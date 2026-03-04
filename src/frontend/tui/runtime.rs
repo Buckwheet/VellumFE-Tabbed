@@ -368,10 +368,15 @@ async fn async_run(
                                     #[cfg(target_os = "windows")]
                                     let child = std::process::Command::new("cmd")
                                         .args(["/C", &cmd])
+                                        .stdout(std::process::Stdio::null())
+                                        .stderr(std::process::Stdio::null())
                                         .spawn();
                                     #[cfg(not(target_os = "windows"))]
-                                    let child =
-                                        std::process::Command::new("sh").args(["-c", &cmd]).spawn();
+                                    let child = std::process::Command::new("sh")
+                                        .args(["-c", &cmd])
+                                        .stdout(std::process::Stdio::null())
+                                        .stderr(std::process::Stdio::null())
+                                        .spawn();
                                     match child {
                                         Ok(_) => tracing::info!("Lich process launched"),
                                         Err(e) => tracing::warn!("Failed to launch Lich: {}", e),
