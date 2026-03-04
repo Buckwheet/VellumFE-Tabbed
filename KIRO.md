@@ -29,20 +29,24 @@ asking the user to paste files.
 Mimic Warlock's login service for VellumFE:
 - Save named character profiles (account + character + game + optional Lich proxy)
 - Passwords stored in OS keychain, never on disk
-- On launch with no profiles: show profile picker TUI
+- Profile picker TUI shown on every launch (Warlock-style), last-used pre-selected
 - Per-profile toggle: Direct (eAccess) vs Lich proxy
 
 ---
 
-## Current State — beta.42 (HEAD: edd4873)
+## Current State — beta.43 (HEAD: bdd3bf3, tag: v0.1.0-beta.43)
 
 ### What's working
 
 - Multi-profile `profiles.toml` replaces single `connection.toml`
 - `ProfilePicker` TUI widget (Warlock-style list + edit form)
-- N/E/D hotkeys now correctly gated on list mode — **fixed in beta.42**
+- **Picker always shows on launch** — fixed in beta.43 (was auto-connecting with profiles[0])
+- N/E/D hotkeys gated on list mode — fixed in beta.42
   - In edit mode, N/E/D type as characters into the active field
-  - `pub fn is_list_mode(&self) -> bool` added to `ProfilePicker`
+- **Game selector fixed** — beta.43: Up/Down navigates fields, Left/Right cycles game
+  - Removed game cycling from move_up/move_down; added `cycle_game(forward)` method
+  - Left/Right in handle_wizard_keys calls picker.cycle_game()
+- **sidebar.toml CRLF fixed** — beta.43: literal `\r\n` text in line 392 replaced with real newlines
 - Password stored in OS keychain via `credentials.rs`
 - Character fetch from eAccess on Enter in Character field
 - Direct and Lich connection paths both wired up
@@ -55,12 +59,14 @@ src/credentials.rs         — OS keychain (store/get/delete password)
 src/network.rs             — eaccess module (authenticate, fetch_characters),
                              DirectConnection, LichConnection
 src/frontend/tui/
-  login_wizard.rs          — ProfilePicker TUI widget; is_list_mode() added
-  runtime.rs               — startup: load profiles, show picker if needed;
+  login_wizard.rs          — ProfilePicker TUI widget; cycle_game() added beta.43
+  runtime.rs               — startup: always shows picker (else { None } — beta.43);
                              event loop: handle //setup:connect:* commands
-  input_handlers.rs        — handle_wizard_keys(); N/E/D gated on is_list_mode()
+  input_handlers.rs        — handle_wizard_keys(); N/E/D gated; Left/Right → cycle_game
   frontend_impl.rs         — renders ProfilePicker overlay
   mod.rs                   — TuiFrontend.login_wizard: Option<ProfilePicker>
+defaults/globals/layouts/
+  sidebar.toml             — fixed CRLF corruption (beta.43)
 ```
 
 ### profiles.toml format (~/.vellum-fe/profiles.toml)
@@ -94,11 +100,10 @@ use_lich = false
 
 ## Next Steps
 
-1. **User re-tests beta.42 on Windows** — verify N/D/E type correctly in password field
-2. **Fix paste** (bug above) if still broken after beta.42
+1. **User re-tests beta.43 on Windows** — verify picker shows on every launch, game selector works
+2. **Fix paste** (bug above) if still broken
 3. **Lich subprocess launch** — currently assumes Lich is already running on configured port
-4. **Always-show picker** — show picker on every launch (like Warlock), last-used pre-selected;
-   add `--character <name>` CLI flag to skip
+4. **`--character <name>` CLI flag** — skip picker and connect directly to named profile
 
 ---
 
