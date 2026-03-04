@@ -5243,10 +5243,21 @@ impl Config {
                 .context("Invalid layout filename")?;
             let layout_path = layouts_dir.join(filename);
 
-            if !layout_path.exists() {
-                let content = file
-                    .contents_utf8()
-                    .context(format!("Failed to read embedded layout {}", filename))?;
+            let content = file
+                .contents_utf8()
+                .context(format!("Failed to read embedded layout {}", filename))?;
+
+            // Write if missing, or if existing file fails to parse (stale/corrupt format)
+            let needs_write = if layout_path.exists() {
+                match fs::read_to_string(&layout_path) {
+                    Ok(existing) => toml::from_str::<Layout>(&existing).is_err(),
+                    Err(_) => true,
+                }
+            } else {
+                true
+            };
+
+            if needs_write {
                 fs::write(&layout_path, content)
                     .context(format!("Failed to write layouts/{}", filename))?;
                 tracing::info!("Extracted layout {} to {:?}", filename, layout_path);

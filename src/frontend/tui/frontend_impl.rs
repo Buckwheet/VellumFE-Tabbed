@@ -87,6 +87,11 @@ impl Frontend for TuiFrontend {
         // Clone theme once so all sync tasks share the same palette
         let theme = self.theme_cache.get_theme().clone();
 
+        // Don't sync game widgets while the profile picker is showing
+        if self.login_wizard.is_some() {
+            return self.render_picker_only(app_core);
+        }
+
         // Sync data from data layer into TextWindows
         self.sync_text_windows(app_core, &theme);
 
@@ -702,5 +707,18 @@ impl Frontend for TuiFrontend {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+}
+
+impl TuiFrontend {
+    fn render_picker_only(&mut self, app_core: &mut AppCore) -> Result<()> {
+        self.terminal.draw(|f| {
+            let screen_area = f.area();
+            if let Some(ref wizard) = self.login_wizard {
+                login_wizard::render_picker(wizard, screen_area, f.buffer_mut());
+            }
+            let _ = app_core; // suppress unused warning
+        })?;
+        Ok(())
     }
 }

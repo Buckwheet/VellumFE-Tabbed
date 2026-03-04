@@ -447,9 +447,14 @@ impl super::TuiFrontend {
             let (width, height) = self.size();
             app_core.save_layout(name, width, height);
             app_core.needs_render = true;
-        } else if command.starts_with(".loadlayout ") || command == ".loadlayout" {
+        } else if command.starts_with(".loadlayout ")
+            || command == ".loadlayout"
+            || command.starts_with(".layout ")
+            || command == ".layout"
+        {
             let name = command
                 .strip_prefix(".loadlayout ")
+                .or_else(|| command.strip_prefix(".layout "))
                 .unwrap_or("default")
                 .trim();
             let (width, height) = self.size();
