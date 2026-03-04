@@ -114,7 +114,9 @@ async fn async_run(
 
     let (width, height) = frontend.size();
     app_core.init_windows(width, height);
-    frontend.render(&mut app_core)?;
+    if width >= 20 && height >= 6 {
+        frontend.render(&mut app_core)?;
+    }
 
     if let Err(e) = frontend.command_input_load_history("command_input", character.as_deref()) {
         tracing::warn!("Failed to load command history: {}", e);
