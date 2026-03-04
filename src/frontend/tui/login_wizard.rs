@@ -36,7 +36,7 @@ impl Profile {
         self.lich_host.as_deref().unwrap_or("127.0.0.1")
     }
     pub fn lich_port(&self) -> u16 {
-        self.lich_port.unwrap_or(8000)
+        self.lich_port.unwrap_or(0)
     }
     pub fn lich_command(&self) -> Option<&str> {
         self.lich_command.as_deref()
@@ -129,7 +129,7 @@ impl ProfilePicker {
             f_character: String::new(),
             f_use_lich: false,
             f_lich_host: "127.0.0.1".to_string(),
-            f_lich_port: "8000".to_string(),
+            f_lich_port: String::new(),
             f_lich_command: String::new(),
             characters: Vec::new(),
             needs_fetch: false,
@@ -392,7 +392,7 @@ impl ProfilePicker {
         self.f_character.clear();
         self.f_use_lich = false;
         self.f_lich_host = "127.0.0.1".to_string();
-        self.f_lich_port = "8000".to_string();
+        self.f_lich_port = String::new();
         self.f_lich_command.clear();
         self.characters.clear();
         self.char_list_open = false;
@@ -418,7 +418,7 @@ impl ProfilePicker {
         self.f_character = p.character;
         self.f_use_lich = p.use_lich;
         self.f_lich_host = p.lich_host.unwrap_or_else(|| "127.0.0.1".to_string());
-        self.f_lich_port = p.lich_port.unwrap_or(8000).to_string();
+        self.f_lich_port = p.lich_port.map(|p| p.to_string()).unwrap_or_default();
         self.f_lich_command = p.lich_command.unwrap_or_default();
         self.characters.clear();
         self.char_list_open = false;

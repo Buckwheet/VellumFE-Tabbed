@@ -324,7 +324,8 @@ async fn async_run(
                             let game_code = parts[1].to_string();
                             let character = parts[2].to_string();
                             let lich_host = parts[3].to_string();
-                            let lich_port = parts[4].parse::<u16>().unwrap_or(8138);
+                            // 0 means "use game port" (Warlock default behavior)
+                            let lich_port_override = parts[4].parse::<u16>().unwrap_or(0);
                             let launch_cmd = parts.get(5).copied().unwrap_or("").to_string();
                             let rx = pending_command_rx.take().unwrap_or_else(|| {
                                 let (new_tx, new_rx) =
@@ -376,10 +377,21 @@ async fn async_run(
                                         Err(e) => tracing::warn!("Failed to launch Lich: {}", e),
                                     }
                                 }
+                                // Use game port if no override specified (Warlock default)
+                                let connect_port = if lich_port_override == 0 {
+                                    game_port
+                                } else {
+                                    lich_port_override
+                                };
+                                tracing::info!(
+                                    "Connecting to Lich at {}:{}",
+                                    lich_host,
+                                    connect_port
+                                );
                                 // Connect to Lich's local listener, sending the auth key
                                 spawn_lich_reconnect(
                                     lich_host,
-                                    lich_port,
+                                    connect_port,
                                     Some(key),
                                     st,
                                     rx,
