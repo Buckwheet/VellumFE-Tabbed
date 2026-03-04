@@ -84,6 +84,13 @@ impl Frontend for TuiFrontend {
             .downcast_mut::<AppCore>()
             .ok_or_else(|| anyhow::anyhow!("Invalid app type"))?;
 
+        // Skip render if terminal is too small — Windows Terminal briefly resizes
+        // new tabs to a tiny size (e.g. 47x1) before expanding to the real size.
+        let (w, h) = self.size();
+        if w < 20 || h < 3 {
+            return Ok(());
+        }
+
         // Clone theme once so all sync tasks share the same palette
         let theme = self.theme_cache.get_theme().clone();
 
