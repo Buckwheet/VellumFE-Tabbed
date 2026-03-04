@@ -547,36 +547,42 @@ impl super::TuiFrontend {
                 picker.backspace();
             }
             KeyCode::Char('n') | KeyCode::Char('N') if !modifiers.ctrl && !modifiers.alt => {
-                // Only trigger N/E/D in list mode (type_char handles edit mode)
-                if picker.profiles().is_empty()
-                    || matches!(code, KeyCode::Char('n') | KeyCode::Char('N'))
-                {
-                    // Try new_profile first; if in edit mode, type_char handles it
+                if picker.is_list_mode() {
                     picker.new_profile();
+                } else {
+                    picker.type_char(if modifiers.shift { 'N' } else { 'n' });
                 }
             }
             KeyCode::Char('e') | KeyCode::Char('E') if !modifiers.ctrl && !modifiers.alt => {
-                picker.edit_selected();
+                if picker.is_list_mode() {
+                    picker.edit_selected();
+                } else {
+                    picker.type_char(if modifiers.shift { 'E' } else { 'e' });
+                }
             }
             KeyCode::Char('d') | KeyCode::Char('D') if !modifiers.ctrl && !modifiers.alt => {
-                picker.delete_selected();
-                // Save updated profiles
-                let profiles: Vec<crate::connection::Profile> = picker
-                    .profiles()
-                    .iter()
-                    .map(|p| crate::connection::Profile {
-                        name: p.name.clone(),
-                        account: p.account.clone(),
-                        character: p.character.clone(),
-                        game_code: p.game_code.clone(),
-                        use_lich: p.use_lich,
-                        lich_host: p.lich_host.clone(),
-                        lich_port: p.lich_port,
-                    })
-                    .collect();
-                let store = crate::connection::ProfileStore { profiles };
-                if let Err(e) = store.save() {
-                    tracing::warn!("Failed to save profiles: {}", e);
+                if picker.is_list_mode() {
+                    picker.delete_selected();
+                    // Save updated profiles
+                    let profiles: Vec<crate::connection::Profile> = picker
+                        .profiles()
+                        .iter()
+                        .map(|p| crate::connection::Profile {
+                            name: p.name.clone(),
+                            account: p.account.clone(),
+                            character: p.character.clone(),
+                            game_code: p.game_code.clone(),
+                            use_lich: p.use_lich,
+                            lich_host: p.lich_host.clone(),
+                            lich_port: p.lich_port,
+                        })
+                        .collect();
+                    let store = crate::connection::ProfileStore { profiles };
+                    if let Err(e) = store.save() {
+                        tracing::warn!("Failed to save profiles: {}", e);
+                    }
+                } else {
+                    picker.type_char(if modifiers.shift { 'D' } else { 'd' });
                 }
             }
             KeyCode::Char(c) if !modifiers.ctrl && !modifiers.alt => {

@@ -140,6 +140,10 @@ impl ProfilePicker {
         &fields[self.field_idx.min(fields.len() - 1)]
     }
 
+    pub fn is_list_mode(&self) -> bool {
+        self.mode == Mode::List
+    }
+
     pub fn type_char(&mut self, c: char) {
         if self.mode == Mode::List {
             return;
