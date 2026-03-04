@@ -108,16 +108,30 @@ lich_port = 8000
 
 ## Known Bugs / Next Session Fixes
 
-1. **Paste in edit form is broken** — pasting into a field (e.g. password) erases previously
-   typed content in earlier fields and scatters the pasted text into the wrong field.
-   Root cause: paste events are likely being delivered as individual key chars and not
-   scoped to the currently focused field. Fix: intercept paste events in `handle_wizard_keys`
-   and route them only to the active field via a new `paste_str(&mut self, s: &str)` method
-   on `ProfilePicker`.
+1. **N/E/D hotkeys fire in edit mode** — CONFIRMED by log.
+   When typing in the password field, `Char('N')` with `shift: true` triggers `new_profile()`
+   instead of typing 'N' into the field. Same will happen with 'E' and 'D'.
+   Fix: in `handle_wizard_keys` in `input_handlers.rs`, the N/E/D match arms must only fire
+   when the picker is in **list mode**. Add a mode check:
+   ```rust
+   // Only in list mode — in edit mode these are just characters
+   KeyCode::Char('n') | KeyCode::Char('N') if !modifiers.ctrl && !modifiers.alt => {
+       if picker.is_list_mode() {
+           picker.new_profile();
+       } else {
+           picker.type_char(if modifiers.shift { 'N' } else { 'n' });
+       }
+   }
+   ```
+   Add `pub fn is_list_mode(&self) -> bool { self.mode == Mode::List }` to `ProfilePicker`.
+   Same pattern for E and D.
 
-2. **Paste support needed** — users should be able to paste into any field in the edit form,
-   especially the password field. The picker needs to handle `KeyCode::Paste(text)` /
-   crossterm paste events and insert the text into the active field only.
+2. **Paste in edit form is broken** — pasting into a field (e.g. password) erases previously
+   typed content in earlier fields and scatters the pasted text into the wrong field.
+   Root cause: paste events are delivered as rapid individual `Char` key events, and uppercase
+   chars in the password (like 'N', 'D') get intercepted as hotkeys before reaching the field.
+   Fix: same as bug #1 (mode check) plus a `paste_str(&mut self, s: &str)` method on
+   `ProfilePicker` that appends to the active field only.
 
 ---
 
