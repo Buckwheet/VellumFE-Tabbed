@@ -603,7 +603,10 @@ impl Frontend for TuiFrontend {
                 dialog::render_dialog(dialog_state, screen_area, f.buffer_mut(), &theme);
             }
 
-            // Render injuries popup if active (viewing another player's injuries)
+            // Render login wizard overlay (first-run setup / no connection.toml)
+            if let Some(ref wizard) = self.login_wizard {
+                login_wizard::render_wizard(wizard, screen_area, f.buffer_mut());
+            }
             if let Some(ref injuries_popup) = app_core.ui_state.injuries_popup {
                 injury_doll::render_injuries_popup(
                     injuries_popup,

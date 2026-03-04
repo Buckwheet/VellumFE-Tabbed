@@ -128,6 +128,11 @@ impl super::TuiFrontend {
             return Ok(None);
         }
 
+        // If login wizard is active, route all keys to it
+        if self.login_wizard.is_some() {
+            return self.handle_wizard_keys(code, modifiers, app_core);
+        }
+
         // If setup screen is active, dismiss on any key
         if self.show_setup_screen || self.show_password_prompt {
             return Ok(Some("//setup:dismiss".to_string()));
@@ -508,5 +513,108 @@ impl super::TuiFrontend {
                 Some(app_core.request_menu(exist, noun, click_pos))
             }
         }
+    }
+
+    /// Handle keyboard input when the login wizard is active.
+    pub(super) fn handle_wizard_keys(
+        &mut self,
+        code: crate::frontend::KeyCode,
+        modifiers: crate::frontend::KeyModifiers,
+        app_core: &mut crate::core::AppCore,
+    ) -> Result<Option<String>> {
+        use super::login_wizard::WizardResult;
+        use crate::frontend::KeyCode;
+
+        let wizard = match self.login_wizard.as_mut() {
+            Some(w) => w,
+            None => return Ok(None),
+        };
+
+        match code {
+            KeyCode::Esc => {
+                wizard.back();
+            }
+            KeyCode::Tab => {
+                wizard.tab();
+            }
+            KeyCode::Up => {
+                wizard.move_up();
+            }
+            KeyCode::Down => {
+                wizard.move_down();
+            }
+            KeyCode::Backspace => {
+                wizard.backspace();
+            }
+            KeyCode::Char(c) if !modifiers.ctrl && !modifiers.alt => {
+                wizard.type_char(c);
+            }
+            KeyCode::Enter => {
+                let needs_fetch = wizard.confirm();
+                if needs_fetch {
+                    // Fetch characters synchronously (blocking is fine here — we're pre-connection)
+                    let account = wizard.account.clone();
+                    let password = wizard.password.clone();
+                    let game_code = wizard.selected_game_code().to_string();
+                    let data_dir = crate::config::Config::base_dir().unwrap_or_default();
+                    match crate::network::fetch_characters_for_account(
+                        &account, &password, &game_code, &data_dir,
+                    ) {
+                        Ok(chars) => {
+                            if let Some(w) = self.login_wizard.as_mut() {
+                                w.set_characters(chars);
+                            }
+                        }
+                        Err(e) => {
+                            if let Some(w) = self.login_wizard.as_mut() {
+                                w.set_error(format!("Login failed: {}", e));
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        app_core.needs_render = true;
+
+        // Check if wizard produced a result
+        let result = self.login_wizard.as_ref().and_then(|w| w.result.clone());
+        match result {
+            Some(WizardResult::Cancel) => {
+                self.login_wizard = None;
+                self.show_setup_screen = false;
+                // Quit — no connection configured and user cancelled
+                app_core.quit();
+            }
+            Some(WizardResult::Connect {
+                account,
+                password,
+                game_code,
+                character,
+            }) => {
+                self.login_wizard = None;
+                self.show_setup_screen = false;
+                // Save connection.toml for next launch
+                let cfg = crate::connection::ConnectionConfig::Direct {
+                    account: account.clone(),
+                    character: character.clone(),
+                    game_code: game_code.clone(),
+                };
+                if let Err(e) = cfg.save() {
+                    tracing::warn!("Failed to save connection.toml: {}", e);
+                }
+                // Store password in keychain
+                crate::credentials::store_password(&account, &password);
+                // Signal runtime to start Direct connection
+                return Ok(Some(format!(
+                    "//setup:connect:direct:{}:{}:{}",
+                    account, game_code, character
+                )));
+            }
+            None => {}
+        }
+
+        Ok(None)
     }
 }

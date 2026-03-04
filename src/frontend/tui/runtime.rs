@@ -132,7 +132,7 @@ async fn async_run(
 
     // Determine connection mode from CLI args or connection.toml
     let (server_tx, server_rx) = mpsc::unbounded_channel::<ServerMessage>();
-    let (command_tx, command_rx) = mpsc::unbounded_channel::<String>();
+    let (mut command_tx, command_rx) = mpsc::unbounded_channel::<String>();
 
     // Resolve connection: CLI args take priority, then connection.toml, then show setup
     let conn = if let Some(ref cfg) = direct {
@@ -185,6 +185,8 @@ async fn async_run(
     };
 
     // Spawn network task based on resolved connection
+    let mut pending_command_rx: Option<tokio::sync::mpsc::UnboundedReceiver<String>> = None;
+    let mut pending_raw_logger: Option<crate::network::RawLogger> = None;
     let connected = match conn {
         Some(ConnectionMode::Lich {
             ref host,
@@ -195,7 +197,7 @@ async fn async_run(
                 host.clone(),
                 port,
                 login_key.clone(),
-                server_tx,
+                server_tx.clone(),
                 command_rx,
                 raw_logger,
                 5,
@@ -215,10 +217,10 @@ async fn async_run(
                 game_code: game_code.clone(),
                 data_dir: crate::config::Config::base_dir().unwrap_or_default(),
             };
+            let st = server_tx.clone();
             tokio::spawn(async move {
                 if let Err(e) =
-                    crate::network::DirectConnection::start(cfg, server_tx, command_rx, raw_logger)
-                        .await
+                    crate::network::DirectConnection::start(cfg, st, command_rx, raw_logger).await
                 {
                     tracing::error!("Direct connection error: {:#}", e);
                 }
@@ -226,9 +228,12 @@ async fn async_run(
             true
         }
         None => {
-            // No connection configured — show setup screen
+            // No connection configured — show setup screen with login wizard
             tracing::info!("No connection configured. Showing setup screen.");
             frontend.show_setup_screen = true;
+            frontend.login_wizard = Some(super::login_wizard::LoginWizard::new());
+            pending_command_rx = Some(command_rx);
+            pending_raw_logger = raw_logger;
             false
         }
     };
@@ -285,7 +290,44 @@ async fn async_run(
             if let Some(command) = handle_event(&mut app_core, &mut frontend, event)? {
                 // Handle setup/password prompt commands
                 if command.starts_with("//setup:") {
-                    handle_setup_command(&command, &mut frontend, &mut app_core);
+                    if command.starts_with("//setup:connect:direct:") {
+                        // Parse: //setup:connect:direct:<account>:<game_code>:<character>
+                        let parts: Vec<&str> = command["//setup:connect:direct:".len()..]
+                            .splitn(3, ':')
+                            .collect();
+                        if parts.len() == 3 {
+                            let account = parts[0].to_string();
+                            let game_code = parts[1].to_string();
+                            let character = parts[2].to_string();
+                            let password =
+                                crate::credentials::get_password(&account).unwrap_or_default();
+                            let cfg = crate::network::DirectConnectConfig {
+                                account,
+                                password,
+                                character,
+                                game_code,
+                                data_dir: crate::config::Config::base_dir().unwrap_or_default(),
+                            };
+                            // Use the pending channel from the None branch (or create a new one)
+                            let rx = pending_command_rx.take().unwrap_or_else(|| {
+                                let (new_tx, new_rx) =
+                                    tokio::sync::mpsc::unbounded_channel::<String>();
+                                let _ = std::mem::replace(&mut command_tx, new_tx);
+                                new_rx
+                            });
+                            let rl = pending_raw_logger.take();
+                            let st = server_tx.clone();
+                            tokio::spawn(async move {
+                                if let Err(e) =
+                                    crate::network::DirectConnection::start(cfg, st, rx, rl).await
+                                {
+                                    tracing::error!("Direct connection error: {:#}", e);
+                                }
+                            });
+                        }
+                    } else {
+                        handle_setup_command(&command, &mut frontend, &mut app_core);
+                    }
                 } else {
                     app_core
                         .perf_stats
