@@ -114,9 +114,8 @@ async fn async_run(
 
     let (width, height) = frontend.size();
     app_core.init_windows(width, height);
-    if width >= 20 && height >= 6 {
-        frontend.render(&mut app_core)?;
-    }
+    // Skip initial render — terminal buffer may not match actual size yet.
+    // The event loop will render on the first tick after the terminal settles.
 
     if let Err(e) = frontend.command_input_load_history("command_input", character.as_deref()) {
         tracing::warn!("Failed to load command history: {}", e);
