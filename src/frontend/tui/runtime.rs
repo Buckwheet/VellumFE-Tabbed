@@ -366,11 +366,14 @@ async fn async_run(
                                         .replace("{port}", &game_port.to_string());
                                     tracing::info!("Launching Lich: {}", cmd);
                                     #[cfg(target_os = "windows")]
-                                    let child = std::process::Command::new("cmd")
-                                        .args(["/C", &cmd])
-                                        .stdout(std::process::Stdio::null())
-                                        .stderr(std::process::Stdio::null())
-                                        .spawn();
+                                    let child = {
+                                        use std::os::windows::process::CommandExt;
+                                        const DETACHED_PROCESS: u32 = 0x00000008;
+                                        std::process::Command::new("cmd")
+                                            .args(["/C", &cmd])
+                                            .creation_flags(DETACHED_PROCESS)
+                                            .spawn()
+                                    };
                                     #[cfg(not(target_os = "windows"))]
                                     let child = std::process::Command::new("sh")
                                         .args(["-c", &cmd])
