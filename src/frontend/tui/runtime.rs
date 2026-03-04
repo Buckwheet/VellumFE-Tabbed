@@ -562,6 +562,13 @@ fn handle_event(
             app_core,
             crate::frontend::tui::menu_actions::handle_menu_action,
         ),
+        FrontendEvent::Paste { text } => {
+            if let Some(picker) = frontend.login_wizard.as_mut() {
+                picker.paste_text(&text);
+                app_core.needs_render = true;
+            }
+            Ok(None)
+        }
         FrontendEvent::Resize { width, height } => {
             tracing::info!(
                 "Terminal resized to {}x{} (use .resize to apply)",

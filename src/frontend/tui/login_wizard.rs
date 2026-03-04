@@ -206,6 +206,34 @@ impl ProfilePicker {
         }
     }
 
+    pub fn clear_field(&mut self) {
+        if self.mode == Mode::List {
+            return;
+        }
+        match self.current_field() {
+            EditField::Name => self.f_name.clear(),
+            EditField::Account => self.f_account.clear(),
+            EditField::Password => self.f_password.clear(),
+            EditField::Character => self.f_character.clear(),
+            EditField::LichHost => self.f_lich_host.clear(),
+            EditField::LichPort => self.f_lich_port.clear(),
+            EditField::LichCommand => self.f_lich_command.clear(),
+            EditField::Game | EditField::UseLich => {}
+        }
+    }
+
+    pub fn paste_text(&mut self, text: &str) {
+        if self.mode == Mode::List {
+            return;
+        }
+        for c in text.chars() {
+            if c == '\n' || c == '\r' {
+                continue;
+            }
+            self.type_char(c);
+        }
+    }
+
     pub fn move_up(&mut self) {
         match self.mode {
             Mode::List => {
@@ -482,7 +510,7 @@ pub fn render_picker(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
     if area.width < 20 || area.height < 6 {
         return;
     }
-    let width: u16 = 64.min(area.width.saturating_sub(4));
+    let width: u16 = 80.min(area.width.saturating_sub(4));
     let height: u16 = if picker.mode == Mode::Edit { 20 } else { 14 };
     let x = area.x + (area.width.saturating_sub(width)) / 2;
     let y = area.y + (area.height.saturating_sub(height)) / 2;
@@ -691,7 +719,14 @@ fn render_edit(picker: &ProfilePicker, area: Rect, buf: &mut Buffer) {
         let prefix = if is_active { "▶ " } else { "  " };
         buf.set_string(area.x, row_y, prefix, label_style);
         buf.set_string(area.x + 2, row_y, &format!("{:<14}", label), label_style);
-        buf.set_string(area.x + 16, row_y, value, value_style);
+        // Truncate from the left so the end of long values is always visible
+        let value_width = area.width.saturating_sub(18) as usize;
+        let display_value = if value.len() > value_width && value_width > 3 {
+            format!("…{}", &value[value.len() - (value_width - 1)..])
+        } else {
+            value.clone()
+        };
+        buf.set_string(area.x + 16, row_y, display_value, value_style);
     }
 
     // Inline character dropdown

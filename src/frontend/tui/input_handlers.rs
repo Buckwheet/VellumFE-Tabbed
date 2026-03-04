@@ -557,6 +557,9 @@ impl super::TuiFrontend {
             KeyCode::Backspace => {
                 picker.backspace();
             }
+            KeyCode::Delete => {
+                picker.clear_field();
+            }
             KeyCode::Char('n') | KeyCode::Char('N') if !modifiers.ctrl && !modifiers.alt => {
                 if picker.is_list_mode() {
                     picker.new_profile();
@@ -599,6 +602,9 @@ impl super::TuiFrontend {
             }
             KeyCode::Char(c) if !modifiers.ctrl && !modifiers.alt => {
                 picker.type_char(c);
+            }
+            KeyCode::Char('u') if modifiers.ctrl => {
+                picker.clear_field();
             }
             KeyCode::Enter => {
                 let needs_fetch = picker.confirm();
