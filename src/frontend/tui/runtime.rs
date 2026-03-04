@@ -151,32 +151,7 @@ async fn async_run(
             login_key: login_key.clone(),
         })
     } else {
-        // Try profiles.toml — use the first profile as default
-        match crate::connection::ProfileStore::load() {
-            Ok(store) if !store.profiles.is_empty() => {
-                let p = &store.profiles[0];
-                if p.use_lich {
-                    Some(ConnectionMode::Lich {
-                        host: p.lich_host().to_string(),
-                        port: p.lich_port(),
-                        login_key: None,
-                    })
-                } else {
-                    let password = crate::credentials::get_password(&p.account).unwrap_or_default();
-                    Some(ConnectionMode::Direct {
-                        account: p.account.clone(),
-                        password,
-                        character: p.character.clone(),
-                        game_code: p.game_code.clone(),
-                    })
-                }
-            }
-            Ok(_) => None,
-            Err(e) => {
-                tracing::warn!("Failed to load profiles.toml: {}", e);
-                None
-            }
-        }
+        None
     };
 
     // Spawn network task based on resolved connection

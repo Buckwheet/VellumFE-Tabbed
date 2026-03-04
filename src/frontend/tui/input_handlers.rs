@@ -543,6 +543,12 @@ impl super::TuiFrontend {
             KeyCode::Down => {
                 picker.move_down();
             }
+            KeyCode::Left => {
+                picker.cycle_game(false);
+            }
+            KeyCode::Right => {
+                picker.cycle_game(true);
+            }
             KeyCode::Backspace => {
                 picker.backspace();
             }

@@ -201,14 +201,6 @@ impl ProfilePicker {
                 if self.field_idx > 0 {
                     self.field_idx -= 1;
                 }
-                // cycle game up
-                if *self.current_field() == EditField::Game {
-                    if self.f_game_idx > 0 {
-                        self.f_game_idx -= 1;
-                    } else {
-                        self.f_game_idx = GAMES.len() - 1;
-                    }
-                }
                 // toggle lich
                 if *self.current_field() == EditField::UseLich {
                     self.f_use_lich = !self.f_use_lich;
@@ -229,14 +221,22 @@ impl ProfilePicker {
                 if self.field_idx < max {
                     self.field_idx += 1;
                 }
-                // cycle game down
-                if *self.current_field() == EditField::Game {
-                    self.f_game_idx = (self.f_game_idx + 1) % GAMES.len();
-                }
                 // toggle lich
                 if *self.current_field() == EditField::UseLich {
                     self.f_use_lich = !self.f_use_lich;
                 }
+            }
+        }
+    }
+
+    pub fn cycle_game(&mut self, forward: bool) {
+        if self.mode == Mode::Edit && *self.current_field() == EditField::Game {
+            if forward {
+                self.f_game_idx = (self.f_game_idx + 1) % GAMES.len();
+            } else if self.f_game_idx > 0 {
+                self.f_game_idx -= 1;
+            } else {
+                self.f_game_idx = GAMES.len() - 1;
             }
         }
     }
