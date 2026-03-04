@@ -16,7 +16,7 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetWindowRect, GetWindowThreadProcessId, IsWindowVisible, SetWindowPos, HWND_TOP,
-    SWP_NOZORDER,
+    SWP_NOSIZE, SWP_NOZORDER,
 };
 
 use super::{ScreenInfo, WindowPositioner, WindowRect};
@@ -95,6 +95,13 @@ impl WindowPositioner for WindowsPositioner {
             self.is_windows_terminal
         );
 
+        // Don't resize if dimensions are zero — would collapse the window
+        let flags = if rect.width == 0 || rect.height == 0 {
+            SWP_NOZORDER | SWP_NOSIZE
+        } else {
+            SWP_NOZORDER
+        };
+
         unsafe {
             SetWindowPos(
                 self.hwnd,
@@ -103,7 +110,7 @@ impl WindowPositioner for WindowsPositioner {
                 rect.y,
                 rect.width as i32,
                 rect.height as i32,
-                SWP_NOZORDER,
+                flags,
             )
             .context("SetWindowPos failed")?;
         }
