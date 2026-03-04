@@ -1,3 +1,4 @@
+use super::tab_bar::{TabBar, TabEntry};
 use super::*;
 use crate::core::AppCore;
 use crate::frontend::{Frontend, FrontendEvent};
@@ -172,8 +173,39 @@ impl Frontend for TuiFrontend {
             let theme = theme_for_render.clone();
             let screen_area = f.area();
 
-            // Full screen is the content area (no tab bar)
-            let content_area = screen_area;
+            // Render tab bar at top row
+            let tab_area = ratatui::layout::Rect {
+                x: screen_area.x,
+                y: screen_area.y,
+                width: screen_area.width,
+                height: 1,
+            };
+            let content_area = ratatui::layout::Rect {
+                x: screen_area.x,
+                y: screen_area.y + 1,
+                width: screen_area.width,
+                height: screen_area.height.saturating_sub(1),
+            };
+
+            // Build tab entries from session_labels
+            let tab_entries: Vec<TabEntry> = self
+                .session_labels
+                .iter()
+                .map(
+                    |(label, is_active, status, unread, sound_enabled, tts_enabled)| TabEntry {
+                        label: label.as_str(),
+                        is_active: *is_active,
+                        status: status.as_str(),
+                        unread: *unread,
+                        sound_enabled: *sound_enabled,
+                        tts_enabled: *tts_enabled,
+                    },
+                )
+                .collect();
+
+            // Render the tab bar
+            let tab_bar = TabBar::new(tab_entries).compact(self.compact_tabs);
+            f.render_widget(tab_bar, tab_area);
 
             // Stable render order: sort by name, then move ephemeral windows and performance_overlay to end
             // so they render on top of other windows
@@ -612,6 +644,16 @@ impl Frontend for TuiFrontend {
                     &theme,
                 );
             }
+
+            // Render session picker overlay (topmost layer)
+            if let Some(ref picker) = self.session_picker {
+                session_picker::render_picker(picker, screen_area, f.buffer_mut());
+            }
+
+            // Render login wizard overlay (above picker)
+            if let Some(ref wizard) = self.login_wizard {
+                login_wizard::render_wizard(wizard, screen_area, f.buffer_mut());
+            }
         })?;
 
         // Feed text wrapping timings into performance stats (drain samples from all text widgets)
@@ -680,15 +722,11 @@ impl Frontend for TuiFrontend {
 
     fn cleanup(&mut self) -> Result<()> {
         disable_raw_mode()?;
-        if self.mouse_capture {
-            execute!(
-                self.terminal.backend_mut(),
-                LeaveAlternateScreen,
-                crossterm::event::DisableMouseCapture
-            )?;
-        } else {
-            execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
-        }
+        execute!(
+            self.terminal.backend_mut(),
+            LeaveAlternateScreen,
+            crossterm::event::DisableMouseCapture
+        )?;
         Ok(())
     }
 

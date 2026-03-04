@@ -3,86 +3,93 @@
 //! This module implements the Frontend trait for terminal rendering.
 
 mod active_effects;
-pub mod crossterm_bridge;
-pub mod textarea_bridge;
+mod betrayer;
 pub mod color_form;
 pub mod color_palette_browser;
 mod color_picker;
 mod colors;
-mod command_line;
-mod input;
 mod command_input;
+mod command_line;
 mod compass;
+mod container_window;
 mod countdown;
+pub mod crossterm_bridge;
 mod dashboard;
 mod dialog;
+mod encumbrance;
+mod experience;
 mod frontend_impl;
+mod gs4_experience;
 mod hand;
 pub mod highlight_browser;
 pub mod highlight_form;
 mod highlight_utils;
-pub mod indicator_template_editor;
 mod indicator;
+pub mod indicator_template_editor;
 mod injury_doll;
+mod input;
+mod input_handlers;
 mod inventory_window;
+mod items;
 pub mod keybind_browser;
-mod list_widget;
 pub mod keybind_form;
+mod list_widget;
+pub mod login_wizard;
 pub mod menu_actions;
 pub mod menu_builders;
+mod minivitals;
 mod perception;
 mod performance_stats;
 mod players;
 mod popup_menu;
 mod progress_bar;
 mod quickbar;
+mod resize;
 mod room_window;
 mod room_window_ops;
-mod search;
-mod sync;
-mod sync_macros;
+mod runtime;
 mod scrollable_container;
+mod search;
 mod session_keys;
+pub mod session_picker;
 pub mod settings_editor;
 mod spacer;
 pub mod spell_color_browser;
 pub mod spell_color_form;
 mod spells_window;
-mod tabbed_text_window;
-mod title_position;
-mod targets;
-mod items;
-mod experience;
-mod gs4_experience;
-mod encumbrance;
-mod minivitals;
-mod betrayer;
-mod text_window;
-mod container_window;
-mod runtime;
-pub mod theme_browser;
-pub mod theme_editor;
-mod theme_cache;
-mod resize;
-pub mod uicolors_browser;
-pub mod window_editor;
-mod widget_manager;
-mod input_handlers;
+mod sync;
+mod sync_macros;
 pub mod tab_bar;
+mod tabbed_text_window;
+mod targets;
+mod text_window;
+pub mod textarea_bridge;
+pub mod theme_browser;
+mod theme_cache;
+pub mod theme_editor;
+mod title_position;
+pub mod uicolors_browser;
+pub(crate) mod widget_manager;
+pub mod window_editor;
 
 pub use colors::resolve_window_colors;
 pub use runtime::run;
 pub mod widget_traits;
+use anyhow::Result;
+use crossterm::{
+    execute,
+    terminal::{enable_raw_mode, EnterAlternateScreen},
+};
+use ratatui::{backend::CrosstermBackend, Terminal};
+use resize::ResizeDebouncer;
+use std::io;
 use theme_cache::ThemeCache;
 use widget_manager::WidgetManager;
-use resize::ResizeDebouncer;
-use anyhow::Result;
-use crossterm::{execute, terminal::{enable_raw_mode, EnterAlternateScreen}};
-use ratatui::{backend::CrosstermBackend, Terminal};
-use std::io;
 
 pub struct TuiFrontend {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
+    /// Whether mouse capture was enabled at startup
+    mouse_capture: bool,
     /// Widget manager - handles all widget caches and synchronization
     widget_manager: WidgetManager,
     /// Active window editor (if any)
@@ -118,26 +125,36 @@ pub struct TuiFrontend {
     /// Theme cache to avoid HashMap lookup + clone every render
     theme_cache: ThemeCache,
     /// Session labels for tab bar (label, is_active, is_connected, unread)
-    pub session_labels: Vec<(String, bool, bool, usize)>,
+    /// (label, is_active, status_symbol, unread, sound_enabled, tts_enabled)
+    pub session_labels: Vec<(String, bool, String, usize, bool, bool)>,
     /// Whether to use compact tab display
     pub compact_tabs: bool,
+    /// Session picker screen (shown when no sessions are active)
+    pub session_picker: Option<session_picker::SessionPicker>,
+    /// Login wizard for adding a Direct eAccess session
+    pub login_wizard: Option<login_wizard::LoginWizard>,
 }
 
 impl TuiFrontend {
-    pub fn new() -> Result<Self> {
+    pub fn new(mouse_capture: bool) -> Result<Self> {
         // Setup terminal
         enable_raw_mode()?;
         let mut stdout = io::stdout();
-        execute!(
-            stdout,
-            EnterAlternateScreen,
-            crossterm::event::EnableMouseCapture
-        )?;
+        if mouse_capture {
+            execute!(
+                stdout,
+                EnterAlternateScreen,
+                crossterm::event::EnableMouseCapture
+            )?;
+        } else {
+            execute!(stdout, EnterAlternateScreen)?;
+        }
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
 
         Ok(Self {
             terminal,
+            mouse_capture,
             widget_manager: WidgetManager::new(),
             window_editor: None,
             indicator_template_editor: None,
@@ -157,6 +174,8 @@ impl TuiFrontend {
             theme_cache: ThemeCache::new(),
             session_labels: Vec::new(),
             compact_tabs: false,
+            session_picker: None,
+            login_wizard: None,
         })
     }
 
@@ -253,7 +272,11 @@ impl TuiFrontend {
         }
 
         // Try active_effects widget
-        if let Some(active_effects) = self.widget_manager.active_effects_windows.get_mut(window_name) {
+        if let Some(active_effects) = self
+            .widget_manager
+            .active_effects_windows
+            .get_mut(window_name)
+        {
             if lines > 0 {
                 active_effects.scroll_up(lines as usize);
             } else if lines < 0 {
@@ -327,10 +350,7 @@ impl TuiFrontend {
                         u8::from_str_radix(&hex[4..6], 16),
                     ) {
                         // OSC 4 format: ESC]4;<slot>;rgb:<rr>/<gg>/<bb>BEL
-                        let seq = format!(
-                            "\x1b]4;{};rgb:{:02x}/{:02x}/{:02x}\x07",
-                            slot, r, g, b
-                        );
+                        let seq = format!("\x1b]4;{};rgb:{:02x}/{:02x}/{:02x}\x07", slot, r, g, b);
                         backend.write_all(seq.as_bytes())?;
                         count += 1;
                     }
@@ -351,5 +371,11 @@ impl TuiFrontend {
         backend.flush()?;
         tracing::info!("Reset terminal palette to defaults");
         Ok(())
+    }
+
+    /// Swap out the current WidgetManager and return it, replacing with the given one.
+    /// Used for per-session widget state isolation on session switch.
+    pub fn swap_widget_manager(&mut self, incoming: WidgetManager) -> WidgetManager {
+        std::mem::replace(&mut self.widget_manager, incoming)
     }
 }

@@ -3,6 +3,7 @@
 pub mod clipboard;
 pub mod cmdlist;
 pub mod config;
+pub mod connection;
 pub mod core;
 pub mod credentials;
 pub mod data;
@@ -11,10 +12,7 @@ pub mod network;
 pub mod parser;
 pub mod performance;
 pub mod selection;
-pub mod session;
 pub mod session_cache;
-pub mod session_manager;
-pub mod sessions_config;
 pub mod sound;
 pub mod spell_abbrevs;
 pub mod theme;

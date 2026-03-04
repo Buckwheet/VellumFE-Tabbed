@@ -50,6 +50,8 @@ mod room_window_ops;
 mod runtime;
 mod scrollable_container;
 mod search;
+mod session_keys;
+pub mod session_picker;
 pub mod settings_editor;
 mod spacer;
 pub mod spell_color_browser;
@@ -127,10 +129,10 @@ pub struct TuiFrontend {
     pub session_labels: Vec<(String, bool, String, usize, bool, bool)>,
     /// Whether to use compact tab display
     pub compact_tabs: bool,
-    /// Show first-run setup screen (no connection.toml found)
-    pub show_setup_screen: bool,
-    /// Show password prompt (Direct connection with no saved password)
-    pub show_password_prompt: bool,
+    /// Session picker screen (shown when no sessions are active)
+    pub session_picker: Option<session_picker::SessionPicker>,
+    /// Login wizard for adding a Direct eAccess session
+    pub login_wizard: Option<login_wizard::LoginWizard>,
 }
 
 impl TuiFrontend {
@@ -191,8 +193,8 @@ impl TuiFrontend {
             theme_cache: ThemeCache::new(),
             session_labels: Vec::new(),
             compact_tabs: false,
-            show_setup_screen: false,
-            show_password_prompt: false,
+            session_picker: None,
+            login_wizard: None,
         })
     }
 

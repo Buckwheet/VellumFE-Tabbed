@@ -136,7 +136,7 @@ fn spawn_session_network(
                     crate::network::DirectConnection::start(cfg, server_tx, command_rx, raw_logger)
                         .await
                 {
-                    tracing::error!("Direct connection error: {}", e);
+                    tracing::error!("Direct connection error: {:#}", e);
                 }
             });
         }
@@ -232,7 +232,7 @@ async fn async_run(
     }
 
     // Create TUI frontend
-    let mut frontend = TuiFrontend::new()?;
+    let mut frontend = TuiFrontend::new(initial_app_core.config.ui.mouse_capture)?;
 
     // Restore window position for this character (if saved)
     if let Some(positioner) = crate::window_position::create_positioner() {
@@ -398,25 +398,98 @@ async fn async_run(
             login_key: login_key.clone(),
         }
     };
-    let initial_label = character
-        .clone()
-        .unwrap_or_else(|| format!("{}:{}", host, port));
-    let initial_id = session_manager.add(initial_label.clone(), initial_mode);
-    if let Some(s) = session_manager.get_mut(initial_id) {
-        if let Some(rx) = s.server_rx.take() {
-            session_rxs.insert(initial_id, rx);
-        }
-        // Only connect if we have explicit CLI args or saved sessions (not first run)
-        let should_connect =
-            _direct_cfg.is_some() || character.is_some() || !sessions_config.sessions.is_empty();
-        if should_connect {
-            if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
-                s.command_tx = Some(tx);
+    // Only create the initial session if we have CLI args (direct or lich) — otherwise
+    // saved sessions will be connected via the picker and we don't want a phantom Lich tab.
+    let has_cli_session = _direct_cfg.is_some() || character.is_some();
+    let initial_id = if has_cli_session || sessions_config.sessions.is_empty() {
+        let initial_label = character
+            .clone()
+            .unwrap_or_else(|| format!("{}:{}", host, port));
+        let id = session_manager.add(initial_label.clone(), initial_mode);
+        if let Some(s) = session_manager.get_mut(id) {
+            if let Some(rx) = s.server_rx.take() {
+                session_rxs.insert(id, rx);
+            }
+            if has_cli_session {
+                if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                    s.command_tx = Some(tx);
+                }
             }
         }
-    }
-    // Move the initial AppCore into the map
-    app_cores.insert(initial_id, initial_app_core);
+        app_cores.insert(id, initial_app_core);
+        id
+    } else {
+        // No CLI args and saved sessions exist — pre-populate session_manager from config
+        // so picker indices match session_manager indices. None are connected yet.
+        let mut first_id = None;
+        let mut initial_app_core_opt = Some(initial_app_core);
+        for entry in &sessions_config.sessions {
+            let mode = match &entry.mode {
+                crate::sessions_config::SessionModeConfig::Direct => {
+                    if let (Some(acct), Some(ch), Some(gc)) =
+                        (&entry.account, &entry.character, &entry.game_code)
+                    {
+                        ConnectionMode::Direct {
+                            account: acct.clone(),
+                            password: String::new(), // loaded from keychain on connect
+                            character: ch.clone(),
+                            game_code: gc.clone(),
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                crate::sessions_config::SessionModeConfig::Lich => {
+                    if let (Some(h), Some(p)) = (&entry.host, entry.port) {
+                        ConnectionMode::LichProxy {
+                            host: h.clone(),
+                            port: p,
+                            login_key: None,
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+            };
+            let id = session_manager.add(entry.label.clone(), mode);
+            if let Some(s) = session_manager.get_mut(id) {
+                if let Some(rx) = s.server_rx.take() {
+                    session_rxs.insert(id, rx);
+                }
+            }
+            if first_id.is_none() {
+                first_id = Some(id);
+                app_cores.insert(id, initial_app_core_opt.take().unwrap());
+            } else {
+                if let Ok(ac) =
+                    create_app_core_for_session(&session_manager.get(id).unwrap().mode, &config)
+                {
+                    app_cores.insert(id, ac);
+                }
+            }
+            widget_managers.insert(
+                id,
+                crate::frontend::tui::widget_manager::WidgetManager::new(),
+            );
+        }
+        first_id.unwrap_or_else(|| {
+            // Fallback: shouldn't happen, but add a dummy if sessions list was empty after filtering
+            let id = session_manager.add(
+                String::new(),
+                ConnectionMode::Direct {
+                    account: String::new(),
+                    password: String::new(),
+                    character: String::new(),
+                    game_code: String::new(),
+                },
+            );
+            let ac = initial_app_core_opt
+                .take()
+                .unwrap_or_else(|| AppCore::new(config.clone()).unwrap());
+            app_cores.insert(id, ac);
+            id
+        })
+    };
     // Initial session gets the current frontend widget_manager (already populated by startup sync)
     // We don't pre-insert here — it will be saved on first switch away from this session.
 
@@ -911,8 +984,61 @@ fn handle_picker_command(
                 let new_sid = session_manager.active().map(|s| s.id);
                 if let Some(nid) = new_sid {
                     do_session_switch(prev_sid, nid, frontend, widget_managers);
+                    // If this session was never connected, spawn it now
+                    if let Some(s) = session_manager.get_mut(nid) {
+                        if s.command_tx.is_none() {
+                            if let ConnectionMode::Direct {
+                                ref account,
+                                ref mut password,
+                                ..
+                            } = s.mode
+                            {
+                                if password.is_empty() {
+                                    if let Some(pw) = crate::credentials::get_password(account) {
+                                        *password = pw;
+                                    }
+                                }
+                            }
+                            if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                                s.command_tx = Some(tx);
+                            }
+                        }
+                    }
                 }
                 frontend.session_picker = None;
+            }
+        }
+        cmd if cmd.starts_with("//picker:connect_pw:") => {
+            let rest = &cmd["//picker:connect_pw:".len()..];
+            if let Some(null_pos) = rest.find('\x00') {
+                let idx_str = &rest[..null_pos];
+                let pw = &rest[null_pos + 1..];
+                if let Ok(idx) = idx_str.parse::<usize>() {
+                    let prev_sid = session_manager.active().map(|s| s.id);
+                    session_manager.set_active_by_index(idx);
+                    let new_sid = session_manager.active().map(|s| s.id);
+                    if let Some(nid) = new_sid {
+                        do_session_switch(prev_sid, nid, frontend, widget_managers);
+                        if let Some(s) = session_manager.get_mut(nid) {
+                            if s.command_tx.is_none() {
+                                // Store password in keychain and set on session
+                                if let ConnectionMode::Direct {
+                                    ref account,
+                                    ref mut password,
+                                    ..
+                                } = s.mode
+                                {
+                                    crate::credentials::store_password(account, pw);
+                                    *password = pw.to_string();
+                                }
+                                if let Some(tx) = spawn_session_network(s, raw_logger.clone()) {
+                                    s.command_tx = Some(tx);
+                                }
+                            }
+                        }
+                    }
+                    frontend.session_picker = None;
+                }
             }
         }
         cmd if cmd.starts_with("//picker:remove:") => {
@@ -993,14 +1119,30 @@ fn handle_wizard_command(
             if parts.len() == 4 {
                 let (account, password, game_code, character) =
                     (parts[0], parts[1], parts[2], parts[3]);
-                // Add as Direct session
+                // Add as Direct session (deduplicate by character name)
                 let mode = crate::session::ConnectionMode::Direct {
                     account: account.to_string(),
                     password: password.to_string(),
                     character: character.to_string(),
                     game_code: game_code.to_string(),
                 };
-                let id = session_manager.add(character.to_string(), mode.clone());
+                // Reuse existing session for this character if one exists
+                let existing_id = session_manager.all().iter().find(|s| {
+                    matches!(&s.mode, crate::session::ConnectionMode::Direct { character: c, .. } if c == character)
+                }).map(|s| s.id);
+                let id = if let Some(eid) = existing_id {
+                    if let Some(s) = session_manager.get_mut(eid) {
+                        if let crate::session::ConnectionMode::Direct {
+                            ref mut password, ..
+                        } = s.mode
+                        {
+                            *password = password.to_string();
+                        }
+                    }
+                    eid
+                } else {
+                    session_manager.add(character.to_string(), mode.clone())
+                };
                 if let Some(s) = session_manager.get_mut(id) {
                     if let Some(rx) = s.server_rx.take() {
                         session_rxs.insert(id, rx);

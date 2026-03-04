@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+# Ensure cargo is in PATH (rustup installs to ~/.cargo/bin)
+export PATH="$HOME/.cargo/bin:$PATH"
+
 echo "▶ cargo check..."
 cargo check --quiet 2>&1 || { echo "✗ cargo check failed"; exit 1; }
 

@@ -119,18 +119,61 @@ impl super::TuiFrontend {
         modifiers: crate::frontend::KeyModifiers,
         app_core: &mut crate::core::AppCore,
     ) -> Result<Option<String>> {
+        use super::session_keys;
         use crate::data::window::WidgetType;
         use crate::frontend::KeyCode;
 
-        // Ctrl+C always quits, regardless of state
+        // Ctrl+C always quits, regardless of state (picker, wizard, connecting, etc.)
         if modifiers.ctrl && matches!(code, KeyCode::Char('c') | KeyCode::Char('C')) {
             app_core.quit();
             return Ok(None);
         }
 
-        // If setup screen is active, dismiss on any key
-        if self.show_setup_screen || self.show_password_prompt {
-            return Ok(Some("//setup:dismiss".to_string()));
+        // If login wizard is active, route all keys to it
+        if self.login_wizard.is_some() {
+            return self.handle_wizard_keys(code, modifiers, app_core);
+        }
+
+        // If session picker is active, route all keys to it
+        if self.session_picker.is_some() {
+            return self.handle_picker_keys(code, modifiers, app_core);
+        }
+
+        // Session switching shortcuts - handle before other keys
+        if modifiers == crate::frontend::KeyModifiers::CTRL {
+            match code {
+                KeyCode::Char('1') => return Ok(Some(session_keys::SessionCmd::switch(1))),
+                KeyCode::Char('2') => return Ok(Some(session_keys::SessionCmd::switch(2))),
+                KeyCode::Char('3') => return Ok(Some(session_keys::SessionCmd::switch(3))),
+                KeyCode::Char('4') => return Ok(Some(session_keys::SessionCmd::switch(4))),
+                KeyCode::Char('5') => return Ok(Some(session_keys::SessionCmd::switch(5))),
+                KeyCode::Char('6') => return Ok(Some(session_keys::SessionCmd::switch(6))),
+                KeyCode::Char('7') => return Ok(Some(session_keys::SessionCmd::switch(7))),
+                KeyCode::Char('8') => return Ok(Some(session_keys::SessionCmd::switch(8))),
+                KeyCode::Char('9') => return Ok(Some(session_keys::SessionCmd::switch(9))),
+                KeyCode::Tab => return Ok(Some(session_keys::SessionCmd::next().to_string())),
+                KeyCode::Right => return Ok(Some(session_keys::SessionCmd::next().to_string())),
+                KeyCode::Char('n') => return Ok(Some("//picker:open_wizard".to_string())),
+                KeyCode::Char('b') => return Ok(Some("//session:broadcast".to_string())),
+                KeyCode::Char('c') if modifiers.shift => {
+                    return Ok(Some(session_keys::SessionCmd::compact().to_string()))
+                }
+                KeyCode::Char('s') if modifiers.shift => {
+                    return Ok(Some(session_keys::SessionCmd::sound().to_string()))
+                }
+                KeyCode::Char('t') if modifiers.shift => {
+                    return Ok(Some(session_keys::SessionCmd::tts().to_string()))
+                }
+                _ => {}
+            }
+        }
+
+        if modifiers == crate::frontend::KeyModifiers::SHIFT {
+            match code {
+                KeyCode::BackTab => return Ok(Some(session_keys::SessionCmd::prev().to_string())),
+                KeyCode::Left => return Ok(Some(session_keys::SessionCmd::prev().to_string())),
+                _ => {}
+            }
         }
 
         let focused_name = app_core.get_focused_window_name();
@@ -508,5 +551,113 @@ impl super::TuiFrontend {
                 Some(app_core.request_menu(exist, noun, click_pos))
             }
         }
+    }
+
+    /// Handle keyboard input when the login wizard is active.
+    pub(super) fn handle_wizard_keys(
+        &mut self,
+        code: crate::frontend::KeyCode,
+        _modifiers: crate::frontend::KeyModifiers,
+        app_core: &mut crate::core::AppCore,
+    ) -> Result<Option<String>> {
+        use crate::frontend::KeyCode;
+
+        let wizard = match &mut self.login_wizard {
+            Some(w) => w,
+            None => return Ok(None),
+        };
+
+        match code {
+            KeyCode::Up => wizard.move_up(),
+            KeyCode::Down => wizard.move_down(),
+            KeyCode::Tab => wizard.tab(),
+            KeyCode::Backspace => wizard.backspace(),
+            KeyCode::Esc => wizard.back(),
+            KeyCode::Enter => {
+                let fetch_needed = wizard.confirm();
+                if fetch_needed {
+                    // Signal runtime to fetch character list
+                    app_core.needs_render = true;
+                    return Ok(Some("//wizard:fetch_chars".to_string()));
+                }
+            }
+            KeyCode::Char(c) => wizard.type_char(c),
+            _ => {}
+        }
+
+        app_core.needs_render = true;
+
+        // Check for result
+        if let Some(result) = &wizard.result {
+            let cmd = match result {
+                super::login_wizard::WizardResult::Connect {
+                    account,
+                    password,
+                    game_code,
+                    character,
+                } => format!(
+                    "//wizard:connect:{}:{}:{}:{}",
+                    account, password, game_code, character
+                ),
+                super::login_wizard::WizardResult::Cancel => "//wizard:cancel".to_string(),
+            };
+            return Ok(Some(cmd));
+        }
+
+        Ok(None)
+    }
+
+    pub(super) fn handle_picker_keys(
+        &mut self,
+        code: crate::frontend::KeyCode,
+        _modifiers: crate::frontend::KeyModifiers,
+        app_core: &mut crate::core::AppCore,
+    ) -> Result<Option<String>> {
+        use crate::frontend::KeyCode;
+
+        let picker = match &mut self.session_picker {
+            Some(p) => p,
+            None => return Ok(None),
+        };
+
+        match code {
+            KeyCode::Up => picker.move_up(),
+            KeyCode::Down => picker.move_down(),
+            KeyCode::Tab => picker.tab_field(),
+            KeyCode::F(2) => picker.toggle_mode(),
+            KeyCode::Enter => picker.confirm(),
+            KeyCode::Delete | KeyCode::Backspace
+                if picker.focus == super::session_picker::PickerFocus::List =>
+            {
+                picker.remove_selected();
+            }
+            KeyCode::Backspace => picker.backspace(),
+            KeyCode::Esc => picker.cancel_form(),
+            KeyCode::Char(c) => picker.type_char(c),
+            _ => {}
+        }
+
+        app_core.needs_render = true;
+
+        // Check if picker produced an action — return as special command for runtime
+        if let Some(action) = &picker.action {
+            let cmd = match action {
+                super::session_picker::PickerAction::Connect(i) => {
+                    format!("//picker:connect:{}", i)
+                }
+                super::session_picker::PickerAction::ConnectWithPassword(i, pw) => {
+                    format!("//picker:connect_pw:{}\x00{}", i, pw)
+                }
+                super::session_picker::PickerAction::Remove(i) => format!("//picker:remove:{}", i),
+                super::session_picker::PickerAction::AddSession(_) => "//picker:add".to_string(),
+                super::session_picker::PickerAction::OpenWizard => {
+                    "//picker:open_wizard".to_string()
+                }
+                super::session_picker::PickerAction::Quit => "//picker:quit".to_string(),
+            };
+            return Ok(Some(cmd));
+        }
+
+        Ok(None)
     }
 }
