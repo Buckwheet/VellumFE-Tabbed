@@ -106,6 +106,21 @@ lich_port = 8000
 
 ---
 
+## Known Bugs / Next Session Fixes
+
+1. **Paste in edit form is broken** — pasting into a field (e.g. password) erases previously
+   typed content in earlier fields and scatters the pasted text into the wrong field.
+   Root cause: paste events are likely being delivered as individual key chars and not
+   scoped to the currently focused field. Fix: intercept paste events in `handle_wizard_keys`
+   and route them only to the active field via a new `paste_str(&mut self, s: &str)` method
+   on `ProfilePicker`.
+
+2. **Paste support needed** — users should be able to paste into any field in the edit form,
+   especially the password field. The picker needs to handle `KeyCode::Paste(text)` /
+   crossterm paste events and insert the text into the active field only.
+
+---
+
 ## What's NOT done yet (next session)
 
 1. **Lich subprocess launch** — currently assumes Lich is already running on the configured port.
