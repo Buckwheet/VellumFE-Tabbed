@@ -89,15 +89,18 @@ async fn async_run(
     // Restore window position
     if let Some(positioner) = crate::window_position::create_positioner() {
         if let Ok(Some(saved)) = crate::window_position::load(character.as_deref()) {
-            use crate::window_position::WindowPositionerExt;
-            let rect = if positioner.is_visible(&saved.window) {
-                saved.window
-            } else {
-                positioner
-                    .clamp_to_screen(&saved.window)
-                    .unwrap_or(saved.window)
-            };
-            let _ = positioner.set_position(&rect);
+            // Skip restore if no valid size was ever saved
+            if saved.window.width > 0 && saved.window.height > 0 {
+                use crate::window_position::WindowPositionerExt;
+                let rect = if positioner.is_visible(&saved.window) {
+                    saved.window
+                } else {
+                    positioner
+                        .clamp_to_screen(&saved.window)
+                        .unwrap_or(saved.window)
+                };
+                let _ = positioner.set_position(&rect);
+            }
         }
     }
 
@@ -237,6 +240,7 @@ async fn async_run(
 
     let mut server_rx = server_rx;
     let mut last_countdown_update = std::time::Instant::now();
+    let mut last_position_save = std::time::Instant::now();
     let mut running = true;
 
     while running {
@@ -403,6 +407,21 @@ async fn async_run(
         if last_countdown_update.elapsed().as_secs() >= 1 {
             app_core.needs_render = true;
             last_countdown_update = std::time::Instant::now();
+        }
+
+        if last_position_save.elapsed().as_secs() >= 30 {
+            if let Some(positioner) = crate::window_position::create_positioner() {
+                if let (Ok(rect), Ok(screens)) =
+                    (positioner.get_position(), positioner.get_screen_bounds())
+                {
+                    let cfg = crate::window_position::WindowPositionConfig {
+                        window: rect,
+                        monitors: screens,
+                    };
+                    let _ = crate::window_position::save(character.as_deref(), &cfg);
+                }
+            }
+            last_position_save = std::time::Instant::now();
         }
 
         app_core.perf_stats.sample_sysinfo();
