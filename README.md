@@ -1,6 +1,6 @@
 # VellumFE-Tabbed
 
-A terminal frontend for **GemStone IV** (and DragonRealms) built in Rust. Run multiple characters simultaneously in a single terminal window — no Electron, no JVM.
+A terminal frontend for **GemStone IV** (and DragonRealms) built in Rust. No Electron, no JVM — just a compiled binary.
 
 Built on [VellumFE](https://github.com/Nisugi/VellumFE) by Nisugi.
 
@@ -8,14 +8,15 @@ Built on [VellumFE](https://github.com/Nisugi/VellumFE) by Nisugi.
 
 ## What it does
 
-- **Multi-session** — up to 15 simultaneous sessions, each with isolated state, in one window
-- **Profile manager** — Warlock-style TUI picker on every launch; save named character profiles (account, character, game, optional Lich proxy); passwords stored in the OS keychain
-- **Direct login** — authenticates directly via eAccess (no Lich required); fetches your character list automatically
-- **Lich proxy** — connect through a running Lich instance instead
-- **Tab bar** — live status indicators per session (●=connected, …=connecting, ↻=reconnecting, !=error), unread badges, compact mode (Ctrl+Shift+C)
-- **Broadcast** — Ctrl+B sends the next command to all sessions at once
-- **Highlights** — global + per-character overrides; Lich scripts can push highlight changes at runtime via XML tags
-- **Themes, layouts, TTS, sound alerts** — all inherited from VellumFE; layout editor (F2), highlight browser (F3)
+The main addition over upstream VellumFE is a **Warlock-style profile manager** shown on every launch:
+
+- Save named character profiles (account, character, game, optional Lich proxy host/port)
+- Passwords stored in the OS keychain — never in plain text
+- Character list fetched automatically from eAccess when you enter your account name
+- Connect directly via eAccess (no Lich required) or through a running Lich instance
+- Arrow-key navigation, Left/Right to cycle games, N/E/D to create/edit/delete profiles
+
+Everything else is inherited from VellumFE: regex highlights, Aho-Corasick matching, sound alerts, TTS, layout editor (F2), highlight browser (F3), themes, squelch patterns, stream routing.
 
 ---
 
@@ -23,7 +24,7 @@ Built on [VellumFE](https://github.com/Nisugi/VellumFE) by Nisugi.
 
 ### Pre-built binary (Windows recommended)
 
-Download from [Releases](https://github.com/Buckwheet/VellumFE-Tabbed/releases), unzip, run `vellum-fe-tabbed.exe`.
+Download from [Releases](https://github.com/Buckwheet/VellumFE-Tabbed/releases), unzip, run `vellum-fe.exe`.
 
 ### Build from source
 
@@ -45,40 +46,43 @@ sudo apt install libdbus-1-dev pkg-config
 
 ## First launch
 
-On first launch the profile picker opens automatically. Press `N` to create a new profile:
+The profile picker opens automatically. Press `N` to create a new profile:
 
 1. Enter a profile name (e.g. `Brashka - Prime`)
 2. Enter your SGE account name — your character list loads automatically
-3. Pick a character and game (Left/Right arrows cycle games)
-4. Optionally configure a Lich proxy host/port
+3. Pick a character; use Left/Right arrows to cycle games (Prime, Platinum, Shattered, DragonRealms)
+4. Optionally set a Lich proxy host/port
 5. Press Enter to save and connect
 
-Passwords are stored in the OS keychain (Windows Credential Manager, macOS Keychain, Linux libsecret) — never in plain text.
+On subsequent launches, select a profile and press Enter.
 
 ---
 
-## Keyboard shortcuts
+## Profile picker keys
 
 | Key | Action |
 |-----|--------|
-| Ctrl+1–9 | Switch to session 1–9 |
-| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous session |
-| Ctrl+T | New session |
-| Ctrl+W | Close current session |
-| Ctrl+B | Broadcast next command to all sessions |
-| Ctrl+Shift+C | Toggle compact tab bar |
-| F2 | Layout editor |
-| F3 | Highlight browser |
-
-**Profile picker** (shown on launch):
-
-| Key | Action |
-|-----|--------|
+| Up / Down | Navigate profiles |
+| Enter | Connect |
 | N | New profile |
 | E | Edit selected profile |
 | D | Delete selected profile |
-| Enter | Connect |
 | Left / Right | Cycle game (in edit mode, Game field) |
+
+---
+
+## CLI flags
+
+```bash
+# Skip the picker and connect to a named profile
+vellum-fe --profile "Brashka - Prime"
+
+# Connect via Lich proxy directly
+vellum-fe --port 8000
+
+# Direct eAccess login without the picker
+vellum-fe --direct --account myaccount --character Brashka
+```
 
 ---
 
@@ -111,7 +115,6 @@ Add `persist="true"` to save to disk.
 ## Credits
 
 - [VellumFE](https://github.com/Nisugi/VellumFE) by Nisugi — core engine
-- [Illthorn](https://github.com/elanthia-online/illthorn) — multi-session inspiration
 - [Warlock](https://github.com/WarlockFE/warlock3) — profile picker UX inspiration
 
 ## License
