@@ -365,21 +365,50 @@ async fn async_run(
                                         .replace("{host}", &game_host)
                                         .replace("{port}", &game_port.to_string());
                                     tracing::info!("Launching Lich: {}", cmd);
+                                    let log_file_stdio =
+                                        crate::config::Config::base_dir().ok().and_then(|d| {
+                                            std::fs::OpenOptions::new()
+                                                .create(true)
+                                                .append(true)
+                                                .open(d.join("vellum-fe.log"))
+                                                .ok()
+                                        });
                                     #[cfg(target_os = "windows")]
                                     let child = {
                                         use std::os::windows::process::CommandExt;
-                                        const DETACHED_PROCESS: u32 = 0x00000008;
-                                        std::process::Command::new("cmd")
-                                            .args(["/C", &cmd])
-                                            .creation_flags(DETACHED_PROCESS)
-                                            .spawn()
+                                        const CREATE_NO_WINDOW: u32 = 0x08000000;
+                                        let mut c = std::process::Command::new("cmd");
+                                        c.args(["/C", &cmd]).creation_flags(CREATE_NO_WINDOW);
+                                        if let Some(f) = log_file_stdio {
+                                            if let Ok(f2) = f.try_clone() {
+                                                c.stdout(f).stderr(f2);
+                                            } else {
+                                                c.stdout(std::process::Stdio::null())
+                                                    .stderr(std::process::Stdio::null());
+                                            }
+                                        } else {
+                                            c.stdout(std::process::Stdio::null())
+                                                .stderr(std::process::Stdio::null());
+                                        }
+                                        c.spawn()
                                     };
                                     #[cfg(not(target_os = "windows"))]
-                                    let child = std::process::Command::new("sh")
-                                        .args(["-c", &cmd])
-                                        .stdout(std::process::Stdio::null())
-                                        .stderr(std::process::Stdio::null())
-                                        .spawn();
+                                    let child = {
+                                        let mut c = std::process::Command::new("sh");
+                                        c.args(["-c", &cmd]);
+                                        if let Some(f) = log_file_stdio {
+                                            if let Ok(f2) = f.try_clone() {
+                                                c.stdout(f).stderr(f2);
+                                            } else {
+                                                c.stdout(std::process::Stdio::null())
+                                                    .stderr(std::process::Stdio::null());
+                                            }
+                                        } else {
+                                            c.stdout(std::process::Stdio::null())
+                                                .stderr(std::process::Stdio::null());
+                                        }
+                                        c.spawn()
+                                    };
                                     match child {
                                         Ok(_) => tracing::info!("Lich process launched"),
                                         Err(e) => tracing::warn!("Failed to launch Lich: {}", e),
